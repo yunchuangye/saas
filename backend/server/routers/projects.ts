@@ -202,7 +202,7 @@ export const projectsRouter = router({
 
   // 更新项目状态
   updateStatus: protectedProcedure
-    .input(z.object({ id: z.number(), status: z.enum(["bidding", "active", "completed", "cancelled"]) }))
+    .input(z.object({ id: z.number(), status: z.enum(["bidding", "awarded", "active", "surveying", "reporting", "reviewing", "completed", "cancelled"]) }))
     .mutation(async ({ input, ctx }) => {
       await ctx.db
         .update(projects)

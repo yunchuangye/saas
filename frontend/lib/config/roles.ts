@@ -103,6 +103,12 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       ],
     },
     {
+      title: "团队管理",
+      items: [
+        { title: "员工账户", href: "/dashboard/appraiser/team", icon: Users },
+      ],
+    },
+    {
       title: "项目管理",
       items: [
         { title: "全部项目", href: "/dashboard/appraiser/projects", icon: FolderOpen, badge: 12 },
@@ -136,6 +142,12 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       ],
     },
     {
+      title: "团队管理",
+      items: [
+        { title: "员工账户", href: "/dashboard/bank/team", icon: Users },
+      ],
+    },
+    {
       title: "需求管理",
       items: [
         { title: "发起需求", href: "/dashboard/bank/demand/new", icon: Send },
@@ -166,6 +178,12 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       items: [
         { title: "首页", href: "/dashboard/investor", icon: Home },
         { title: "数据统计", href: "/dashboard/investor/analytics", icon: BarChart3 },
+      ],
+    },
+    {
+      title: "团队管理",
+      items: [
+        { title: "员工账户", href: "/dashboard/investor/team", icon: Users },
       ],
     },
     {

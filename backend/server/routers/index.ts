@@ -7,6 +7,7 @@ import { notificationsRouter, messagesRouter } from "./notifications";
 import { directoryRouter } from "./directory";
 import { valuationRouter } from "./valuation";
 import { orgRouter, openclawRouter, logsRouter, adminUsersRouter } from "./org";
+import { teamRouter } from "./team";
 
 export const appRouter = router({
   auth: authRouter,
@@ -22,6 +23,7 @@ export const appRouter = router({
   openclaw: openclawRouter,
   logs: logsRouter,
   adminUsers: adminUsersRouter,
+  team: teamRouter,
 });
 
 export type AppRouter = typeof appRouter;

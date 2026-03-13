@@ -219,10 +219,12 @@ export const adminUsersRouter = router({
           phone: users.phone,
           role: users.role,
           orgId: users.orgId,
+          orgName: organizations.name,
           isActive: users.isActive,
           createdAt: users.createdAt,
         })
         .from(users)
+        .leftJoin(organizations, eq(users.orgId, organizations.id))
         .where(conditions.length > 0 ? and(...conditions) : undefined)
         .orderBy(desc(users.createdAt))
         .limit(pageSize)
@@ -234,6 +236,54 @@ export const adminUsersRouter = router({
         .where(conditions.length > 0 ? and(...conditions) : undefined);
 
       return { items, total: totalResult.count, page, pageSize };
+    }),
+
+  // 创建用户
+  create: adminProcedure
+    .input(z.object({
+      username: z.string(),
+      password: z.string(),
+      realName: z.string().optional(),
+      email: z.string().optional(),
+      phone: z.string().optional(),
+      role: z.enum(["appraiser", "bank", "investor", "customer", "admin"]),
+      orgId: z.number().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const bcrypt = await import("bcryptjs");
+      const passwordHash = await bcrypt.hash(input.password, 10);
+      const [result] = await ctx.db.insert(users).values({
+        username: input.username,
+        passwordHash,
+        realName: input.realName || null,
+        email: input.email || null,
+        phone: input.phone || null,
+        role: input.role,
+        orgId: input.orgId || null,
+        isActive: true,
+      });
+      return { id: (result as any).insertId, success: true };
+    }),
+
+  // 更新用户信息
+  update: adminProcedure
+    .input(z.object({
+      id: z.number(),
+      realName: z.string().optional(),
+      email: z.string().optional(),
+      phone: z.string().optional(),
+      orgId: z.number().optional(),
+      password: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { id, password, ...data } = input;
+      const updateData: any = { ...data, updatedAt: new Date() };
+      if (password) {
+        const bcrypt = await import("bcryptjs");
+        updateData.passwordHash = await bcrypt.hash(password, 10);
+      }
+      await ctx.db.update(users).set(updateData).where(eq(users.id, id));
+      return { success: true };
     }),
 
   // 更新用户状态
