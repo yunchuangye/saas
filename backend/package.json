@@ -20,6 +20,7 @@
     "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.6.5",
+    "openai": "^6.27.0",
     "superjson": "^2.2.6",
     "zod": "^3.24.1"
   },

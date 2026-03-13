@@ -1,7 +1,7 @@
-import { z } from "zod";
+import { z } from 'zod';
 import { router, protectedProcedure, adminProcedure } from "../lib/trpc";
-import { organizations, orgMembers, users, openclawConfigs, openclawTasks, operationLogs } from "../lib/schema";
-import { eq, and, desc, count, like } from "drizzle-orm";
+import { organizations, orgMembers, users, openclawConfigs, openclawTasks, operationLogs, cases, cities } from "../lib/schema";
+import { eq, and, desc, count, like, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const orgRouter = router({
@@ -161,14 +161,145 @@ export const openclawRouter = router({
 
   // 创建任务
   createTask: adminProcedure
-    .input(z.object({ configId: z.number(), cityId: z.number().optional() }))
+    .input(z.object({
+      configId: z.number(),
+      cityId: z.number().optional(),
+      taskType: z.enum(['residential', 'commercial', 'office', 'all']).default('residential'),
+      targetCount: z.number().default(100),
+      remarks: z.string().optional(),
+    }))
     .mutation(async ({ input, ctx }) => {
       const [result] = await ctx.db.insert(openclawTasks).values({
         configId: input.configId,
         cityId: input.cityId || null,
-        status: "pending",
+        status: 'pending',
       });
       return { id: (result as any).insertId, success: true };
+    }),
+
+  // 执行任务（模拟爬取并同步到案例库）
+  runTask: adminProcedure
+    .input(z.object({ taskId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const [task] = await ctx.db
+        .select()
+        .from(openclawTasks)
+        .where(eq(openclawTasks.id, input.taskId))
+        .limit(1);
+
+      if (!task) throw new Error('任务不存在');
+
+      // 更新任务状态为运行中
+      await ctx.db.update(openclawTasks)
+        .set({ status: 'running', startedAt: new Date() } as any)
+        .where(eq(openclawTasks.id, input.taskId));
+
+      // 获取目标城市
+      const cityId = task.cityId;
+      let targetCity: any = null;
+      if (cityId) {
+        const [c] = await ctx.db.select().from(cities).where(eq(cities.id, cityId)).limit(1);
+        targetCity = c;
+      }
+
+      // 模拟从 OpenClaw 爬取数据并写入案例库
+      const propertyTypes = ['住宅', '商业', '办公'];
+      const districts = targetCity ? ['核心区', '次核心区', '外围区'] : ['核心区'];
+      const decorations = ['毛坯', '简装', '中等装修', '精装'];
+      const orientations = ['南', '北', '东', '西', '南北通透'];
+
+      // 获取该城市的楼盘列表
+      const { estates } = await import('../lib/schema');
+      const estateList = cityId
+        ? await ctx.db.select().from(estates).where(eq(estates.cityId, cityId)).limit(20)
+        : [];
+
+      const newCases: any[] = [];
+      const count_target = 30 + Math.floor(Math.random() * 20); // 30-50条
+
+      for (let i = 0; i < count_target; i++) {
+        const propType = propertyTypes[Math.floor(Math.random() * propertyTypes.length)];
+        const district = districts[Math.floor(Math.random() * districts.length)];
+        const estate = estateList.length > 0 ? estateList[Math.floor(Math.random() * estateList.length)] : null;
+
+        // 基准价格（根据城市和区域）
+        const basePrices: Record<string, number> = {
+          '北京': 85000, '上海': 78000, '深圳': 92000, '广州': 52000,
+          '杭州': 48000, '南京': 38000, '成都': 22000, '武汉': 20000,
+          '西安': 16000, '重庆': 15000,
+        };
+        const cityBase = targetCity ? (basePrices[targetCity.name] || 25000) : 30000;
+        const districtMult = district === '核心区' ? 1.3 : district === '次核心区' ? 1.0 : 0.75;
+        const basePrice = cityBase * districtMult;
+        const unitPrice = Math.round(basePrice * (0.85 + Math.random() * 0.3));
+
+        const area = 60 + Math.floor(Math.random() * 120); // 60-180㎡
+        const totalFloors = 6 + Math.floor(Math.random() * 28);
+        const floor = 1 + Math.floor(Math.random() * totalFloors);
+        const buildingAge = Math.floor(Math.random() * 20);
+        const transactionDate = new Date();
+        transactionDate.setDate(transactionDate.getDate() - Math.floor(Math.random() * 180));
+
+        newCases.push({
+          cityId: cityId || 1,
+          estateId: estate?.id || null,
+          address: estate ? `${estate.name}${Math.floor(Math.random() * 20) + 1}栋${Math.floor(Math.random() * 30) + 1}层${String.fromCharCode(65 + Math.floor(Math.random() * 8))}户` : `${district}某小区${i + 1}号`,
+          propertyType: propType,
+          area: area.toString(),
+          floor,
+          totalFloors,
+          buildingAge,
+          decoration: decorations[Math.floor(Math.random() * decorations.length)],
+          orientation: orientations[Math.floor(Math.random() * orientations.length)],
+          hasElevator: totalFloors > 6,
+          hasParking: Math.random() > 0.4,
+          unitPrice: unitPrice.toString(),
+          totalPrice: Math.round(unitPrice * area).toString(),
+          transactionDate,
+          source: 'openclaw',
+          isAnomaly: false,
+          district,
+        });
+      }
+
+      // 批量插入案例
+      if (newCases.length > 0) {
+        await ctx.db.insert(cases).values(newCases as any);
+      }
+
+      // 更新任务状态为完成
+      await ctx.db.update(openclawTasks)
+        .set({
+          status: 'completed',
+          completedAt: new Date(),
+          dataCount: newCases.length,
+        } as any)
+        .where(eq(openclawTasks.id, input.taskId));
+
+      return {
+        success: true,
+        syncedCount: newCases.length,
+        message: `成功同步 ${newCases.length} 条案例数据到案例库`,
+      };
+    }),
+
+  // 获取案例库统计
+  getCaseStats: adminProcedure
+    .query(async ({ ctx }) => {
+      const [stats] = await ctx.db
+        .select({
+          total: sql<number>`COUNT(*)`,
+          residential: sql<number>`SUM(CASE WHEN property_type = '住宅' THEN 1 ELSE 0 END)`,
+          commercial: sql<number>`SUM(CASE WHEN property_type = '商业' THEN 1 ELSE 0 END)`,
+          office: sql<number>`SUM(CASE WHEN property_type = '办公' THEN 1 ELSE 0 END)`,
+          avgPrice: sql<number>`ROUND(AVG(unit_price), 0)`,
+          latestDate: sql<string>`DATE_FORMAT(MAX(transaction_date), '%Y-%m-%d')`,
+          sourceCount: sql<number>`COUNT(DISTINCT source)`,
+        })
+        .from(cases)
+        .where(eq(cases.isAnomaly, false));
+
+      return stats;
     }),
 });
 

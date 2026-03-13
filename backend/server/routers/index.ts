@@ -8,6 +8,8 @@ import { directoryRouter } from "./directory";
 import { valuationRouter } from "./valuation";
 import { orgRouter, openclawRouter, logsRouter, adminUsersRouter } from "./org";
 import { teamRouter } from "./team";
+import { autoValuationRouter } from './auto-valuation';
+import { pdfReportRouter } from './pdf-report';
 
 export const appRouter = router({
   auth: authRouter,
@@ -24,6 +26,8 @@ export const appRouter = router({
   logs: logsRouter,
   adminUsers: adminUsersRouter,
   team: teamRouter,
+  autoValuation: autoValuationRouter,
+  pdfReport: pdfReportRouter,
 });
 
 export type AppRouter = typeof appRouter;
