@@ -25,7 +25,12 @@ export const projectsRouter = router({
 
       const role = ctx.user.role;
       if (role === "appraiser" && ctx.user.orgId) {
-        conditions.push(eq(projects.assignedOrgId, ctx.user.orgId));
+        // 评估师可以看到：分配给自己组织的项目 OR 自己创建的项目
+        const { or } = await import("drizzle-orm");
+        conditions.push(or(
+          eq(projects.assignedOrgId, ctx.user.orgId),
+          eq(projects.clientId, ctx.user.id)
+        ) as any);
       } else if ((role === "bank" || role === "investor") && ctx.user.orgId) {
         conditions.push(eq(projects.clientOrgId, ctx.user.orgId));
       } else if (role === "customer") {
@@ -177,7 +182,10 @@ export const projectsRouter = router({
         estateId: input.estateId || null,
         clientId: ctx.user.id,
         clientOrgId: ctx.user.orgId || null,
-        status: "bidding",
+        // 评估师创建项目时，自动将自己的组织设为 assignedOrgId
+        assignedOrgId: ctx.user.role === "appraiser" && ctx.user.orgId ? ctx.user.orgId : null,
+        assignedUserId: ctx.user.role === "appraiser" ? ctx.user.id : null,
+        status: ctx.user.role === "appraiser" ? "active" : "bidding",
       });
 
       return { id: (result as any).insertId, success: true };
