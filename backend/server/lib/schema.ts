@@ -165,6 +165,17 @@ export const cities = mysqlTable("cities", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// 区/县表
+export const districts = mysqlTable("districts", {
+  id: int("id").primaryKey().autoincrement(),
+  cityId: int("city_id").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  code: varchar("code", { length: 20 }),
+  type: varchar("type", { length: 20 }).default("district"), // district=市辖区 county=县/县级市 new_area=新区
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // 楼盘表
 export const estates = mysqlTable("estates", {
   id: int("id").primaryKey().autoincrement(),
