@@ -394,3 +394,64 @@ export const crawlRawData = mysqlTable("crawl_raw_data", {
   errorMsg: text("error_msg"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// ============================================================
+// 采集系统扩展表
+// ============================================================
+
+// 代理 IP 池
+export const crawlProxies = mysqlTable("crawl_proxies", {
+  id: int("id").primaryKey().autoincrement(),
+  host: varchar("host", { length: 200 }).notNull(),
+  port: int("port").notNull(),
+  protocol: mysqlEnum("protocol", ["http", "https", "socks5"]).default("http"),
+  username: varchar("username", { length: 100 }),
+  password: varchar("password", { length: 100 }),
+  region: varchar("region", { length: 100 }), // 地区（如：上海、北京）
+  provider: varchar("provider", { length: 100 }), // 服务商（如：芝麻代理）
+  status: mysqlEnum("status", ["active", "inactive", "testing", "banned"]).default("active"),
+  successCount: int("success_count").default(0),
+  failCount: int("fail_count").default(0),
+  avgResponseMs: int("avg_response_ms"),
+  lastTestedAt: timestamp("last_tested_at"),
+  lastUsedAt: timestamp("last_used_at"),
+  expireAt: timestamp("expire_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+// 采集告警记录
+export const crawlAlerts = mysqlTable("crawl_alerts", {
+  id: int("id").primaryKey().autoincrement(),
+  jobId: int("job_id"),
+  level: mysqlEnum("level", ["info", "warn", "error", "critical"]).default("warn"),
+  type: varchar("type", { length: 50 }).notNull(), // job_failed | low_success_rate | proxy_banned | schedule_missed
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").default(false),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// 定时任务执行历史
+export const crawlScheduleHistory = mysqlTable("crawl_schedule_history", {
+  id: int("id").primaryKey().autoincrement(),
+  jobId: int("job_id").notNull(),
+  triggeredBy: mysqlEnum("triggered_by", ["cron", "manual", "api"]).default("cron"),
+  status: mysqlEnum("status", ["success", "failed", "skipped"]).default("success"),
+  successCount: int("success_count").default(0),
+  failCount: int("fail_count").default(0),
+  durationMs: int("duration_ms"),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+// 采集系统全局配置
+export const crawlConfig = mysqlTable("crawl_config", {
+  id: int("id").primaryKey().autoincrement(),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value"),
+  description: varchar("description", { length: 300 }),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});

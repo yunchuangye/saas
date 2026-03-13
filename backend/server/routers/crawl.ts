@@ -1,15 +1,22 @@
 /**
- * 数据采集任务 tRPC 路由
- * 提供任务 CRUD、启动/暂停、日志查询、数据预览等接口
+ * 数据采集任务 tRPC 路由（完整版）
+ * 包含：任务 CRUD、定时调度、代理管理、告警、配置、统计图表
  */
 import { z } from 'zod';
 import { router, protectedProcedure, adminProcedure } from '../lib/trpc';
 import { db } from '../lib/db';
-import { crawlJobs, crawlLogs, crawlRawData, cities, cases } from '../lib/schema';
-import { eq, desc, and, gte, count, sql } from 'drizzle-orm';
+import {
+  crawlJobs, crawlLogs, crawlRawData, crawlProxies, crawlAlerts,
+  crawlScheduleHistory, crawlConfig, cities, cases
+} from '../lib/schema';
+import { eq, desc, and, gte, count, sql, ne, lt, isNull } from 'drizzle-orm';
 import { enqueueJob, pauseJob, getQueueStats } from '../crawler/engines/job-queue';
+import {
+  registerJobSchedule, unregisterJobSchedule,
+  getScheduledTasksStatus, getCronDescription
+} from '../crawler/engines/cron-scheduler';
 
-// 创建任务的输入验证
+// ─── 输入验证 Schema ───────────────────────────────────────────
 const CreateJobSchema = z.object({
   name: z.string().min(1, '任务名称不能为空'),
   source: z.enum(['lianjia', 'beike', 'anjuke', 'fang58', 'custom']),
@@ -18,7 +25,7 @@ const CreateJobSchema = z.object({
   cityName: z.string().optional(),
   districtName: z.string().optional(),
   keyword: z.string().optional(),
-  maxPages: z.number().min(1).max(100).default(5),
+  maxPages: z.number().min(1).max(200).default(5),
   concurrency: z.number().min(1).max(5).default(2),
   delayMin: z.number().default(2000),
   delayMax: z.number().default(5000),
@@ -27,8 +34,13 @@ const CreateJobSchema = z.object({
   cronExpression: z.string().optional(),
 });
 
+const UpdateJobSchema = CreateJobSchema.partial().extend({ id: z.number() });
+
 export const crawlRouter = router({
-  // 获取任务列表
+
+  // ─── 任务管理 ──────────────────────────────────────────────────
+
+  /** 获取任务列表（支持状态筛选、分页） */
   listJobs: protectedProcedure
     .input(z.object({
       page: z.number().default(1),
@@ -38,74 +50,89 @@ export const crawlRouter = router({
     .query(async ({ input }) => {
       const { page, pageSize, status } = input;
       const offset = (page - 1) * pageSize;
-
       const where = status ? eq(crawlJobs.status, status as any) : undefined;
-
       const [jobs, totalResult] = await Promise.all([
-        db.select().from(crawlJobs)
-          .where(where)
-          .orderBy(desc(crawlJobs.createdAt))
-          .limit(pageSize)
-          .offset(offset),
+        db.select().from(crawlJobs).where(where)
+          .orderBy(desc(crawlJobs.createdAt)).limit(pageSize).offset(offset),
         db.select({ count: count() }).from(crawlJobs).where(where),
       ]);
-
+      // 附加 cron 描述
+      const scheduledIds = new Set(getScheduledTasksStatus().map(s => s.jobId));
       return {
-        jobs,
+        jobs: jobs.map(j => ({
+          ...j,
+          cronDescription: j.cronExpression ? getCronDescription(j.cronExpression) : null,
+          isScheduled: scheduledIds.has(j.id),
+        })),
         total: totalResult[0]?.count ?? 0,
-        page,
-        pageSize,
+        page, pageSize,
       };
     }),
 
-  // 获取任务详情
+  /** 获取任务详情 */
   getJob: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input }) => {
       const [job] = await db.select().from(crawlJobs).where(eq(crawlJobs.id, input.id)).limit(1);
       if (!job) throw new Error('任务不存在');
-      return job;
+      return {
+        ...job,
+        cronDescription: job.cronExpression ? getCronDescription(job.cronExpression) : null,
+      };
     }),
 
-  // 创建任务
+  /** 创建任务 */
   createJob: protectedProcedure
     .input(CreateJobSchema)
     .mutation(async ({ input, ctx }) => {
-      // 如果传了 cityId 但没有 cityName，自动从数据库查询
       let cityName = input.cityName;
       if (!cityName && input.cityId) {
-        const [city] = await db.select({ name: cities.name })
-          .from(cities)
-          .where(eq(cities.id, input.cityId))
-          .limit(1);
+        const [city] = await db.select({ name: cities.name }).from(cities)
+          .where(eq(cities.id, input.cityId)).limit(1);
         cityName = city?.name;
       }
-
       const [job] = await (db.insert(crawlJobs) as any).values({
-        ...input,
-        cityName,
-        createdBy: ctx.user.id,
-        status: 'pending',
+        ...input, cityName, createdBy: ctx.user.id, status: 'pending',
       }).$returningId();
 
-      return { id: job.id, name: input.name, cityName, status: 'pending', cityId: input.cityId, message: '任务创建成功' };
+      // 如果是 cron 任务，注册调度
+      if (input.scheduleType === 'cron' && input.cronExpression) {
+        await registerJobSchedule(job.id);
+      }
+      return { id: job.id, name: input.name, cityName, status: 'pending', message: '任务创建成功' };
     }),
 
-  // 启动任务
+  /** 更新任务配置 */
+  updateJob: protectedProcedure
+    .input(UpdateJobSchema)
+    .mutation(async ({ input }) => {
+      const { id, ...data } = input;
+      await db.update(crawlJobs).set(data as any).where(eq(crawlJobs.id, id));
+      // 重新注册调度
+      unregisterJobSchedule(id);
+      if (data.scheduleType === 'cron' && data.cronExpression) {
+        await registerJobSchedule(id);
+      }
+      return { message: '任务已更新' };
+    }),
+
+  /** 启动任务 */
   startJob: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       const [job] = await db.select().from(crawlJobs).where(eq(crawlJobs.id, input.id)).limit(1);
       if (!job) throw new Error('任务不存在');
       if (job.status === 'running') throw new Error('任务已在运行中');
-
       await db.update(crawlJobs).set({ status: 'pending' }).where(eq(crawlJobs.id, input.id));
       const queueId = await enqueueJob(input.id);
-
+      // 记录手动触发历史
+      await (db.insert(crawlScheduleHistory) as any).values({
+        jobId: input.id, triggeredBy: 'manual', status: 'success', startedAt: new Date(),
+      });
       return { message: '任务已加入队列', queueId };
     }),
 
-  // 暂停/取消任务
+  /** 暂停任务 */
   pauseJob: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
@@ -113,21 +140,64 @@ export const crawlRouter = router({
       return { message: '任务已暂停' };
     }),
 
-  // 删除任务
+  /** 重启任务（清空进度重新执行） */
+  restartJob: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await db.update(crawlJobs).set({
+        status: 'pending', progress: 0, successCount: 0, failCount: 0,
+        duplicateCount: 0, errorMessage: null, startedAt: null, completedAt: null,
+      }).where(eq(crawlJobs.id, input.id));
+      const queueId = await enqueueJob(input.id);
+      return { message: '任务已重启', queueId };
+    }),
+
+  /** 删除任务（含日志和原始数据） */
   deleteJob: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
+      unregisterJobSchedule(input.id);
       await db.delete(crawlLogs).where(eq(crawlLogs.jobId, input.id));
       await db.delete(crawlRawData).where(eq(crawlRawData.jobId, input.id));
+      await db.delete(crawlScheduleHistory).where(eq(crawlScheduleHistory.jobId, input.id));
       await db.delete(crawlJobs).where(eq(crawlJobs.id, input.id));
       return { message: '任务已删除' };
     }),
 
-  // 获取任务日志
+  /** 批量操作任务 */
+  batchOperation: adminProcedure
+    .input(z.object({
+      ids: z.array(z.number()),
+      action: z.enum(['start', 'pause', 'delete', 'restart']),
+    }))
+    .mutation(async ({ input }) => {
+      const { ids, action } = input;
+      let successCount = 0;
+      for (const id of ids) {
+        try {
+          if (action === 'start') { await enqueueJob(id); }
+          else if (action === 'pause') { await pauseJob(id); }
+          else if (action === 'restart') {
+            await db.update(crawlJobs).set({ status: 'pending', progress: 0 }).where(eq(crawlJobs.id, id));
+            await enqueueJob(id);
+          } else if (action === 'delete') {
+            unregisterJobSchedule(id);
+            await db.delete(crawlLogs).where(eq(crawlLogs.jobId, id));
+            await db.delete(crawlJobs).where(eq(crawlJobs.id, id));
+          }
+          successCount++;
+        } catch (e) { /* 单个失败不影响其他 */ }
+      }
+      return { message: `批量操作完成，成功 ${successCount}/${ids.length} 个` };
+    }),
+
+  // ─── 日志 ──────────────────────────────────────────────────────
+
+  /** 获取任务日志（支持级别筛选） */
   getJobLogs: protectedProcedure
     .input(z.object({
       jobId: z.number(),
-      limit: z.number().default(100),
+      limit: z.number().default(200),
       level: z.string().optional(),
     }))
     .query(async ({ input }) => {
@@ -135,86 +205,324 @@ export const crawlRouter = router({
       const where = level
         ? and(eq(crawlLogs.jobId, jobId), eq(crawlLogs.level, level as any))
         : eq(crawlLogs.jobId, jobId);
-
-      const logs = await db.select().from(crawlLogs)
-        .where(where)
-        .orderBy(desc(crawlLogs.createdAt))
-        .limit(limit);
-
-      return logs.reverse(); // 按时间正序返回
+      const logs = await db.select().from(crawlLogs).where(where)
+        .orderBy(desc(crawlLogs.createdAt)).limit(limit);
+      return logs.reverse();
     }),
 
-  // 获取采集数据预览
-  getJobData: protectedProcedure
+  // ─── 数据预览 ──────────────────────────────────────────────────
+
+  /** 获取任务采集的成交案例数据 */
+  getJobCases: protectedProcedure
     .input(z.object({
       jobId: z.number(),
       page: z.number().default(1),
       pageSize: z.number().default(20),
     }))
     .query(async ({ input }) => {
-      const { jobId, page, pageSize } = input;
+      const { page, pageSize } = input;
       const offset = (page - 1) * pageSize;
+      const [job] = await db.select({ cityId: crawlJobs.cityId, source: crawlJobs.source })
+        .from(crawlJobs).where(eq(crawlJobs.id, input.jobId)).limit(1);
+      if (!job) return { data: [], total: 0 };
 
-      const [rawData, totalResult] = await Promise.all([
-        db.select().from(crawlRawData)
-          .where(eq(crawlRawData.jobId, jobId))
-          .orderBy(desc(crawlRawData.createdAt))
-          .limit(pageSize)
-          .offset(offset),
-        db.select({ count: count() }).from(crawlRawData).where(eq(crawlRawData.jobId, jobId)),
+      const [data, totalResult] = await Promise.all([
+        db.select().from(cases)
+          .where(and(eq(cases.cityId, job.cityId ?? 0), eq(cases.source, job.source)))
+          .orderBy(desc(cases.createdAt)).limit(pageSize).offset(offset),
+        db.select({ count: count() }).from(cases)
+          .where(and(eq(cases.cityId, job.cityId ?? 0), eq(cases.source, job.source))),
+      ]);
+      return { data, total: totalResult[0]?.count ?? 0 };
+    }),
+
+  // ─── 统计图表 ──────────────────────────────────────────────────
+
+  /** 仪表盘总览统计 */
+  getDashboardStats: protectedProcedure
+    .query(async () => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+
+      const [
+        totalJobs, runningJobs, completedJobs, failedJobs, pausedJobs,
+        totalCases, todayCases, weekCases, monthCases,
+        activeProxies, unreadAlerts, queueStats,
+      ] = await Promise.all([
+        db.select({ count: count() }).from(crawlJobs),
+        db.select({ count: count() }).from(crawlJobs).where(eq(crawlJobs.status, 'running')),
+        db.select({ count: count() }).from(crawlJobs).where(eq(crawlJobs.status, 'completed')),
+        db.select({ count: count() }).from(crawlJobs).where(eq(crawlJobs.status, 'failed')),
+        db.select({ count: count() }).from(crawlJobs).where(eq(crawlJobs.status, 'paused')),
+        db.select({ count: count() }).from(cases),
+        db.select({ count: count() }).from(cases).where(gte(cases.createdAt, today)),
+        db.select({ count: count() }).from(cases).where(gte(cases.createdAt, weekAgo)),
+        db.select({ count: count() }).from(cases).where(gte(cases.createdAt, monthAgo)),
+        db.select({ count: count() }).from(crawlProxies).where(eq(crawlProxies.status, 'active')),
+        db.select({ count: count() }).from(crawlAlerts).where(eq(crawlAlerts.isRead, false)),
+        getQueueStats().catch(() => ({ waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 })),
       ]);
 
+      // 各来源数据量
+      const sourceStats = await db.select({
+        source: sql<string>`COALESCE(source, 'unknown')`,
+        cnt: count(),
+      }).from(cases).groupBy(sql`source`);
+
+      // 各城市数据量 Top 10
+      const cityStats = await db.select({
+        cityId: cases.cityId,
+        cnt: count(),
+      }).from(cases).groupBy(cases.cityId)
+        .orderBy(desc(count())).limit(10);
+
+      // 近30天每日采集量
+      const dailyStats = await db.execute(sql`
+        SELECT DATE(created_at) as date, COUNT(*) as count
+        FROM cases
+        WHERE created_at >= ${monthAgo}
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+      `);
+
       return {
-        data: rawData.map(r => ({
-          ...r,
-          parsedData: r.parsedData ? JSON.parse(r.parsedData) : null,
-        })),
-        total: totalResult[0]?.count ?? 0,
+        jobs: {
+          total: totalJobs[0]?.count ?? 0,
+          running: runningJobs[0]?.count ?? 0,
+          completed: completedJobs[0]?.count ?? 0,
+          failed: failedJobs[0]?.count ?? 0,
+          paused: pausedJobs[0]?.count ?? 0,
+        },
+        cases: {
+          total: totalCases[0]?.count ?? 0,
+          today: todayCases[0]?.count ?? 0,
+          week: weekCases[0]?.count ?? 0,
+          month: monthCases[0]?.count ?? 0,
+        },
+        proxies: { active: activeProxies[0]?.count ?? 0 },
+        alerts: { unread: unreadAlerts[0]?.count ?? 0 },
+        queue: queueStats,
+        sourceStats,
+        cityStats,
+        dailyStats: (dailyStats as any[]).map((r: any) => {
+          let dateStr: string;
+          if (r.date instanceof Date) {
+            dateStr = r.date.toISOString().split('T')[0];
+          } else if (typeof r.date === 'string') {
+            dateStr = r.date.split('T')[0];
+          } else {
+            dateStr = String(r.date);
+          }
+          return { date: dateStr, count: Number(r.count) };
+        }),
+        scheduledTasks: getScheduledTasksStatus().length,
       };
     }),
 
-  // 获取队列统计
-  getQueueStats: protectedProcedure
-    .query(async () => {
+  /** 获取执行历史（用于趋势图） */
+  getScheduleHistory: protectedProcedure
+    .input(z.object({
+      jobId: z.number().optional(),
+      limit: z.number().default(30),
+    }))
+    .query(async ({ input }) => {
+      const where = input.jobId ? eq(crawlScheduleHistory.jobId, input.jobId) : undefined;
+      return db.select().from(crawlScheduleHistory).where(where)
+        .orderBy(desc(crawlScheduleHistory.startedAt)).limit(input.limit);
+    }),
+
+  // ─── 代理管理 ──────────────────────────────────────────────────
+
+  /** 获取代理列表 */
+  listProxies: adminProcedure
+    .input(z.object({
+      status: z.string().optional(),
+      page: z.number().default(1),
+      pageSize: z.number().default(20),
+    }))
+    .query(async ({ input }) => {
+      const { page, pageSize, status } = input;
+      const offset = (page - 1) * pageSize;
+      const where = status ? eq(crawlProxies.status, status as any) : undefined;
+      const [proxies, totalResult] = await Promise.all([
+        db.select().from(crawlProxies).where(where)
+          .orderBy(desc(crawlProxies.updatedAt)).limit(pageSize).offset(offset),
+        db.select({ count: count() }).from(crawlProxies).where(where),
+      ]);
+      return { proxies, total: totalResult[0]?.count ?? 0 };
+    }),
+
+  /** 添加代理 */
+  addProxy: adminProcedure
+    .input(z.object({
+      host: z.string().min(1),
+      port: z.number().min(1).max(65535),
+      protocol: z.enum(['http', 'https', 'socks5']).default('http'),
+      username: z.string().optional(),
+      password: z.string().optional(),
+      region: z.string().optional(),
+      provider: z.string().optional(),
+      expireAt: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      await (db.insert(crawlProxies) as any).values({
+        ...input,
+        expireAt: input.expireAt ? new Date(input.expireAt) : null,
+        status: 'active',
+      });
+      return { message: '代理已添加' };
+    }),
+
+  /** 批量导入代理（格式: host:port 或 host:port:user:pass） */
+  importProxies: adminProcedure
+    .input(z.object({
+      text: z.string(),
+      protocol: z.enum(['http', 'https', 'socks5']).default('http'),
+      provider: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const lines = input.text.split('\n').map(l => l.trim()).filter(Boolean);
+      let imported = 0;
+      for (const line of lines) {
+        const parts = line.split(':');
+        if (parts.length < 2) continue;
+        const [host, portStr, username, password] = parts;
+        const port = parseInt(portStr);
+        if (!host || isNaN(port)) continue;
+        try {
+          await (db.insert(crawlProxies) as any).values({
+            host, port, protocol: input.protocol,
+            username: username || null, password: password || null,
+            provider: input.provider || null, status: 'active',
+          });
+          imported++;
+        } catch (e) { /* 重复跳过 */ }
+      }
+      return { message: `成功导入 ${imported} 个代理` };
+    }),
+
+  /** 测试代理可用性 */
+  testProxy: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const [proxy] = await db.select().from(crawlProxies)
+        .where(eq(crawlProxies.id, input.id)).limit(1);
+      if (!proxy) throw new Error('代理不存在');
+
+      await db.update(crawlProxies).set({ status: 'testing' })
+        .where(eq(crawlProxies.id, input.id));
+
+      const startTime = Date.now();
       try {
-        return await getQueueStats();
-      } catch (e) {
-        return { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
+        const axios = (await import('axios')).default;
+        const proxyUrl = proxy.username
+          ? `${proxy.protocol}://${proxy.username}:${proxy.password}@${proxy.host}:${proxy.port}`
+          : `${proxy.protocol}://${proxy.host}:${proxy.port}`;
+
+        await axios.get('https://httpbin.org/ip', {
+          proxy: { host: proxy.host, port: proxy.port, protocol: proxy.protocol },
+          timeout: 8000,
+        });
+
+        const responseMs = Date.now() - startTime;
+        await db.update(crawlProxies).set({
+          status: 'active',
+          avgResponseMs: responseMs,
+          successCount: (proxy.successCount ?? 0) + 1,
+          lastTestedAt: new Date(),
+        }).where(eq(crawlProxies.id, input.id));
+
+        return { success: true, responseMs, message: `代理可用，响应时间 ${responseMs}ms` };
+      } catch (e: any) {
+        await db.update(crawlProxies).set({
+          status: 'inactive',
+          failCount: (proxy.failCount ?? 0) + 1,
+          lastTestedAt: new Date(),
+        }).where(eq(crawlProxies.id, input.id));
+        return { success: false, message: `代理不可用: ${e.message}` };
       }
     }),
 
-  // 获取采集数据统计（用于仪表盘）
-  getStats: protectedProcedure
-    .query(async () => {
-      const [totalJobs, runningJobs, totalCases, recentCases] = await Promise.all([
-        db.select({ count: count() }).from(crawlJobs),
-        db.select({ count: count() }).from(crawlJobs).where(eq(crawlJobs.status, 'running')),
-        db.select({ count: count() }).from(cases),
-        db.select({ count: count() }).from(cases)
-          .where(gte(cases.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))),
-      ]);
-
-      // 各来源数据量统计
-      const sourceStats = await db.select({
-        source: sql<string>`COALESCE(source, 'unknown')`,
-        count: count(),
-      }).from(cases).groupBy(sql`source`);
-
-      return {
-        totalJobs: totalJobs[0]?.count ?? 0,
-        runningJobs: runningJobs[0]?.count ?? 0,
-        totalCases: totalCases[0]?.count ?? 0,
-        recentCases: recentCases[0]?.count ?? 0,
-        sourceStats,
-      };
+  /** 删除代理 */
+  deleteProxy: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await db.delete(crawlProxies).where(eq(crawlProxies.id, input.id));
+      return { message: '代理已删除' };
     }),
 
-  // 获取城市列表（用于任务配置）
+  // ─── 告警管理 ──────────────────────────────────────────────────
+
+  /** 获取告警列表 */
+  listAlerts: protectedProcedure
+    .input(z.object({
+      unreadOnly: z.boolean().default(false),
+      limit: z.number().default(50),
+    }))
+    .query(async ({ input }) => {
+      const where = input.unreadOnly ? eq(crawlAlerts.isRead, false) : undefined;
+      return db.select().from(crawlAlerts).where(where)
+        .orderBy(desc(crawlAlerts.createdAt)).limit(input.limit);
+    }),
+
+  /** 标记告警已读 */
+  markAlertRead: protectedProcedure
+    .input(z.object({ id: z.number().optional() })) // 不传 id 则标记全部已读
+    .mutation(async ({ input }) => {
+      if (input.id) {
+        await db.update(crawlAlerts).set({ isRead: true }).where(eq(crawlAlerts.id, input.id));
+      } else {
+        await db.update(crawlAlerts).set({ isRead: true });
+      }
+      return { message: '已标记为已读' };
+    }),
+
+  // ─── 系统配置 ──────────────────────────────────────────────────
+
+  /** 获取采集系统配置 */
+  getConfig: adminProcedure
+    .query(async () => {
+      const configs = await db.select().from(crawlConfig);
+      return Object.fromEntries(configs.map(c => [c.key, c.value]));
+    }),
+
+  /** 更新采集系统配置 */
+  updateConfig: adminProcedure
+    .input(z.record(z.string()))
+    .mutation(async ({ input }) => {
+      for (const [key, value] of Object.entries(input)) {
+        await db.update(crawlConfig).set({ value }).where(eq(crawlConfig.key, key));
+      }
+      return { message: '配置已保存' };
+    }),
+
+  /** 获取队列统计 */
+  getQueueStats: protectedProcedure
+    .query(async () => {
+      try { return await getQueueStats(); }
+      catch (e) { return { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 }; }
+    }),
+
+  /** 获取城市列表 */
   getCities: protectedProcedure
     .query(async () => {
       return db.select({ id: cities.id, name: cities.name, province: cities.province })
-        .from(cities)
-        .where(eq(cities.isActive, true))
-        .orderBy(cities.name);
+        .from(cities).where(eq(cities.isActive, true)).orderBy(cities.name);
+    }),
+
+  /** 获取定时任务状态 */
+  getScheduledTasks: protectedProcedure
+    .query(async () => {
+      return getScheduledTasksStatus();
+    }),
+
+  /** 手动触发定时任务注册 */
+  refreshSchedule: adminProcedure
+    .input(z.object({ jobId: z.number() }))
+    .mutation(async ({ input }) => {
+      await registerJobSchedule(input.jobId);
+      return { message: '定时调度已刷新' };
     }),
 });

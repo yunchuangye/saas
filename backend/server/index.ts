@@ -10,6 +10,7 @@ import { users } from "./lib/schema";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { startCrawlWorker } from './crawler/engines/job-queue';
+import { initCronScheduler } from './crawler/engines/cron-scheduler';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001");
@@ -305,6 +306,13 @@ app.listen(PORT, "0.0.0.0", async () => {
     console.log('🕷️  Crawl Worker started (concurrency: 3)');
   } catch (e: any) {
     console.warn('⚠️  Crawl Worker failed to start:', e.message);
+  }
+  // 启动定时调度器
+  try {
+    await initCronScheduler();
+    console.log('⏰  Cron Scheduler started');
+  } catch (e: any) {
+    console.warn('⚠️  Cron Scheduler failed to start:', e.message);
   }
 });
 
