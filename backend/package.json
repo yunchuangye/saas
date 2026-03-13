@@ -1,0 +1,37 @@
+{
+  "name": "gujia-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch server/index.ts",
+    "build": "tsc",
+    "start": "node dist/server/index.js",
+    "db:push": "drizzle-kit push"
+  },
+  "dependencies": {
+    "@trpc/server": "^11.12.0",
+    "@types/cookie-parser": "^1.4.10",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "drizzle-orm": "^0.38.0",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "ioredis": "^5.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.6.5",
+    "superjson": "^2.2.6",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/express-session": "^1.17.10",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^22.0.0",
+    "drizzle-kit": "^0.29.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
