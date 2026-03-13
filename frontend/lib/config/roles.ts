@@ -274,6 +274,7 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
         { title: "楼栋管理", href: "/dashboard/admin/directory/buildings", icon: Layers },
         { title: "房屋管理", href: "/dashboard/admin/directory/units", icon: DoorOpen },
         { title: "案例管理", href: "/dashboard/admin/directory/cases", icon: Database },
+        { title: "数据采集", href: "/dashboard/admin/crawler", icon: Bot },
       ],
     },
     {

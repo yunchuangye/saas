@@ -224,7 +224,6 @@ export const cases = mysqlTable("cases", {
   unitId: int("unit_id"),
   address: varchar("address", { length: 500 }),
   area: decimal("area", { precision: 10, scale: 2 }),
-  rooms: int("rooms"),
   floor: int("floor"),
   totalFloors: int("total_floors"),
   orientation: varchar("orientation", { length: 50 }),
@@ -234,6 +233,17 @@ export const cases = mysqlTable("cases", {
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
   transactionDate: timestamp("transaction_date"),
   source: varchar("source", { length: 100 }),
+  sourceId: varchar("source_id", { length: 200 }),       // 来源网站的案例 ID
+  sourceUrl: varchar("source_url", { length: 1000 }),    // 来源网页 URL
+  community: varchar("community", { length: 200 }),      // 小区/楼盘名
+  totalPrice: int("total_price"), // 总价（元）
+  rooms: varchar("rooms_str", { length: 50 }),           // 户型字符串，如 '3室2厅'
+  decoration: varchar("decoration", { length: 50 }),     // 装修情况
+  buildYear: int("build_year"),                          // 建成年份
+  dealDate: timestamp("deal_date"),                      // 成交日期
+  listingPrice: int("listing_price"), // 挂牌价
+  dealCycle: int("deal_cycle"),                          // 成交周期（天）
+  isVerified: boolean("is_verified").default(false),     // 是否已核验
   isAnomaly: boolean("is_anomaly").default(false),
   anomalyReason: text("anomaly_reason"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -322,5 +332,65 @@ export const operationLogs = mysqlTable("operation_logs", {
   detail: text("detail"),
   ip: varchar("ip", { length: 50 }),
   ipAddress: varchar("ip_address", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================================
+// 数据采集模块
+// ============================================================
+
+// 采集任务表
+export const crawlJobs = mysqlTable("crawl_jobs", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 200 }).notNull(),
+  source: varchar("source", { length: 50 }).notNull(), // lianjia | anjuke | fang58 | beike | custom
+  dataType: varchar("data_type", { length: 50 }).notNull(), // sold_cases | listing | estate_info
+  cityId: int("city_id"),
+  cityName: varchar("city_name", { length: 100 }),
+  districtName: varchar("district_name", { length: 100 }),
+  keyword: varchar("keyword", { length: 200 }), // 搜索关键词/楼盘名
+  maxPages: int("max_pages").default(10),
+  concurrency: int("concurrency").default(2), // 并发数
+  delayMin: int("delay_min").default(2000), // 最小延迟(ms)
+  delayMax: int("delay_max").default(5000), // 最大延迟(ms)
+  useProxy: boolean("use_proxy").default(false),
+  proxyConfig: text("proxy_config"), // JSON 代理配置
+  status: mysqlEnum("status", ["pending", "running", "paused", "completed", "failed"]).default("pending"),
+  progress: int("progress").default(0), // 0-100
+  totalCount: int("total_count").default(0), // 预计总条数
+  successCount: int("success_count").default(0), // 成功采集数
+  failCount: int("fail_count").default(0), // 失败数
+  duplicateCount: int("duplicate_count").default(0), // 重复数
+  errorMessage: text("error_message"),
+  scheduleType: varchar("schedule_type", { length: 20 }).default("manual"), // manual | cron
+  cronExpression: varchar("cron_expression", { length: 100 }),
+  createdBy: int("created_by"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+// 采集日志表（每条采集记录）
+export const crawlLogs = mysqlTable("crawl_logs", {
+  id: int("id").primaryKey().autoincrement(),
+  jobId: int("job_id").notNull(),
+  level: mysqlEnum("level", ["info", "warn", "error", "success"]).default("info"),
+  message: text("message").notNull(),
+  url: varchar("url", { length: 1000 }),
+  dataCount: int("data_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// 采集到的原始数据暂存表（清洗前）
+export const crawlRawData = mysqlTable("crawl_raw_data", {
+  id: int("id").primaryKey().autoincrement(),
+  jobId: int("job_id").notNull(),
+  source: varchar("source", { length: 50 }).notNull(),
+  dataType: varchar("data_type", { length: 50 }).notNull(),
+  rawData: text("raw_data").notNull(), // JSON 原始数据
+  parsedData: text("parsed_data"), // JSON 清洗后数据
+  status: mysqlEnum("status", ["raw", "parsed", "imported", "error"]).default("raw"),
+  errorMsg: text("error_msg"),
   createdAt: timestamp("created_at").defaultNow(),
 });

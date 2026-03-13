@@ -11,6 +11,7 @@ import { teamRouter } from "./team";
 import { autoValuationRouter } from './auto-valuation';
 import { pdfReportRouter } from './pdf-report';
 import { propertySearchRouter } from './property-search';
+import { crawlRouter } from './crawl';
 
 export const appRouter = router({
   auth: authRouter,
@@ -30,6 +31,7 @@ export const appRouter = router({
   autoValuation: autoValuationRouter,
   pdfReport: pdfReportRouter,
   propertySearch: propertySearchRouter,
+  crawl: crawlRouter,
 });
 
 export type AppRouter = typeof appRouter;

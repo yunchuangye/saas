@@ -9,6 +9,7 @@ import { db, redis } from "./lib/db";
 import { users } from "./lib/schema";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
+import { startCrawlWorker } from './crawler/engines/job-queue';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001");
@@ -298,6 +299,13 @@ app.listen(PORT, "0.0.0.0", async () => {
   console.log(`🔍 Health: http://localhost:${PORT}/health\n`);
 
   await initDB();
+  // 启动采集任务 Worker
+  try {
+    startCrawlWorker(3);
+    console.log('🕷️  Crawl Worker started (concurrency: 3)');
+  } catch (e: any) {
+    console.warn('⚠️  Crawl Worker failed to start:', e.message);
+  }
 });
 
 export type { AppRouter } from "./routers";
