@@ -1,4 +1,5 @@
 import express from "express";
+import jwt from 'jsonwebtoken';
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -100,6 +101,194 @@ async function initDB() {
   } catch (err: any) {
     console.error("DB init error:", err.message);
   }
+}
+
+// PDF 报告生成接口
+app.get('/api/valuation-report/:id', async (req, res) => {
+  try {
+    // 验证 JWT
+    const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '')
+    if (!token) return res.status(401).json({ error: '未登录' })
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'gujia-secret-key-2026') as any
+    if (!decoded?.id && !decoded?.userId) return res.status(401).json({ error: '无效令牌' })
+
+    const { db } = await import('./lib/db')
+    const { autoValuations } = await import('./lib/schema')
+    const { eq } = await import('drizzle-orm')
+
+    const [record] = await db.select().from(autoValuations).where(eq(autoValuations.id, Number(req.params.id))).limit(1)
+    if (!record) return res.status(404).json({ error: '记录不存在' })
+
+    const comparableCases = record.comparableCases ? JSON.parse(record.comparableCases as string) : []
+    const llmData = record.llmAnalysis ? JSON.parse(record.llmAnalysis as string) : null
+    const reportData = record.reportData ? JSON.parse(record.reportData as string) : null
+
+    // 生成 HTML 报告
+    const html = generateReportHTML(record, comparableCases, llmData, reportData)
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    res.setHeader('Content-Disposition', `inline; filename="valuation-report-${record.id}.html"`)
+    res.send(html)
+  } catch (err: any) {
+    console.error('PDF report error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+function generateReportHTML(record: any, comparableCases: any[], llmData: any, reportData: any): string {
+  const formatMoney = (v: number) => {
+    if (!v) return '—'
+    if (v >= 100000000) return `${(v / 100000000).toFixed(2)}亿元`
+    if (v >= 10000) return `${(v / 10000).toFixed(0)}万元`
+    return `${v.toLocaleString()}元`
+  }
+  const formatNum = (v: number) => v ? v.toLocaleString('zh-CN') : '—'
+  const now = new Date().toLocaleDateString('zh-CN')
+  const finalValue = Number(record.estimatedValue || record.valuationResult || 0)
+  const unitPrice = Number(record.unitPrice || 0)
+  const area = Number(record.buildingArea || record.area || 0)
+  const valueMin = Number(record.valuationMin || finalValue * 0.9)
+  const valueMax = Number(record.valuationMax || finalValue * 1.1)
+
+  const casesHTML = comparableCases.slice(0, 6).map((c: any, i: number) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${c.address || '同区域案例'}</td>
+      <td>${Number(c.area || 0).toFixed(0)}</td>
+      <td>${c.floor || '—'}/${c.totalFloors || '—'}</td>
+      <td><strong>${formatNum(Number(c.unitPrice || c.unit_price || 0))}</strong></td>
+      <td>${c.transactionDate ? new Date(c.transactionDate).toLocaleDateString('zh-CN') : '—'}</td>
+    </tr>`).join('')
+
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房地产估价简易报告 - ${record.address}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Microsoft YaHei', '微软雅黑', Arial, sans-serif; font-size: 14px; color: #333; background: #f5f5f5; }
+  .container { max-width: 900px; margin: 20px auto; background: white; padding: 40px; box-shadow: 0 2px 20px rgba(0,0,0,0.1); }
+  .header { text-align: center; border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
+  .header h1 { font-size: 24px; color: #1e40af; margin-bottom: 8px; }
+  .header p { color: #666; font-size: 13px; line-height: 1.8; }
+  .section { margin-bottom: 25px; }
+  .section-title { font-size: 16px; font-weight: bold; color: #1e40af; border-left: 4px solid #2563eb; padding-left: 12px; margin-bottom: 15px; }
+  .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .info-item { background: #f8fafc; padding: 10px; border-radius: 6px; }
+  .info-item .label { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .info-item .value { font-size: 14px; font-weight: 500; color: #333; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 15px; margin-bottom: 20px; }
+  .result-card { text-align: center; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; }
+  .result-card.main { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; }
+  .result-card .label { font-size: 12px; opacity: 0.8; margin-bottom: 8px; }
+  .result-card .value { font-size: 22px; font-weight: bold; }
+  .result-card .sub { font-size: 12px; opacity: 0.7; margin-top: 6px; }
+  .result-card.low .value { color: #ea580c; }
+  .result-card.high .value { color: #16a34a; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f1f5f9; padding: 10px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }
+  td { padding: 9px 8px; border-bottom: 1px solid #f1f5f9; }
+  tr:hover td { background: #f8fafc; }
+  .ai-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 20px; }
+  .ai-box p { line-height: 1.8; color: #1e40af; white-space: pre-line; }
+  .disclaimer { background: #fafafa; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; font-size: 12px; color: #888; line-height: 1.8; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #dcfce7; color: #16a34a; }
+  .confidence-bar { background: #e2e8f0; border-radius: 10px; height: 10px; margin-top: 8px; overflow: hidden; }
+  .confidence-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, #3b82f6, #1d4ed8); }
+  @media print {
+    body { background: white; }
+    .container { box-shadow: none; margin: 0; padding: 20px; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>房地产估价简易报告</h1>
+    <p>估价对象：${record.address || record.propertyAddress || '—'}</p>
+    <p>报告编号：RPT-AUTO-${record.id} &nbsp;|&nbsp; 估价日期：${now} &nbsp;|&nbsp; 估价目的：${record.purpose === 'mortgage' ? '抵押贷款' : record.purpose === 'transaction' ? '买卖交易' : record.purpose || '—'}</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">一、估价物业基本信息</div>
+    <div class="info-grid">
+      <div class="info-item"><div class="label">物业地址</div><div class="value">${record.address || '—'}</div></div>
+      <div class="info-item"><div class="label">建筑面积</div><div class="value">${area} ㎡</div></div>
+      <div class="info-item"><div class="label">楼层/总层</div><div class="value">${record.floor || '—'}/${record.totalFloors || '—'} 层</div></div>
+      <div class="info-item"><div class="label">楼龄</div><div class="value">${record.buildingAge || '—'} 年</div></div>
+      <div class="info-item"><div class="label">物业类型</div><div class="value">${record.propertyType === 'residential' ? '住宅' : record.propertyType || '—'}</div></div>
+      <div class="info-item"><div class="label">装修情况</div><div class="value">${record.decoration === 'fine' ? '精装' : record.decoration === 'rough' ? '毛坯' : record.decoration === 'luxury' ? '豪装' : record.decoration || '—'}</div></div>
+      <div class="info-item"><div class="label">朝向</div><div class="value">${record.orientation === 'south_north' ? '南北通透' : record.orientation === 'south' ? '朝南' : record.orientation || '—'}</div></div>
+      <div class="info-item"><div class="label">电梯/停车</div><div class="value">${record.hasElevator ? '有电梯' : '无电梯'} / ${record.hasParking ? '有停车位' : '无停车位'}</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">二、估价结果</div>
+    <div class="result-grid">
+      <div class="result-card low">
+        <div class="label">估价低值</div>
+        <div class="value">${formatMoney(valueMin)}</div>
+        <div class="sub">${formatNum(Math.round(valueMin / area))} 元/㎡</div>
+      </div>
+      <div class="result-card main">
+        <div class="label">估价中值（推荐）</div>
+        <div class="value">${formatMoney(finalValue)}</div>
+        <div class="sub">${formatNum(unitPrice)} 元/㎡ · ${area}㎡</div>
+      </div>
+      <div class="result-card high">
+        <div class="label">估价高值</div>
+        <div class="value">${formatMoney(valueMax)}</div>
+        <div class="sub">${formatNum(Math.round(valueMax / area))} 元/㎡</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:20px; align-items:center; margin-top:15px;">
+      <span>采用方法：<span class="badge badge-blue">${record.method || '综合估价法'}</span></span>
+      <span>置信度：<span class="badge badge-green">${record.confidenceLevel === 'high' ? '高可信度' : record.confidenceLevel === 'medium' ? '中等可信度' : '低可信度'}</span></span>
+      ${llmData ? `<span>AI置信度评分：<strong>${llmData.confidenceScore || 75}分</strong></span>` : ''}
+      ${llmData ? `<span>风险等级：<strong>${llmData.riskLevel || '中'}风险</strong></span>` : ''}
+    </div>
+    ${llmData?.confidenceScore ? `<div class="confidence-bar" style="margin-top:10px;"><div class="confidence-fill" style="width:${llmData.confidenceScore}%"></div></div>` : ''}
+  </div>
+
+  ${comparableCases.length > 0 ? `
+  <div class="section">
+    <div class="section-title">三、参考案例（${comparableCases.length}个）</div>
+    <table>
+      <thead><tr><th>序号</th><th>地址</th><th>面积(㎡)</th><th>楼层</th><th>成交单价(元/㎡)</th><th>成交时间</th></tr></thead>
+      <tbody>${casesHTML}</tbody>
+    </table>
+  </div>` : ''}
+
+  ${llmData?.analysis ? `
+  <div class="section">
+    <div class="section-title">四、AI专业分析报告</div>
+    <div class="ai-box"><p>${llmData.analysis}</p></div>
+    ${llmData.keyFactors?.length ? `<div style="margin-top:12px;">关键影响因素：${llmData.keyFactors.map((f: string) => `<span class="badge badge-blue" style="margin-right:6px;">${f}</span>`).join('')}</div>` : ''}
+  </div>` : ''}
+
+  <div class="section">
+    <div class="section-title">五、声明与限制条件</div>
+    <div class="disclaimer">
+      <p>1. 本报告由 gujia.app 智能估价系统自动生成，仅供参考，不构成正式估价报告。</p>
+      <p>2. 正式估价报告须由持有国家注册房地产估价师资格证书的估价师签章方可生效。</p>
+      <p>3. 本报告所引用的市场数据来源于系统案例库，数据截止日期为报告生成日。</p>
+      <p>4. 估价结果受市场波动、政策变化等因素影响，有效期为报告生成之日起6个月内。</p>
+      <p>5. 报告编号：RPT-AUTO-${record.id} &nbsp;|&nbsp; 生成时间：${now}</p>
+    </div>
+  </div>
+
+  <div class="no-print" style="text-align:center; margin-top:30px;">
+    <button onclick="window.print()" style="background:#2563eb; color:white; border:none; padding:12px 30px; border-radius:6px; font-size:15px; cursor:pointer;">🖨️ 打印 / 保存为 PDF</button>
+  </div>
+</div>
+</body>
+</html>`
 }
 
 // 启动服务

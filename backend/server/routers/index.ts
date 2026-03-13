@@ -10,6 +10,7 @@ import { orgRouter, openclawRouter, logsRouter, adminUsersRouter } from "./org";
 import { teamRouter } from "./team";
 import { autoValuationRouter } from './auto-valuation';
 import { pdfReportRouter } from './pdf-report';
+import { propertySearchRouter } from './property-search';
 
 export const appRouter = router({
   auth: authRouter,
@@ -28,6 +29,7 @@ export const appRouter = router({
   team: teamRouter,
   autoValuation: autoValuationRouter,
   pdfReport: pdfReportRouter,
+  propertySearch: propertySearchRouter,
 });
 
 export type AppRouter = typeof appRouter;

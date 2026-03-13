@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../lib/trpc'
 import { db } from '../lib/db'
-import { autoValuations, cases, cities } from '../lib/schema'
-import { eq, desc, and, between, gte, lte, sql } from 'drizzle-orm'
+import { autoValuations, cases, cities, estates, buildings, units } from '../lib/schema'
+import { eq, desc, and, gte, lte, sql, isNotNull } from 'drizzle-orm'
 import { calculateValuation, formatCurrency, PropertyInput } from '../lib/valuation-engine'
+import { getMonthlyPriceTrend } from './property-search'
 import OpenAI from 'openai'
 
 const openai = new OpenAI({
@@ -168,6 +169,13 @@ const PropertyInputSchema = z.object({
   landPrice: z.number().optional(),
   constructionCost: z.number().optional(),
   enableLLM: z.boolean().default(true),
+  // 新增：楼盘/楼栋/房屋关联
+  estateId: z.number().optional(),
+  buildingId: z.number().optional(),
+  unitId: z.number().optional(),
+  estateName: z.string().optional(),
+  buildingName: z.string().optional(),
+  unitNumber: z.string().optional(),
 })
 
 export const autoValuationRouter = router({
@@ -274,6 +282,84 @@ export const autoValuationRouter = router({
         comparableCount: dbComparables.length,
       } as any)
 
+      // 8. 获取月份价格趋势（用于报告图表）
+      let monthlyTrend: any[] = []
+      let scatterData: any[] = []
+      if (input.cityId) {
+        monthlyTrend = await getMonthlyPriceTrend({
+          cityId: input.cityId,
+          estateId: input.estateId,
+          propertyType: input.propertyType === 'residential' ? '住宅' : 
+                        input.propertyType === 'commercial' ? '商业' :
+                        input.propertyType === 'office' ? '办公' : '工业',
+          months: 18,
+        })
+
+        // 获取散点数据（最近24个月）
+        const startDate = new Date()
+        startDate.setMonth(startDate.getMonth() - 24)
+        const scatterConditions: any[] = [
+          eq(cases.cityId, input.cityId),
+          eq(cases.isAnomaly, false),
+          isNotNull(cases.unitPrice),
+          gte(cases.transactionDate, startDate),
+        ]
+        if (input.estateId) scatterConditions.push(eq(cases.estateId, input.estateId))
+
+        const rawScatter = await db
+          .select({
+            id: cases.id,
+            area: cases.area,
+            unitPrice: cases.unitPrice,
+            transactionDate: cases.transactionDate,
+            floor: cases.floor,
+            address: cases.address,
+          })
+          .from(cases)
+          .where(and(...scatterConditions))
+          .orderBy(desc(cases.transactionDate))
+          .limit(150)
+
+        scatterData = rawScatter.map(c => ({
+          id: c.id,
+          area: Number(c.area),
+          unitPrice: Number(c.unitPrice),
+          date: c.transactionDate ? new Date(c.transactionDate).toISOString().slice(0, 7) : null,
+          floor: c.floor,
+          address: c.address,
+        }))
+      }
+
+      // 9. 获取楼盘信息
+      let estateInfo: any = null
+      if (input.estateId) {
+        const [estateRow] = await db.select().from(estates).where(eq(estates.id, input.estateId)).limit(1)
+        if (estateRow) {
+          estateInfo = {
+            id: estateRow.id,
+            name: estateRow.name,
+            address: estateRow.address,
+            developer: estateRow.developer,
+            buildYear: estateRow.buildYear,
+            propertyType: estateRow.propertyType,
+          }
+        }
+      }
+
+      // 10. 获取楼栋信息
+      let buildingInfo: any = null
+      if (input.buildingId) {
+        const [buildingRow] = await db.select().from(buildings).where(eq(buildings.id, input.buildingId)).limit(1)
+        if (buildingRow) buildingInfo = buildingRow
+      }
+
+      // 11. 获取房屋单元信息
+      let unitInfo: any = null
+      if (input.unitId) {
+        const [unitRow] = await db.select().from(units).where(eq(units.id, input.unitId)).limit(1)
+        if (unitRow) unitInfo = unitRow
+      }
+
       return {
         id: (saved as any).insertId,
         // 估价核心结果
@@ -311,6 +397,26 @@ export const autoValuationRouter = router({
         formattedMin: formatCurrency(valuationMin),
         formattedMax: formatCurrency(valuationMax),
         formattedUnitPrice: `${result.unitPrice.toLocaleString('zh-CN')}元/㎡`,
+        // 新增：楼盘/楼栋/房屋信息
+        estateInfo,
+        buildingInfo,
+        unitInfo,
+        estateName: input.estateName || estateInfo?.name || null,
+        buildingName: input.buildingName || buildingInfo?.name || null,
+        unitNumber: input.unitNumber || unitInfo?.unitNumber || null,
+        // 新增：价格趋势图数据
+        monthlyTrend,
+        scatterData,
+        // 价格统计
+        priceStats: monthlyTrend.length > 0 ? {
+          latestAvgPrice: monthlyTrend[monthlyTrend.length - 1]?.avgPrice || 0,
+          firstAvgPrice: monthlyTrend[0]?.avgPrice || 0,
+          priceChange: monthlyTrend.length >= 2
+            ? ((monthlyTrend[monthlyTrend.length - 1]?.avgPrice - monthlyTrend[0]?.avgPrice) / monthlyTrend[0]?.avgPrice * 100).toFixed(1)
+            : '0',
+          totalDataPoints: scatterData.length,
+          monthCount: monthlyTrend.length,
+        } : null,
       }
     }),
 

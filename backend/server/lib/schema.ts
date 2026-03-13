@@ -250,6 +250,28 @@ export const autoValuations = mysqlTable("auto_valuations", {
   aiAnalysis: text("ai_analysis"),
   status: mysqlEnum("status", ["pending", "completed", "failed"]).default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
+  // 扩展字段（二次开发新增）
+  orgId: int("org_id"),
+  propertyAddress: varchar("property_address", { length: 500 }),
+  buildingArea: decimal("building_area", { precision: 10, scale: 2 }),
+  totalFloors: int("total_floors"),
+  buildingAge: int("building_age"),
+  orientation: varchar("orientation", { length: 50 }),
+  decoration: varchar("decoration", { length: 50 }),
+  hasElevator: int("has_elevator").default(0),
+  hasParking: int("has_parking").default(0),
+  purpose: varchar("purpose", { length: 50 }),
+  district: varchar("district", { length: 100 }),
+  cityName: varchar("city_name", { length: 100 }),
+  estimatedValue: decimal("estimated_value", { precision: 15, scale: 2 }),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
+  confidenceLevel: varchar("confidence_level", { length: 20 }),
+  reportData: json("report_data"),
+  llmAnalysis: json("llm_analysis"),
+  comparableCount: int("comparable_count").default(0),
+  // 楼盘/楼栋/房屋关联
+  buildingId: int("building_id"),
+  unitId: int("unit_id"),
 });
 
 // OpenClaw 配置表

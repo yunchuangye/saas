@@ -44,6 +44,9 @@ importers:
       openai:
         specifier: ^6.27.0
         version: 6.27.0(zod@3.25.76)
+      pinyin-pro:
+        specifier: ^3.28.0
+        version: 3.28.0
       superjson:
         specifier: ^2.2.6
         version: 2.2.6
@@ -1041,6 +1044,9 @@ packages:
   path-to-regexp@0.1.12:
     resolution: {integrity: sha512-RA1GjUVMnvYFxuqovrEqZoxxW5NUZqbwKtYz/Tt7nXerk0LbLblQmrsgdeOxV5SFHf0UDggjS/bSeOZwt1pmEQ==}
 
+  pinyin-pro@3.28.0:
+    resolution: {integrity: sha512-mMRty6RisoyYNphJrTo3pnvp3w8OMZBrXm9YSWkxhAfxKj1KZk2y8T2PDIZlDDRsvZ0No+Hz6FI4sZpA6Ey25g==}
+
   proxy-addr@2.0.7:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
     engines: {node: '>= 0.10'}
@@ -1931,6 +1937,8 @@ snapshots:
   parseurl@1.3.3: {}
 
   path-to-regexp@0.1.12: {}
+
+  pinyin-pro@3.28.0: {}
 
   proxy-addr@2.0.7:
     dependencies:
