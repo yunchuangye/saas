@@ -28,6 +28,8 @@
     "openai": "^6.27.0",
     "pinyin-pro": "^3.28.0",
     "playwright": "^1.58.2",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "superjson": "^2.2.6",
     "zod": "^3.24.1"
   },

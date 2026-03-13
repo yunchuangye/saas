@@ -71,13 +71,24 @@ export const crawlRouter = router({
   createJob: protectedProcedure
     .input(CreateJobSchema)
     .mutation(async ({ input, ctx }) => {
+      // 如果传了 cityId 但没有 cityName，自动从数据库查询
+      let cityName = input.cityName;
+      if (!cityName && input.cityId) {
+        const [city] = await db.select({ name: cities.name })
+          .from(cities)
+          .where(eq(cities.id, input.cityId))
+          .limit(1);
+        cityName = city?.name;
+      }
+
       const [job] = await (db.insert(crawlJobs) as any).values({
         ...input,
+        cityName,
         createdBy: ctx.user.id,
         status: 'pending',
       }).$returningId();
 
-      return { id: job.id, message: '任务创建成功' };
+      return { id: job.id, name: input.name, cityName, status: 'pending', cityId: input.cityId, message: '任务创建成功' };
     }),
 
   // 启动任务
