@@ -1,195 +1,93 @@
 "use client"
-
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Search, Filter, MoreHorizontal, Eye, AlertCircle } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Search, FolderOpen } from "lucide-react"
+import { trpc } from "@/lib/trpc"
 
-const projects = [
-  {
-    id: "PRJ-2024-020",
-    name: "朝阳区CBD商业综合体评估",
-    bank: "中国银行朝阳支行",
-    company: "华信评估",
-    type: "商业",
-    status: "进行中",
-    deadline: "2024-03-18",
-    amount: "¥68,000",
-  },
-  {
-    id: "PRJ-2024-019",
-    name: "海淀区住宅评估",
-    bank: "工商银行海淀支行",
-    company: "中房评估",
-    type: "住宅",
-    status: "待审核",
-    deadline: "2024-03-15",
-    amount: "¥12,000",
-  },
-  {
-    id: "PRJ-2024-018",
-    name: "西城区办公楼评估",
-    bank: "建设银行西城支行",
-    company: "正信评估",
-    type: "商业",
-    status: "已完成",
-    deadline: "2024-03-10",
-    amount: "¥45,000",
-  },
-  {
-    id: "PRJ-2024-017",
-    name: "丰台区工业厂房评估",
-    bank: "农业银行丰台支行",
-    company: "同信评估",
-    type: "工业",
-    status: "已超期",
-    deadline: "2024-03-05",
-    amount: "¥35,000",
-  },
-]
-
-const statusColors: Record<string, string> = {
-  "竞价中": "bg-info/10 text-info",
-  "进行中": "bg-info/10 text-info",
-  "待审核": "bg-warning/10 text-warning",
-  "已完成": "bg-success/10 text-success",
-  "已超期": "bg-destructive/10 text-destructive",
+const statusMap: Record<string, { label: string; variant: "default"|"secondary"|"destructive"|"outline" }> = {
+  bidding: { label: "竞价中", variant: "secondary" },
+  awarded: { label: "已中标", variant: "outline" },
+  active: { label: "进行中", variant: "default" },
+  surveying: { label: "勘察中", variant: "default" },
+  reporting: { label: "报告编制", variant: "default" },
+  reviewing: { label: "审核中", variant: "secondary" },
+  completed: { label: "已完成", variant: "outline" },
+  cancelled: { label: "已取消", variant: "destructive" },
 }
 
 export default function AdminProjectsPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-
-  const filteredProjects = projects.filter(
-    (project) =>
-      project.name.includes(searchQuery) ||
-      project.id.includes(searchQuery) ||
-      project.bank.includes(searchQuery) ||
-      project.company.includes(searchQuery)
-  )
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
+  const { data, isLoading } = trpc.projects.list.useQuery({ page, pageSize: 20, search: search || undefined })
+  const projects = data?.items ?? []
+  const total = data?.total ?? 0
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">项目监控</h1>
-          <p className="text-muted-foreground">监控平台所有评估项目</p>
+          <h1 className="text-2xl font-bold tracking-tight">项目管理</h1>
+          <p className="text-muted-foreground">管理所有评估项目</p>
         </div>
+        <Badge variant="secondary">共 {total} 个项目</Badge>
       </div>
-
-      <Tabs defaultValue="all">
-        <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="all">全部</TabsTrigger>
-            <TabsTrigger value="active">进行中</TabsTrigger>
-            <TabsTrigger value="review">待审核</TabsTrigger>
-            <TabsTrigger value="overdue">已超期</TabsTrigger>
-          </TabsList>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="搜索项目..."
-                className="pl-8 w-[250px]"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
+      <Card>
+        <CardHeader>
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="搜索项目..." className="pl-9" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
           </div>
-        </div>
-
-        <TabsContent value="all">
-          <Card>
-            <CardHeader>
-              <CardTitle>项目列表</CardTitle>
-              <CardDescription>共 {filteredProjects.length} 个项目</CardDescription>
-            </CardHeader>
-            <CardContent>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-2">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          ) : projects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <FolderOpen className="h-12 w-12 mb-4 opacity-30" /><p>暂无项目数据</p>
+            </div>
+          ) : (
+            <>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>项目编号</TableHead>
                     <TableHead>项目名称</TableHead>
-                    <TableHead>委托银行</TableHead>
-                    <TableHead>评估公司</TableHead>
-                    <TableHead>类型</TableHead>
-                    <TableHead>截止日期</TableHead>
-                    <TableHead>金额</TableHead>
+                    <TableHead>物业类型</TableHead>
                     <TableHead>状态</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead>创建时间</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProjects.map((project) => (
-                    <TableRow key={project.id}>
-                      <TableCell className="font-mono text-sm">{project.id}</TableCell>
-                      <TableCell className="font-medium">{project.name}</TableCell>
-                      <TableCell>{project.bank}</TableCell>
-                      <TableCell>{project.company}</TableCell>
-                      <TableCell>{project.type}</TableCell>
-                      <TableCell>
-                        <span className={project.status === "已超期" ? "text-destructive" : ""}>
-                          {project.deadline}
-                        </span>
-                      </TableCell>
-                      <TableCell>{project.amount}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className={statusColors[project.status]}>
-                          {project.status === "已超期" && <AlertCircle className="mr-1 h-3 w-3" />}
-                          {project.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
-                              查看详情
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {projects.map((p: any) => {
+                    const s = statusMap[p.status] ?? { label: p.status, variant: "outline" as const }
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-mono text-xs">{p.projectNo}</TableCell>
+                        <TableCell className="font-medium">{p.title}</TableCell>
+                        <TableCell>{p.propertyType ?? "-"}</TableCell>
+                        <TableCell><Badge variant={s.variant}>{s.label}</Badge></TableCell>
+                        <TableCell>{new Date(p.createdAt).toLocaleDateString()}</TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="active">
-          <div className="text-center py-12 text-muted-foreground">进行中的项目</div>
-        </TabsContent>
-        <TabsContent value="review">
-          <div className="text-center py-12 text-muted-foreground">待审核的项目</div>
-        </TabsContent>
-        <TabsContent value="overdue">
-          <div className="text-center py-12 text-muted-foreground">已超期的项目</div>
-        </TabsContent>
-      </Tabs>
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-sm text-muted-foreground">共 {total} 条记录</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p-1)}>上一页</Button>
+                  <Button variant="outline" size="sm" disabled={projects.length < 20} onClick={() => setPage(p => p+1)}>下一页</Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

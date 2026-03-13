@@ -1,232 +1,58 @@
 "use client"
-
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Search, Download, Eye, Archive, Filter, FileText, Calendar, User } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { FileText } from "lucide-react"
+import { trpc } from "@/lib/trpc"
 
-const archivedReports = [
-  {
-    id: "RPT-2024-003",
-    title: "西城区办公楼评估报告",
-    type: "商业",
-    client: "建设银行西城支行",
-    author: "王五",
-    completedDate: "2024-03-08",
-    fileSize: "2.4 MB",
-  },
-  {
-    id: "RPT-2024-010",
-    title: "东城区住宅评估报告",
-    type: "住宅",
-    client: "招商银行东城支行",
-    author: "张三",
-    completedDate: "2024-03-05",
-    fileSize: "1.8 MB",
-  },
-  {
-    id: "RPT-2024-011",
-    title: "丰台区土地评估报告",
-    type: "土地",
-    client: "民生银行丰台支行",
-    author: "李四",
-    completedDate: "2024-03-01",
-    fileSize: "3.2 MB",
-  },
-  {
-    id: "RPT-2024-012",
-    title: "石景山区厂房评估报告",
-    type: "工业",
-    client: "光大银行石景山支行",
-    author: "赵六",
-    completedDate: "2024-02-28",
-    fileSize: "4.1 MB",
-  },
-  {
-    id: "RPT-2024-013",
-    title: "朝阳区商业综合体评估报告",
-    type: "商业",
-    client: "中国银行朝阳支行",
-    author: "张三",
-    completedDate: "2024-02-25",
-    fileSize: "5.6 MB",
-  },
-]
+const statusMap: Record<string, string> = {
+  draft: "草稿", submitted: "已提交", reviewing: "审核中", approved: "已通过", rejected: "已驳回",
+}
 
-export default function AppraiserReportsArchivePage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [selectedReport, setSelectedReport] = useState<typeof archivedReports[0] | null>(null)
-
-  const filteredReports = archivedReports.filter(
-    (report) =>
-      report.title.includes(searchQuery) ||
-      report.id.includes(searchQuery) ||
-      report.client.includes(searchQuery)
-  )
+export default function ReportsPage() {
+  const { data, isLoading } = trpc.reports.list.useQuery({ page: 1, pageSize: 20, status: "approved" })
+  const reports = data?.items ?? []
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">报告归档</h1>
-          <p className="text-muted-foreground">查看和下载已归档的评估报告</p>
-        </div>
-        <Badge variant="secondary">
-          <Archive className="mr-1 h-3 w-3" />
-          {archivedReports.length} 份报告
-        </Badge>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">报告归档</h1>
+        <p className="text-muted-foreground">已审核通过的报告</p>
       </div>
-
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>归档报告</CardTitle>
-              <CardDescription>按完成日期排序</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="搜索报告..."
-                  className="pl-8 w-[250px]"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
+        <CardHeader><CardTitle>{reports.length} 份报告</CardTitle></CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>报告编号</TableHead>
-                <TableHead>报告名称</TableHead>
-                <TableHead>类型</TableHead>
-                <TableHead>委托方</TableHead>
-                <TableHead>编制人</TableHead>
-                <TableHead>完成日期</TableHead>
-                <TableHead>文件大小</TableHead>
-                <TableHead className="w-[100px]">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredReports.map((report) => (
-                <TableRow key={report.id}>
-                  <TableCell className="font-mono text-sm">{report.id}</TableCell>
-                  <TableCell className="font-medium">{report.title}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{report.type}</Badge>
-                  </TableCell>
-                  <TableCell>{report.client}</TableCell>
-                  <TableCell>{report.author}</TableCell>
-                  <TableCell>{report.completedDate}</TableCell>
-                  <TableCell>{report.fileSize}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => {
-                        setSelectedReport(report)
-                        setIsViewDialogOpen(true)
-                      }}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => {
-                        alert(`下载报告: ${report.title}\n文件大小: ${report.fileSize}`)
-                      }}>
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {isLoading ? (
+            <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          ) : reports.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <FileText className="h-12 w-12 mb-4 opacity-30" /><p>暂无报告数据</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>报告编号</TableHead>
+                  <TableHead>报告标题</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead>时间</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {reports.map((r: any) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="font-mono text-xs">{r.reportNo}</TableCell>
+                    <TableCell className="font-medium">{r.title}</TableCell>
+                    <TableCell><Badge variant="outline">{statusMap[r.status] ?? r.status}</Badge></TableCell>
+                    <TableCell>{r.submittedAt ? new Date(r.submittedAt).toLocaleDateString() : new Date(r.createdAt).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
-
-      {/* 报告详情对话框 */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>报告详情</DialogTitle>
-            <DialogDescription>查看已归档报告的详细信息</DialogDescription>
-          </DialogHeader>
-          {selectedReport && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">{selectedReport.title}</h3>
-                  <p className="text-sm text-muted-foreground font-mono">{selectedReport.id}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{selectedReport.type}</Badge>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">委托方</p>
-                  <p className="font-medium">{selectedReport.client}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">编制人</p>
-                    <p className="font-medium">{selectedReport.author}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">完成日期</p>
-                    <p className="font-medium">{selectedReport.completedDate}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">文件大小</p>
-                  <p className="font-medium">{selectedReport.fileSize}</p>
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-              关闭
-            </Button>
-            <Button onClick={() => {
-              alert(`下载报告: ${selectedReport?.title}\n文件大小: ${selectedReport?.fileSize}`)
-            }}>
-              <Download className="mr-2 h-4 w-4" />
-              下载报告
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

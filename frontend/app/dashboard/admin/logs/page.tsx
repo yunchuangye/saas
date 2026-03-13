@@ -1,168 +1,83 @@
 "use client"
-
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Search, Filter, Download, User, Settings, FileText, Shield } from "lucide-react"
-
-const logs = [
-  {
-    id: 1,
-    action: "用户登录",
-    user: "王经理",
-    role: "评估公司",
-    ip: "192.168.1.***",
-    time: "2024-03-10 10:30:25",
-    type: "auth",
-    status: "success",
-  },
-  {
-    id: 2,
-    action: "提交报告",
-    user: "李四",
-    role: "评估公司",
-    ip: "192.168.1.***",
-    time: "2024-03-10 10:28:15",
-    type: "report",
-    status: "success",
-  },
-  {
-    id: 3,
-    action: "发起需求",
-    user: "刘主任",
-    role: "银行机构",
-    ip: "10.0.0.***",
-    time: "2024-03-10 10:25:00",
-    type: "project",
-    status: "success",
-  },
-  {
-    id: 4,
-    action: "修改系统配置",
-    user: "管理员",
-    role: "运营管理",
-    ip: "172.16.0.***",
-    time: "2024-03-10 10:20:00",
-    type: "system",
-    status: "success",
-  },
-  {
-    id: 5,
-    action: "登录失败",
-    user: "未知用户",
-    role: "-",
-    ip: "203.0.113.***",
-    time: "2024-03-10 10:15:30",
-    type: "auth",
-    status: "failed",
-  },
-]
-
-const typeIcons: Record<string, React.ElementType> = {
-  auth: User,
-  report: FileText,
-  project: FileText,
-  system: Settings,
-}
-
-const statusColors: Record<string, string> = {
-  success: "bg-success/10 text-success",
-  failed: "bg-destructive/10 text-destructive",
-}
+import { Skeleton } from "@/components/ui/skeleton"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Search, Activity } from "lucide-react"
+import { trpc } from "@/lib/trpc"
 
 export default function AdminLogsPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-
-  const filteredLogs = logs.filter(
-    (log) =>
-      log.action.includes(searchQuery) ||
-      log.user.includes(searchQuery)
-  )
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
+  const { data, isLoading } = trpc.logs.list.useQuery({ page, pageSize: 30, search: search || undefined })
+  const logs = data?.items ?? []
+  const total = data?.total ?? 0
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">操作日志</h1>
-          <p className="text-muted-foreground">查看系统操作日志和审计记录</p>
+          <p className="text-muted-foreground">查看系统操作记录</p>
         </div>
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          导出日志
-        </Button>
+        <Badge variant="secondary">共 {total} 条记录</Badge>
       </div>
-
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>日志记录</CardTitle>
-              <CardDescription>系统操作审计日志</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="搜索日志..."
-                  className="pl-8 w-[250px]"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="搜索日志..." className="pl-9" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>类型</TableHead>
-                <TableHead>操作</TableHead>
-                <TableHead>用户</TableHead>
-                <TableHead>角色</TableHead>
-                <TableHead>IP地址</TableHead>
-                <TableHead>时间</TableHead>
-                <TableHead>状态</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLogs.map((log) => {
-                const Icon = typeIcons[log.type] || Shield
-                return (
-                  <TableRow key={log.id}>
-                    <TableCell>
-                      <div className="p-2 rounded-full bg-muted w-fit">
-                        <Icon className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{log.action}</TableCell>
-                    <TableCell>{log.user}</TableCell>
-                    <TableCell>{log.role}</TableCell>
-                    <TableCell className="font-mono text-sm">{log.ip}</TableCell>
-                    <TableCell>{log.time}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={statusColors[log.status]}>
-                        {log.status === "success" ? "成功" : "失败"}
-                      </Badge>
-                    </TableCell>
+          {isLoading ? (
+            <div className="space-y-2">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          ) : logs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <Activity className="h-12 w-12 mb-4 opacity-30" /><p>暂无日志数据</p>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>操作类型</TableHead>
+                    <TableHead>操作内容</TableHead>
+                    <TableHead>操作用户</TableHead>
+                    <TableHead>IP地址</TableHead>
+                    <TableHead>状态</TableHead>
+                    <TableHead>时间</TableHead>
                   </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log: any) => (
+                    <TableRow key={log.id}>
+                      <TableCell><Badge variant="outline">{log.action}</Badge></TableCell>
+                      <TableCell className="max-w-xs truncate text-muted-foreground">{log.detail ?? "-"}</TableCell>
+                      <TableCell>{log.userId ?? "系统"}</TableCell>
+                      <TableCell className="font-mono text-xs">{log.ip ?? "-"}</TableCell>
+                      <TableCell>
+                        <Badge variant={log.status === "success" ? "default" : "destructive"}>
+                          {log.status === "success" ? "成功" : "失败"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{new Date(log.createdAt).toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-sm text-muted-foreground">共 {total} 条记录</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p-1)}>上一页</Button>
+                  <Button variant="outline" size="sm" disabled={logs.length < 30} onClick={() => setPage(p => p+1)}>下一页</Button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -16,32 +16,48 @@ import {
   Pie,
   Cell,
 } from "recharts"
+import { trpc } from "@/lib/trpc"
 
-const monthlyData = [
-  { month: "1月", 项目数: 45, 完成数: 42, 收入: 128 },
-  { month: "2月", 项目数: 52, 完成数: 48, 收入: 145 },
-  { month: "3月", 项目数: 61, 完成数: 58, 收入: 172 },
-  { month: "4月", 项目数: 55, 完成数: 52, 收入: 156 },
-  { month: "5月", 项目数: 67, 完成数: 63, 收入: 189 },
-  { month: "6月", 项目数: 72, 完成数: 68, 收入: 205 },
-]
-
-const projectTypeData = [
-  { name: "住宅评估", value: 45, color: "var(--chart-1)" },
-  { name: "商业评估", value: 28, color: "var(--chart-2)" },
-  { name: "工业评估", value: 15, color: "var(--chart-3)" },
-  { name: "土地评估", value: 12, color: "var(--chart-4)" },
-]
-
-const performanceData = [
-  { name: "张三", 完成项目: 28, 平均用时: 3.2 },
-  { name: "李四", 完成项目: 24, 平均用时: 2.8 },
-  { name: "王五", 完成项目: 22, 平均用时: 3.5 },
-  { name: "赵六", 完成项目: 19, 平均用时: 3.0 },
-  { name: "钱七", 完成项目: 17, 平均用时: 2.6 },
-]
+const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"]
 
 export default function AppraiserAnalyticsPage() {
+  const { data: stats } = trpc.dashboard.stats.useQuery()
+  const { data: projectsData } = trpc.projects.list.useQuery({ page: 1, pageSize: 100 })
+
+  // 从真实数据计算项目类型分布
+  const projectTypeMap: Record<string, number> = {}
+  projectsData?.items?.forEach((p: any) => {
+    const type = p.propertyType || "其他"
+    projectTypeMap[type] = (projectTypeMap[type] || 0) + 1
+  })
+  const projectTypeData = Object.entries(projectTypeMap).map(([name, value], i) => ({
+    name,
+    value,
+    color: COLORS[i % COLORS.length],
+  }))
+
+  // 从真实数据计算月度趋势（近6个月）
+  const monthlyMap: Record<string, { 项目数: number; 完成数: number }> = {}
+  const now = new Date()
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = `${d.getMonth() + 1}月`
+    monthlyMap[key] = { 项目数: 0, 完成数: 0 }
+  }
+  projectsData?.items?.forEach((p: any) => {
+    const d = new Date(p.createdAt)
+    const key = `${d.getMonth() + 1}月`
+    if (monthlyMap[key]) {
+      monthlyMap[key].项目数++
+      if (p.status === "completed") monthlyMap[key].完成数++
+    }
+  })
+  const monthlyData = Object.entries(monthlyMap).map(([month, v]) => ({ month, ...v, 收入: Math.round(v.完成数 * 3.2) }))
+
+  const totalProjects = stats?.totalProjects || 0
+  const completedProjects = projectsData?.items?.filter((p: any) => p.status === "completed").length || 0
+  const completionRate = totalProjects > 0 ? ((completedProjects / totalProjects) * 100).toFixed(1) : "0.0"
+
   return (
     <div className="space-y-6">
       <div>
@@ -53,14 +69,14 @@ export default function AppraiserAnalyticsPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">本月项目数</CardTitle>
+            <CardTitle className="text-sm font-medium">总项目数</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">72</div>
+            <div className="text-2xl font-bold">{totalProjects}</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <TrendingUp className="h-3 w-3 text-success" />
-              <span className="text-success">+7.5%</span> 较上月
+              <span className="text-success">实时数据</span>
             </p>
           </CardContent>
         </Card>
@@ -70,36 +86,34 @@ export default function AppraiserAnalyticsPage() {
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">94.4%</div>
+            <div className="text-2xl font-bold">{completionRate}%</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-success" />
-              <span className="text-success">+2.1%</span> 较上月
+              <span>已完成 {completedProjects} 个项目</span>
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">平均用时</CardTitle>
+            <CardTitle className="text-sm font-medium">进行中项目</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3.2 天</div>
+            <div className="text-2xl font-bold">{stats?.activeProjects || 0}</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingDown className="h-3 w-3 text-success" />
-              <span className="text-success">-0.3天</span> 较上月
+              <span>待竞价 {stats?.pendingBids || 0} 个</span>
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">本月收入</CardTitle>
+            <CardTitle className="text-sm font-medium">待审核报告</CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">¥205万</div>
+            <div className="text-2xl font-bold">{stats?.pendingReports || 0}</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <TrendingUp className="h-3 w-3 text-success" />
-              <span className="text-success">+8.5%</span> 较上月
+              <span>需要处理</span>
             </p>
           </CardContent>
         </Card>
@@ -118,12 +132,12 @@ export default function AppraiserAnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="month" className="text-xs" />
                 <YAxis className="text-xs" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: "hsl(var(--card))", 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
                     border: "1px solid hsl(var(--border))",
                     borderRadius: "var(--radius)"
-                  }} 
+                  }}
                 />
                 <Area
                   type="monotone"
@@ -152,53 +166,32 @@ export default function AppraiserAnalyticsPage() {
             <CardDescription>各类型评估项目占比</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={projectTypeData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={2}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {projectTypeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {projectTypeData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={projectTypeData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {projectTypeData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">暂无数据</div>
+            )}
           </CardContent>
         </Card>
       </div>
-
-      {/* 员工绩效 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>评估师绩效排名</CardTitle>
-          <CardDescription>本月评估师工作完成情况</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={performanceData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis type="number" className="text-xs" />
-              <YAxis dataKey="name" type="category" width={60} className="text-xs" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "var(--radius)"
-                }}
-              />
-              <Bar dataKey="完成项目" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
     </div>
   )
 }

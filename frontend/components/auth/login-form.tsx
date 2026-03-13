@@ -8,32 +8,48 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { roles, type UserRole } from "@/lib/config/roles"
 import { cn } from "@/lib/utils"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react"
+import { trpc } from "@/lib/trpc"
+
+const ROLE_DASHBOARD_MAP: Record<string, string> = {
+  appraiser: "/dashboard/appraiser",
+  bank: "/dashboard/bank",
+  investor: "/dashboard/investor",
+  customer: "/dashboard/customer",
+  admin: "/dashboard/admin",
+}
 
 export function LoginForm() {
   const router = useRouter()
   const [selectedRole, setSelectedRole] = React.useState<UserRole>("appraiser")
-  const [isLoading, setIsLoading] = React.useState(false)
   const [showPassword, setShowPassword] = React.useState(false)
+  const [errorMsg, setErrorMsg] = React.useState("")
   const [formData, setFormData] = React.useState({
     username: "",
     password: "",
   })
 
+  const loginMutation = trpc.auth.login.useMutation({
+    onSuccess: (data) => {
+      const dashboardPath = ROLE_DASHBOARD_MAP[(data as any)?.user?.role ?? ""] || "/dashboard/appraiser"
+      router.push(dashboardPath)
+    },
+    onError: (error) => {
+      setErrorMsg(error.message || "用户名或密码错误，请重试")
+    },
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    
-    // 模拟登录延迟
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    
-    // 根据选择的角色跳转到对应的仪表盘
-    const role = roles.find((r) => r.id === selectedRole)
-    if (role) {
-      router.push(role.dashboardPath)
+    setErrorMsg("")
+    if (!formData.username || !formData.password) {
+      setErrorMsg("请输入用户名和密码")
+      return
     }
-    
-    setIsLoading(false)
+    loginMutation.mutate({
+      username: formData.username,
+      password: formData.password,
+    })
   }
 
   return (
@@ -101,6 +117,7 @@ export function LoginForm() {
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               required
+              disabled={loginMutation.isPending}
             />
           </div>
 
@@ -124,6 +141,7 @@ export function LoginForm() {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
                 className="pr-10"
+                disabled={loginMutation.isPending}
               />
               <button
                 type="button"
@@ -139,9 +157,17 @@ export function LoginForm() {
             </div>
           </div>
 
+          {/* 错误提示 */}
+          {errorMsg && (
+            <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
           {/* 登录按钮 */}
-          <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-            {isLoading ? (
+          <Button type="submit" className="w-full" size="lg" disabled={loginMutation.isPending}>
+            {loginMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 登录中...

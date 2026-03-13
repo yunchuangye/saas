@@ -1,104 +1,89 @@
 "use client"
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Bell, FileText, CheckCircle, Clock, Check } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Bell, FileText, TrendingUp, CheckCircle, AlertCircle, Check } from "lucide-react"
+import { trpc } from "@/lib/trpc"
+import { useToast } from "@/hooks/use-toast"
 
-const notifications = [
-  {
-    id: 1,
-    type: "progress",
-    title: "评估进度更新",
-    content: "您的评估申请 APP-2024-001 已进入报告编制阶段",
-    time: "2小时前",
-    read: false,
-    icon: FileText,
-    iconColor: "text-info",
-  },
-  {
-    id: 2,
-    type: "completed",
-    title: "报告已完成",
-    content: "您的评估报告 RPT-2024-002 已完成，可以下载查看",
-    time: "1天前",
-    read: false,
-    icon: CheckCircle,
-    iconColor: "text-success",
-  },
-  {
-    id: 3,
-    type: "system",
-    title: "系统通知",
-    content: "欢迎使用gujia.app评估服务平台",
-    time: "3天前",
-    read: true,
-    icon: Bell,
-    iconColor: "text-muted-foreground",
-  },
-]
+const typeIconMap: Record<string, any> = {
+  bidding: TrendingUp, review: CheckCircle, deadline: AlertCircle, project: FileText, system: Bell,
+}
+const typeColorMap: Record<string, string> = {
+  bidding: "text-info", review: "text-success", deadline: "text-warning", project: "text-primary", system: "text-muted-foreground",
+}
 
-export default function CustomerNotificationsPage() {
-  const unreadCount = notifications.filter((n) => !n.read).length
+export default function NotificationsPage() {
+  const { toast } = useToast()
+  const { data, isLoading, refetch } = trpc.notifications.list.useQuery({ page: 1, pageSize: 50 })
+  const { data: unreadData } = trpc.notifications.unreadCount.useQuery()
+  const markReadMutation = trpc.notifications.markRead.useMutation({ onSuccess: () => refetch() })
+  const markAllReadMutation = trpc.notifications.markAllRead.useMutation({
+    onSuccess: () => { toast({ title: "已全部标记为已读" }); refetch() }
+  })
+  const notifications = data?.items ?? []
+  const unreadCount = unreadData?.count ?? 0
+
+  function formatTime(date: string) {
+    const diff = Date.now() - new Date(date).getTime()
+    if (diff < 60000) return "刚刚"
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+    return `${Math.floor(diff / 86400000)}天前`
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">通知消息</h1>
-          <p className="text-muted-foreground">查看系统通知和评估进度提醒</p>
+          <p className="text-muted-foreground">查看系统通知和业务提醒</p>
         </div>
         <div className="flex items-center gap-2">
-          {unreadCount > 0 && (
-            <Badge variant="secondary" className="bg-info/10 text-info">
-              {unreadCount} 条未读
-            </Badge>
-          )}
-          <Button variant="outline" size="sm">
-            <Check className="mr-2 h-4 w-4" />
-            全部标记已读
+          {unreadCount > 0 && <Badge variant="destructive">{unreadCount} 条未读</Badge>}
+          <Button variant="outline" size="sm" onClick={() => markAllReadMutation.mutate()} disabled={unreadCount === 0}>
+            <Check className="mr-1 h-4 w-4" />全部已读
           </Button>
         </div>
       </div>
-
       <Card>
         <CardHeader>
-          <CardTitle>通知列表</CardTitle>
-          <CardDescription>最近30天的通知</CardDescription>
+          <CardTitle>全部通知</CardTitle>
+          <CardDescription>共 {notifications.length} 条通知</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {notifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${
-                  notification.read ? "bg-background" : "bg-accent/50"
-                }`}
-              >
-                <div className={`p-2 rounded-full bg-muted ${notification.iconColor}`}>
-                  <notification.icon className="h-4 w-4" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{notification.title}</p>
-                    {!notification.read && (
-                      <span className="h-2 w-2 rounded-full bg-info" />
-                    )}
+          {isLoading ? (
+            <div className="space-y-4">{[1,2,3,4].map(i => <Skeleton key={i} className="h-20 w-full" />)}</div>
+          ) : notifications.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <Bell className="h-12 w-12 mb-4 opacity-30" /><p>暂无通知</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {notifications.map((n: any) => {
+                const Icon = typeIconMap[n.type] ?? Bell
+                const iconColor = typeColorMap[n.type] ?? "text-muted-foreground"
+                return (
+                  <div key={n.id}
+                    className={`flex items-start gap-4 rounded-lg border p-4 cursor-pointer hover:bg-accent transition-colors ${!n.isRead ? "bg-primary/5 border-primary/20" : ""}`}
+                    onClick={() => { if (!n.isRead) markReadMutation.mutate({ id: n.id }) }}>
+                    <div className={`mt-0.5 ${iconColor}`}><Icon className="h-5 w-5" /></div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">{n.title}</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{formatTime(n.createdAt)}</span>
+                          {!n.isRead && <span className="h-2 w-2 rounded-full bg-primary inline-block" />}
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{n.content}</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">{notification.content}</p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {notification.time}
-                  </p>
-                </div>
-                {!notification.read && (
-                  <Button variant="ghost" size="sm">
-                    标记已读
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

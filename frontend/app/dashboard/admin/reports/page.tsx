@@ -1,118 +1,81 @@
 "use client"
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { CheckCircle, XCircle, Clock, FileText, Building2, Landmark, Eye } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Search, FileText } from "lucide-react"
+import { trpc } from "@/lib/trpc"
 
-const pendingReports = [
-  {
-    id: "RPT-2024-025",
-    title: "朝阳区CBD商业综合体评估报告",
-    company: "华信评估",
-    bank: "中国银行朝阳支行",
-    type: "商业",
-    submittedAt: "2024-03-10 09:30",
-    value: "¥1.2亿",
-  },
-  {
-    id: "RPT-2024-024",
-    title: "海淀区住宅评估报告",
-    company: "中房评估",
-    bank: "工商银行海淀支行",
-    type: "住宅",
-    submittedAt: "2024-03-09 16:45",
-    value: "¥580万",
-  },
-  {
-    id: "RPT-2024-023",
-    title: "西城区办公楼评估报告",
-    company: "正信评估",
-    bank: "建设银行西城支行",
-    type: "商业",
-    submittedAt: "2024-03-09 11:20",
-    value: "¥3,500万",
-  },
-]
+const statusMap: Record<string, string> = {
+  draft: "草稿", submitted: "已提交", reviewing: "审核中", approved: "已通过", rejected: "已驳回",
+}
 
 export default function AdminReportsPage() {
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
+  const { data, isLoading } = trpc.reports.list.useQuery({ page, pageSize: 20 })
+  const reports = data?.items ?? []
+  const total = data?.total ?? 0
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">报告审核</h1>
-          <p className="text-muted-foreground">审核评估公司提交的报告</p>
+          <h1 className="text-2xl font-bold tracking-tight">报告管理</h1>
+          <p className="text-muted-foreground">管理所有评估报告</p>
         </div>
-        <Badge variant="secondary" className="bg-warning/10 text-warning">
-          <Clock className="mr-1 h-3 w-3" />
-          {pendingReports.length} 份待审核
-        </Badge>
+        <Badge variant="secondary">共 {total} 份报告</Badge>
       </div>
-
-      <div className="grid gap-4">
-        {pendingReports.map((report) => (
-          <Card key={report.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarFallback>
-                      <FileText className="h-6 w-6" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{report.title}</CardTitle>
-                    <CardDescription className="flex items-center gap-4">
-                      <span className="flex items-center gap-1">
-                        <Building2 className="h-3 w-3" />
-                        {report.company}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Landmark className="h-3 w-3" />
-                        {report.bank}
-                      </span>
-                      <Badge variant="outline">{report.type}</Badge>
-                    </CardDescription>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-primary">{report.value}</p>
-                  <p className="text-xs text-muted-foreground">评估价值</p>
+      <Card>
+        <CardHeader>
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="搜索报告..." className="pl-9" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-2">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          ) : reports.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <FileText className="h-12 w-12 mb-4 opacity-30" /><p>暂无报告数据</p>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>报告编号</TableHead>
+                    <TableHead>报告标题</TableHead>
+                    <TableHead>状态</TableHead>
+                    <TableHead>创建时间</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reports.map((r: any) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-mono text-xs">{r.reportNo}</TableCell>
+                      <TableCell className="font-medium">{r.title}</TableCell>
+                      <TableCell><Badge variant="outline">{statusMap[r.status] ?? r.status}</Badge></TableCell>
+                      <TableCell>{new Date(r.createdAt).toLocaleDateString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-sm text-muted-foreground">共 {total} 条记录</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p-1)}>上一页</Button>
+                  <Button variant="outline" size="sm" disabled={reports.length < 20} onClick={() => setPage(p => p+1)}>下一页</Button>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  提交时间: {report.submittedAt}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm">
-                    <Eye className="mr-2 h-4 w-4" />
-                    查看报告
-                  </Button>
-                  <Button variant="outline" size="sm" className="text-destructive">
-                    <XCircle className="mr-2 h-4 w-4" />
-                    退回
-                  </Button>
-                  <Button size="sm">
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    通过
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {pendingReports.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          暂无待审核的报告
-        </div>
-      )}
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -397,4 +397,57 @@ export const directoryRouter = router({
   buildings: buildingsRouter,
   units: unitsRouter,
   cases: casesRouter,
+  // 扁平化别名，兼容前端直接调用
+  listCities: protectedProcedure
+    .input(z.object({ search: z.string().optional() }).optional())
+    .query(async ({ input, ctx }) => {
+      const search = input?.search;
+      let conditions: any[] = [eq(cities.isActive, true)];
+      if (search) conditions.push(like(cities.name, `%${search}%`));
+      const items = await ctx.db.select().from(cities).where(and(...conditions)).limit(100);
+      return { items, total: items.length };
+    }),
+  listEstates: protectedProcedure
+    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), search: z.string().optional() }).optional())
+    .query(async ({ input, ctx }) => {
+      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20; const search = input?.search;
+      const offset = (page - 1) * pageSize;
+      let conditions: any[] = [];
+      if (search) conditions.push(like(estates.name, `%${search}%`));
+      const items = await ctx.db.select().from(estates).where(conditions.length > 0 ? and(...conditions) : undefined).orderBy(desc(estates.createdAt)).limit(pageSize).offset(offset);
+      const [totalResult] = await ctx.db.select({ count: count() }).from(estates).where(conditions.length > 0 ? and(...conditions) : undefined);
+      return { items, total: totalResult.count, page, pageSize };
+    }),
+  listBuildings: protectedProcedure
+    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), search: z.string().optional() }).optional())
+    .query(async ({ input, ctx }) => {
+      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20; const search = input?.search;
+      const offset = (page - 1) * pageSize;
+      let conditions: any[] = [];
+      if (search) conditions.push(like(buildings.name, `%${search}%`));
+      const items = await ctx.db.select().from(buildings).where(conditions.length > 0 ? and(...conditions) : undefined).orderBy(desc(buildings.createdAt)).limit(pageSize).offset(offset);
+      const [totalResult] = await ctx.db.select({ count: count() }).from(buildings).where(conditions.length > 0 ? and(...conditions) : undefined);
+      return { items, total: totalResult.count, page, pageSize };
+    }),
+  listUnits: protectedProcedure
+    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), search: z.string().optional() }).optional())
+    .query(async ({ input, ctx }) => {
+      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20; const search = input?.search;
+      const offset = (page - 1) * pageSize;
+      let conditions: any[] = [];
+      const items = await ctx.db.select().from(units).where(conditions.length > 0 ? and(...conditions) : undefined).orderBy(desc(units.createdAt)).limit(pageSize).offset(offset);
+      const [totalResult] = await ctx.db.select({ count: count() }).from(units);
+      return { items, total: totalResult.count, page, pageSize };
+    }),
+  listCases: protectedProcedure
+    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), search: z.string().optional() }).optional())
+    .query(async ({ input, ctx }) => {
+      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20; const search = input?.search;
+      const offset = (page - 1) * pageSize;
+      let conditions: any[] = [];
+      if (search) conditions.push(like(cases.address, `%${search}%`));
+      const items = await ctx.db.select().from(cases).where(conditions.length > 0 ? and(...conditions) : undefined).orderBy(desc(cases.createdAt)).limit(pageSize).offset(offset);
+      const [totalResult] = await ctx.db.select({ count: count() }).from(cases).where(conditions.length > 0 ? and(...conditions) : undefined);
+      return { items, total: totalResult.count, page, pageSize };
+    }),
 });

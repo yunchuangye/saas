@@ -1,45 +1,18 @@
 "use client"
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
-import { FileEdit, Clock, ArrowRight, FileText } from "lucide-react"
-
-const draftReports = [
-  {
-    id: "RPT-2024-001",
-    projectId: "PRJ-2024-001",
-    title: "朝阳区某住宅评估报告",
-    type: "住宅",
-    progress: 75,
-    lastEdited: "2024-03-10 14:30",
-    deadline: "2024-03-15",
-    sections: { completed: 6, total: 8 },
-  },
-  {
-    id: "RPT-2024-004",
-    projectId: "PRJ-2024-004",
-    title: "通州区工业厂房评估报告",
-    type: "工业",
-    progress: 45,
-    lastEdited: "2024-03-09 16:20",
-    deadline: "2024-03-20",
-    sections: { completed: 4, total: 9 },
-  },
-  {
-    id: "RPT-2024-006",
-    projectId: "PRJ-2024-006",
-    title: "大兴区商业综合体评估报告",
-    type: "商业",
-    progress: 20,
-    lastEdited: "2024-03-08 10:15",
-    deadline: "2024-03-25",
-    sections: { completed: 2, total: 10 },
-  },
-]
+import { FileEdit, Clock, ArrowRight } from "lucide-react"
+import { trpc } from "@/lib/trpc"
+import { useToast } from "@/hooks/use-toast"
 
 export default function AppraiserReportsEditPage() {
+  const { toast } = useToast()
+  const { data, isLoading } = trpc.reports.list.useQuery({ page: 1, pageSize: 20, status: "draft" })
+  const reports = data?.items ?? []
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -47,66 +20,53 @@ export default function AppraiserReportsEditPage() {
           <h1 className="text-2xl font-bold tracking-tight">报告编制</h1>
           <p className="text-muted-foreground">编辑和管理评估报告草稿</p>
         </div>
-        <Badge variant="secondary">
-          <FileEdit className="mr-1 h-3 w-3" />
-          {draftReports.length} 份草稿
-        </Badge>
+        <Badge variant="secondary"><FileEdit className="mr-1 h-3 w-3" />{reports.length} 份草稿</Badge>
       </div>
-
-      <div className="grid gap-4">
-        {draftReports.map((report) => (
-          <Card key={report.id} className="hover:border-primary/50 transition-colors">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
+      {isLoading ? (
+        <div className="space-y-4">{[1,2,3].map(i => <Skeleton key={i} className="h-40 w-full" />)}</div>
+      ) : reports.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+            <FileEdit className="h-12 w-12 mb-4 opacity-30" /><p>暂无草稿报告</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {reports.map((report: any) => (
+            <Card key={report.id} className="hover:border-primary/50 transition-colors">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
                     <CardTitle className="text-lg">{report.title}</CardTitle>
+                    <CardDescription className="font-mono text-xs">{report.reportNo}</CardDescription>
                   </div>
-                  <CardDescription className="flex items-center gap-4">
-                    <span className="font-mono text-xs">{report.projectId}</span>
-                    <Badge variant="outline">{report.type}</Badge>
-                  </CardDescription>
+                  <Badge variant="secondary">草稿</Badge>
                 </div>
-                <Badge 
-                  variant="secondary"
-                  className={report.progress >= 70 ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}
-                >
-                  {report.progress}% 完成
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      已完成 {report.sections.completed}/{report.sections.total} 个章节
-                    </span>
-                    <span>{report.progress}%</span>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">报告进度</span>
+                      <span>30%</span>
+                    </div>
+                    <Progress value={30} className="h-2" />
                   </div>
-                  <Progress value={report.progress} className="h-2" />
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
-                      最后编辑: {report.lastEdited}
-                    </span>
-                    <span>截止: {report.deadline}</span>
+                      <span>创建于 {new Date(report.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <Button onClick={() => toast({ title: "报告编辑器", description: "完整报告编辑功能即将上线" })}>
+                      继续编辑 <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button onClick={() => {
-                    alert(`打开报告编辑器: ${report.title}\n\n此功能将跳转到完整的报告编辑界面，包含：\n- 基本信息\n- 估价对象描述\n- 市场分析\n- 评估方法\n- 评估结论\n- 附件材料`)
-                  }}>
-                    继续编辑
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

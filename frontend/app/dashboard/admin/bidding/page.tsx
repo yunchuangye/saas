@@ -1,122 +1,66 @@
 "use client"
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Clock, Building2, Banknote, Users, Eye, Landmark } from "lucide-react"
-
-const activeBiddings = [
-  {
-    id: "BID-2024-010",
-    title: "朝阳区CBD商业综合体评估",
-    bank: "中国银行朝阳支行",
-    type: "商业",
-    budget: "¥50,000 - ¥80,000",
-    deadline: "2024-03-15 18:00",
-    timeLeft: "5天 6小时",
-    bids: 5,
-  },
-  {
-    id: "BID-2024-009",
-    title: "海淀区科技园区厂房评估",
-    bank: "工商银行海淀支行",
-    type: "工业",
-    budget: "¥30,000 - ¥45,000",
-    deadline: "2024-03-12 12:00",
-    timeLeft: "2天 0小时",
-    bids: 3,
-  },
-  {
-    id: "BID-2024-008",
-    title: "西城区住宅小区批量评估",
-    bank: "建设银行西城支行",
-    type: "住宅",
-    budget: "¥15,000 - ¥25,000",
-    deadline: "2024-03-18 18:00",
-    timeLeft: "8天 6小时",
-    bids: 8,
-  },
-]
+import { Skeleton } from "@/components/ui/skeleton"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { TrendingUp } from "lucide-react"
+import { trpc } from "@/lib/trpc"
 
 export default function AdminBiddingPage() {
+  const { data, isLoading } = trpc.bids.listAll.useQuery({ page: 1, pageSize: 30 })
+  const bids = data?.items ?? []
+  const total = data?.total ?? 0
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">竞价管理</h1>
-          <p className="text-muted-foreground">监控平台所有竞价项目</p>
+          <p className="text-muted-foreground">查看所有竞价记录</p>
         </div>
-        <Badge variant="secondary" className="bg-info/10 text-info">
-          {activeBiddings.length} 个进行中
-        </Badge>
+        <Badge variant="secondary">共 {total} 条记录</Badge>
       </div>
-
-      <Tabs defaultValue="active">
-        <TabsList>
-          <TabsTrigger value="active">竞价中</TabsTrigger>
-          <TabsTrigger value="completed">已结束</TabsTrigger>
-          <TabsTrigger value="cancelled">已取消</TabsTrigger>
-        </TabsList>
-        <TabsContent value="active" className="space-y-4 mt-4">
-          {activeBiddings.map((bidding) => (
-            <Card key={bidding.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">{bidding.title}</CardTitle>
-                      <Badge variant="outline">{bidding.type}</Badge>
-                    </div>
-                    <CardDescription className="flex items-center gap-4">
-                      <span className="font-mono text-xs">{bidding.id}</span>
-                      <span className="flex items-center gap-1">
-                        <Landmark className="h-3 w-3" />
-                        {bidding.bank}
-                      </span>
-                    </CardDescription>
-                  </div>
-                  <Badge className="bg-warning/10 text-warning border-warning/20">
-                    竞价中
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Banknote className="h-4 w-4" />
-                      {bidding.budget}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      剩余: {bidding.timeLeft}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      {bidding.bids} 家报价
-                    </span>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    <Eye className="mr-2 h-4 w-4" />
-                    查看详情
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </TabsContent>
-        <TabsContent value="completed">
-          <div className="text-center py-12 text-muted-foreground">
-            暂无已结束的竞价项目
-          </div>
-        </TabsContent>
-        <TabsContent value="cancelled">
-          <div className="text-center py-12 text-muted-foreground">
-            暂无已取消的竞价项目
-          </div>
-        </TabsContent>
-      </Tabs>
+      <Card>
+        <CardHeader><CardTitle>全部竞价记录</CardTitle></CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-2">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          ) : bids.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <TrendingUp className="h-12 w-12 mb-4 opacity-30" /><p>暂无竞价数据</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>项目ID</TableHead>
+                  <TableHead>报价方</TableHead>
+                  <TableHead>报价金额</TableHead>
+                  <TableHead>预计天数</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead>提交时间</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bids.map((bid: any) => (
+                  <TableRow key={bid.id}>
+                    <TableCell className="font-mono text-xs">#{bid.projectId}</TableCell>
+                    <TableCell>组织 #{bid.orgId}</TableCell>
+                    <TableCell className="font-medium">¥{Number(bid.price).toLocaleString()}</TableCell>
+                    <TableCell>{bid.estimatedDays} 天</TableCell>
+                    <TableCell>
+                      <Badge variant={bid.status === "awarded" ? "default" : "secondary"}>
+                        {bid.status === "awarded" ? "已中标" : bid.status === "pending" ? "待审" : bid.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{new Date(bid.createdAt).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

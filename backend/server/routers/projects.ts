@@ -171,7 +171,14 @@ export const projectsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      // 自动生成项目编号
+      const year = new Date().getFullYear();
+      const [countResult] = await ctx.db.select({ count: count() }).from(projects);
+      const seq = String((countResult.count || 0) + 1).padStart(4, "0");
+      const projectNo = `PRJ-${year}-${seq}`;
+
       const [result] = await ctx.db.insert(projects).values({
+        projectNo,
         title: input.title,
         description: input.description || null,
         propertyAddress: input.propertyAddress || null,
@@ -182,6 +189,8 @@ export const projectsRouter = router({
         estateId: input.estateId || null,
         clientId: ctx.user.id,
         clientOrgId: ctx.user.orgId || null,
+        bankOrgId: ctx.user.orgId || null,
+        bankUserId: ctx.user.id,
         // 评估师创建项目时，自动将自己的组织设为 assignedOrgId
         assignedOrgId: ctx.user.role === "appraiser" && ctx.user.orgId ? ctx.user.orgId : null,
         assignedUserId: ctx.user.role === "appraiser" ? ctx.user.id : null,
@@ -210,7 +219,8 @@ export const bidsRouter = router({
       z.object({
         projectId: z.number(),
         price: z.number(),
-        days: z.number(),
+        days: z.number().optional(),
+        estimatedDays: z.number().optional(),
         message: z.string().optional(),
       })
     )
@@ -224,7 +234,7 @@ export const bidsRouter = router({
         orgId: ctx.user.orgId,
         userId: ctx.user.id,
         price: String(input.price),
-        days: input.days,
+        days: input.days ?? input.estimatedDays ?? 30,
         message: input.message || null,
         status: "pending",
       });
@@ -298,5 +308,32 @@ export const bidsRouter = router({
         .where(eq(projects.id, bid.projectId));
 
       return { success: true };
+    }),
+
+  // award 别名（兼容前端调用）
+  award: protectedProcedure
+    .input(z.object({ bidId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const [bid] = await ctx.db.select().from(bids).where(eq(bids.id, input.bidId)).limit(1);
+      if (!bid) throw new TRPCError({ code: "NOT_FOUND" });
+      await ctx.db.update(bids).set({ status: "awarded" }).where(eq(bids.id, input.bidId));
+      await ctx.db.update(projects).set({
+        status: "active",
+        assignedOrgId: bid.orgId,
+        assignedUserId: bid.userId,
+        updatedAt: new Date(),
+      }).where(eq(projects.id, bid.projectId));
+      return { success: true };
+    }),
+
+  // listAll 管理员查看全部竞价
+  listAll: protectedProcedure
+    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(30) }))
+    .query(async ({ input, ctx }) => {
+      const { page, pageSize } = input;
+      const offset = (page - 1) * pageSize;
+      const items = await ctx.db.select().from(bids).orderBy(desc(bids.createdAt)).limit(pageSize).offset(offset);
+      const [totalResult] = await ctx.db.select({ count: count() }).from(bids);
+      return { items, total: totalResult.count, page, pageSize };
     }),
 });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "../lib/trpc";
 import { organizations, orgMembers, users, openclawConfigs, openclawTasks, operationLogs } from "../lib/schema";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, like } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const orgRouter = router({
@@ -199,6 +199,7 @@ export const adminUsersRouter = router({
       page: z.number().default(1),
       pageSize: z.number().default(20),
       role: z.string().optional(),
+      search: z.string().optional(),
     }))
     .query(async ({ input, ctx }) => {
       const { page, pageSize, role } = input;
@@ -206,12 +207,14 @@ export const adminUsersRouter = router({
 
       let conditions: any[] = [];
       if (role) conditions.push(eq(users.role, role as any));
+      if (input.search) conditions.push(like(users.username, `%${input.search}%`));
 
       const items = await ctx.db
         .select({
           id: users.id,
           username: users.username,
           displayName: users.displayName,
+          realName: users.realName,
           email: users.email,
           phone: users.phone,
           role: users.role,
@@ -241,6 +244,24 @@ export const adminUsersRouter = router({
         .update(users)
         .set({ isActive: input.isActive, updatedAt: new Date() })
         .where(eq(users.id, input.id));
+      return { success: true };
+    }),
+  // toggleStatus 别名（兼容前端调用）
+  toggleStatus: adminProcedure
+    .input(z.object({
+      userId: z.number(),
+      status: z.string().optional(),
+      isActive: z.boolean().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // 支持两种参数格式：isActive boolean 或 status string
+      const isActive = input.isActive !== undefined
+        ? input.isActive
+        : input.status === "active";
+      await ctx.db
+        .update(users)
+        .set({ isActive, updatedAt: new Date() })
+        .where(eq(users.id, input.userId));
       return { success: true };
     }),
 });

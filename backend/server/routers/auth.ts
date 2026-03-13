@@ -67,7 +67,8 @@ export const authRouter = router({
         user: {
           id: user.id,
           username: user.username,
-          displayName: user.displayName || user.username,
+          displayName: user.displayName || user.realName || user.username,
+          realName: user.realName,
           role: user.role,
           orgId: user.orgId,
           email: user.email,
@@ -150,7 +151,8 @@ export const authRouter = router({
     return {
       id: user.id,
       username: user.username,
-      displayName: user.displayName || user.username,
+      displayName: user.displayName || user.realName || user.username,
+      realName: user.realName,
       role: user.role,
       orgId: user.orgId,
       email: user.email,
@@ -184,7 +186,8 @@ export const authRouter = router({
     return {
       id: user.id,
       username: user.username,
-      displayName: user.displayName || user.username,
+      displayName: user.displayName || user.realName || user.username,
+      realName: user.realName,
       role: user.role,
       orgId: user.orgId,
       email: user.email,
