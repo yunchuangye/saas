@@ -18,17 +18,43 @@ import { initCronScheduler } from './crawler/engines/cron-scheduler';
 const app = express();
 const PORT = parseInt(process.env.PORT || "8721");
 
+// 从环境变量解析允许的 CORS 来源列表
+// 优先使用 CORS_ORIGINS，其次使用 FRONTEND_URL，最后允许所有（仅 development）
+function getAllowedOrigins(): string[] {
+  const corsOrigins = process.env.CORS_ORIGINS;
+  if (corsOrigins && corsOrigins.trim()) {
+    return corsOrigins.split(',').map(o => o.trim()).filter(Boolean);
+  }
+  const frontendUrl = process.env.FRONTEND_URL;
+  if (frontendUrl && frontendUrl.trim()) {
+    return frontendUrl.split(',').map(o => o.trim()).filter(Boolean);
+  }
+  return []; // 空数组表示允许所有（见下方逻辑）
+}
+
 // 中间件
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// CORS 配置
+// CORS 配置（从 .env 读取允许的来源）
+const allowedOrigins = getAllowedOrigins();
+console.log(`🔒 CORS allowed origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : '* (all)'}`);
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // 允许所有来源（开发环境）
-      callback(null, true);
+      // 没有 origin（如服务端直接请求、curl 等）始终允许
+      if (!origin) return callback(null, true);
+      // 未配置白名单时允许所有来源（开发模式兜底）
+      if (allowedOrigins.length === 0) return callback(null, true);
+      // 检查是否在白名单中
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // 开发环境额外允许 localhost
+      if (process.env.NODE_ENV !== 'production' && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error(`CORS policy: origin '${origin}' not allowed`));
     },
     credentials: true,
   })
@@ -298,9 +324,11 @@ function generateReportHTML(record: any, comparableCases: any[], llmData: any, r
 
 // 启动服务
 app.listen(PORT, "0.0.0.0", async () => {
-  console.log(`\n🚀 gujia.app Backend running on http://localhost:${PORT}`);
-  console.log(`📡 tRPC API: http://localhost:${PORT}/api/trpc`);
-  console.log(`🔍 Health: http://localhost:${PORT}/health\n`);
+  const backendPublicUrl = process.env.BACKEND_PUBLIC_URL || `http://localhost:${PORT}`;
+  console.log(`\n🚀 gujia.app Backend running on port ${PORT}`);
+  console.log(`🌐 Public URL: ${backendPublicUrl}`);
+  console.log(`📡 tRPC API: ${backendPublicUrl}/api/trpc`);
+  console.log(`🔍 Health: ${backendPublicUrl}/health\n`);
 
   await initDB();
   // 启动采集任务 Worker
