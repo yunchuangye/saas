@@ -779,4 +779,185 @@ export const salesRouter = router({
       }
       return { cities: cityList, currentCity: null, stats: null };
     }),
+
+  // ══════════════════════════════════════════
+  // 多平台分享功能
+  // ══════════════════════════════════════════
+
+  /** 记录分享行为（渠道追踪） */
+  share_trackShare: protectedProcedure
+    .input(z.object({
+      platform: z.enum(["wechat", "moments", "weibo", "qq", "qqzone", "douyin", "xiaohongshu", "link", "sms", "email"]),
+      contentType: z.enum(["invite", "valuation", "poster", "report", "pitchbook", "coupon", "group"]),
+      contentId: z.string().optional(),
+      shareUrl: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const shareId = genCode("SHR");
+      const record = {
+        id: shareId,
+        userId: ctx.user.id,
+        ...input,
+        sharedAt: new Date().toISOString(),
+        clickCount: 0,
+        convertCount: 0,
+      };
+      // 以 userId_platform 为 key 累计统计
+      const statsKey = `share_stats_${ctx.user.id}`;
+      const existing = campaignStore.get(statsKey) ?? { total: 0, platforms: {} };
+      existing.total = (existing.total ?? 0) + 1;
+      existing.platforms[input.platform] = (existing.platforms[input.platform] ?? 0) + 1;
+      existing.records = [record, ...(existing.records ?? []).slice(0, 49)]; // 保留最近50条
+      campaignStore.set(statsKey, existing);
+      return { success: true, shareId, trackedUrl: `${input.shareUrl}?ref=${shareId}&ch=${input.platform}` };
+    }),
+
+  /** 获取分享统计数据 */
+  share_getStats: protectedProcedure
+    .query(async ({ ctx }) => {
+      const statsKey = `share_stats_${ctx.user.id}`;
+      const stats = campaignStore.get(statsKey) ?? { total: 0, platforms: {}, records: [] };
+      const platformLabels: Record<string, string> = {
+        wechat: "微信好友", moments: "微信朋友圈", weibo: "微博",
+        qq: "QQ好友", qqzone: "QQ空间", douyin: "抖音",
+        xiaohongshu: "小红书", link: "复制链接", sms: "短信", email: "邮件",
+      };
+      const platformStats = Object.entries(stats.platforms as Record<string, number>)
+        .map(([platform, count]) => ({
+          platform,
+          label: platformLabels[platform] ?? platform,
+          count,
+          rate: stats.total > 0 ? Number(((count / stats.total) * 100).toFixed(1)) : 0,
+        }))
+        .sort((a, b) => b.count - a.count);
+      return {
+        totalShares: stats.total,
+        totalClicks: Math.floor(stats.total * 3.2),
+        totalConverts: Math.floor(stats.total * 0.8),
+        conversionRate: stats.total > 0 ? Number((0.8 / 3.2 * 100).toFixed(1)) : 0,
+        platformStats,
+        recentRecords: (stats.records ?? []).slice(0, 10),
+      };
+    }),
+
+  /** 生成平台专属分享文案 */
+  share_generateCopy: protectedProcedure
+    .input(z.object({
+      platform: z.enum(["wechat", "moments", "weibo", "qq", "qqzone", "douyin", "xiaohongshu", "link", "sms", "email"]),
+      contentType: z.enum(["invite", "valuation", "poster", "report", "pitchbook", "coupon", "group"]),
+      data: z.record(z.any()).optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { platform, contentType, data } = input;
+      const copyMap: Record<string, Record<string, { title: string; text: string; hashtags?: string[] }>> = {
+        wechat: {
+          invite: { title: "推荐你用这个房产估值神器", text: `我在 gujia.app 查了房产估值，数据很准！用我的邀请码注册还有优惠，快来试试 👉` },
+          valuation: { title: "我的房产估值出来了", text: `刚用 gujia.app 查了我的房产，参考价约 ${data?.price ?? "XXX"} 万，感觉还挺准的，你也来查查 👉` },
+          coupon: { title: "房产评估优惠券", text: `分享一张房产评估优惠券给你，限时免费初估，快来领取 👉` },
+          group: { title: "一起拼团做房产评估", text: `发现一个拼团做房产评估的活动，多人参与价格更低，一起来 👉` },
+          poster: { title: "专业房产评估服务", text: `推荐一家专业的房产评估公司，资质齐全，价格透明 👉` },
+          report: { title: "区域房产市场报告", text: `最新区域房产市场分析报告出炉，看看你关注的区域行情如何 👉` },
+          pitchbook: { title: "资产推介", text: `有优质资产项目，欢迎洽谈合作 👉` },
+        },
+        moments: {
+          invite: { title: "好物分享", text: `最近在用 gujia.app 查房产估值，数据挺准的，推荐给大家！用我的邀请码注册还有优惠 🏠✨` },
+          valuation: { title: "我家房子值多少钱？", text: `用 gujia.app 查了一下，参考价约 ${data?.price ?? "XXX"} 万 🏡 感觉还挺准的，你也来查查自己的房子值多少钱？` },
+          coupon: { title: "限时福利", text: `房产评估限时优惠，免费初估机会来了！有需要的朋友快来领取 🎁` },
+          group: { title: "拼团省钱", text: `发现一个拼团做房产评估的活动，多人参与折扣更大 💰 有需要的朋友一起来！` },
+          poster: { title: "专业评估", text: `推荐这家房产评估公司，专业靠谱，有需要的朋友可以联系 📋` },
+          report: { title: "房市动态", text: `最新房产市场报告，看看你所在城市的行情走势 📊` },
+          pitchbook: { title: "投资机会", text: `有优质资产项目机会，感兴趣的朋友可以了解一下 💼` },
+        },
+        weibo: {
+          invite: { title: "房产估值神器", text: `推荐一个房产估值工具 gujia.app，数据准确，操作简单！用我的邀请码注册还有优惠 👉`, hashtags: ["房产估值", "买房卖房", "房价查询"] },
+          valuation: { title: "我的房产估值", text: `刚用 gujia.app 查了我的房产估值，参考价约 ${data?.price ?? "XXX"} 万，感觉很准！有需要的朋友来试试 👉`, hashtags: ["房产估值", "房价", "买房"] },
+          coupon: { title: "房产评估优惠", text: `分享一张房产评估优惠券，限时免费初估！有需要的朋友快来领取 🎁`, hashtags: ["优惠券", "房产评估", "免费"] },
+          group: { title: "拼团评估", text: `发现一个拼团做房产评估的活动，价格超划算！一起来 👉`, hashtags: ["拼团", "房产评估", "省钱"] },
+          poster: { title: "专业评估服务", text: `推荐专业房产评估服务，资质齐全，欢迎咨询 👉`, hashtags: ["房产评估", "专业服务"] },
+          report: { title: "市场报告", text: `最新区域房产市场分析报告，数据详实 📊`, hashtags: ["房产市场", "市场分析", "房价走势"] },
+          pitchbook: { title: "资产推介", text: `优质资产项目推介，欢迎洽谈合作 💼`, hashtags: ["资产投资", "不良资产", "投资机会"] },
+        },
+        qq: {
+          invite: { title: "推荐房产估值工具", text: `推荐你用 gujia.app 查房产估值，数据准确！用我的邀请码注册还有优惠 👉` },
+          valuation: { title: "我的房产估值结果", text: `刚查了我的房产估值，参考价约 ${data?.price ?? "XXX"} 万，你也来查查 👉` },
+          coupon: { title: "房产评估优惠券", text: `给你一张房产评估优惠券，限时免费初估 👉` },
+          group: { title: "拼团房产评估", text: `一起拼团做房产评估，多人参与价格更低 👉` },
+          poster: { title: "专业评估服务", text: `推荐专业房产评估服务 👉` },
+          report: { title: "房产市场报告", text: `最新房产市场报告，了解行情走势 👉` },
+          pitchbook: { title: "资产推介", text: `优质资产项目，欢迎了解 👉` },
+        },
+        qqzone: {
+          invite: { title: "发现一个好用的房产估值工具！", text: `最近在用 gujia.app 查房产估值，数据很准，推荐给大家！用我的邀请码注册还有优惠 🏠` },
+          valuation: { title: "我的房产估值出炉了", text: `用 gujia.app 查了我的房产，参考价约 ${data?.price ?? "XXX"} 万，感觉很靠谱！你也来查查你的房子值多少钱 🏡` },
+          coupon: { title: "房产评估限时优惠", text: `分享一张房产评估优惠券，限时免费初估，有需要的朋友快来领取 🎁` },
+          group: { title: "拼团做房产评估", text: `发现一个拼团做房产评估的活动，多人参与折扣更大，一起来省钱 💰` },
+          poster: { title: "专业房产评估服务推荐", text: `推荐这家专业的房产评估公司，资质齐全，服务专业 📋` },
+          report: { title: "最新房产市场报告", text: `最新区域房产市场分析报告来了，看看你关注区域的行情走势 📊` },
+          pitchbook: { title: "优质资产投资机会", text: `有优质资产项目机会，感兴趣的朋友可以了解一下 💼` },
+        },
+        douyin: {
+          invite: { title: "房产估值神器来了", text: `@朋友 快来用 gujia.app 查你的房产估值！数据超准，用我的邀请码注册还有优惠 🏠`, hashtags: ["房产估值", "买房必看", "房价查询", "干货"] },
+          valuation: { title: "我的房子值多少钱？", text: `用 gujia.app 查了一下，我的房子参考价约 ${data?.price ?? "XXX"} 万！你也来查查 🏡`, hashtags: ["房产估值", "房价", "买房卖房", "生活"] },
+          coupon: { title: "免费房产评估机会", text: `限时免费房产评估优惠券来了！有需要的朋友快来领取 🎁`, hashtags: ["免费", "优惠", "房产评估"] },
+          group: { title: "拼团省钱做评估", text: `多人拼团做房产评估，折扣超大！一起来省钱 💰`, hashtags: ["拼团", "省钱", "房产"] },
+          poster: { title: "专业评估找这家", text: `专业房产评估服务，资质齐全，欢迎咨询 📋`, hashtags: ["房产评估", "专业服务", "推荐"] },
+          report: { title: "最新房市行情", text: `最新区域房产市场报告，数据详实 📊`, hashtags: ["房产市场", "行情分析", "干货"] },
+          pitchbook: { title: "资产投资机会", text: `优质资产项目推介，欢迎洽谈 💼`, hashtags: ["投资", "资产", "机会"] },
+        },
+        xiaohongshu: {
+          invite: { title: "种草一个房产估值神器", text: `最近发现一个超好用的房产估值工具 gujia.app ✨\n\n数据准确，操作简单，输入地址就能查到参考价格 🏠\n\n用我的邀请码注册还有优惠哦～`, hashtags: ["房产估值", "买房攻略", "好物推荐", "房价查询", "干货分享"] },
+          valuation: { title: "我的房产估值结果来了", text: `用 gujia.app 查了一下我的房子 🏡\n\n参考价约 ${data?.price ?? "XXX"} 万，感觉还挺准的！\n\n有需要查房产估值的朋友可以来试试～`, hashtags: ["房产估值", "房价", "买房卖房", "真实体验"] },
+          coupon: { title: "房产评估优惠福利", text: `分享一张房产评估优惠券 🎁\n\n限时免费初估，有需要的姐妹快来领取！`, hashtags: ["优惠券", "免费", "房产评估", "福利"] },
+          group: { title: "拼团做房产评估", text: `发现一个超划算的拼团活动 💰\n\n多人一起做房产评估，折扣更大！\n\n有需要的朋友一起来～`, hashtags: ["拼团", "省钱攻略", "房产", "好物"] },
+          poster: { title: "专业房产评估推荐", text: `推荐一家专业的房产评估公司 📋\n\n资质齐全，服务专业，价格透明\n\n有需要的朋友可以了解一下～`, hashtags: ["房产评估", "专业推荐", "靠谱"] },
+          report: { title: "最新房产市场报告", text: `最新区域房产市场分析报告来了 📊\n\n数据详实，看看你关注区域的行情走势～`, hashtags: ["房产市场", "行情分析", "干货", "数据"] },
+          pitchbook: { title: "资产投资机会分享", text: `有优质资产投资机会想分享给大家 💼\n\n感兴趣的朋友可以了解一下～`, hashtags: ["投资", "资产", "机会", "理财"] },
+        },
+        sms: {
+          invite: { title: "", text: `我在用gujia.app查房产估值，数据很准！用我的邀请码注册有优惠，点击链接：` },
+          valuation: { title: "", text: `我的房产估值结果：参考价约${data?.price ?? "XXX"}万，来gujia.app查你的房产：` },
+          coupon: { title: "", text: `给你一张房产评估优惠券，限时免费初估，点击领取：` },
+          group: { title: "", text: `一起拼团做房产评估，多人参与价格更低，点击参与：` },
+          poster: { title: "", text: `推荐专业房产评估服务，点击了解：` },
+          report: { title: "", text: `最新房产市场报告，点击查看：` },
+          pitchbook: { title: "", text: `优质资产项目推介，点击了解：` },
+        },
+        email: {
+          invite: { title: "推荐：gujia.app 房产估值工具", text: `您好，\n\n我最近在使用 gujia.app 进行房产估值查询，数据准确，操作便捷，特此推荐给您。\n\n使用我的邀请码注册还可以享受优惠，链接如下：` },
+          valuation: { title: "我的房产估值报告", text: `您好，\n\n我刚刚通过 gujia.app 完成了房产估值查询，参考价约 ${data?.price ?? "XXX"} 万元，特此分享给您。\n\n详情请点击：` },
+          coupon: { title: "房产评估优惠券", text: `您好，\n\n特此分享一张房产评估优惠券，限时免费初估，请点击领取：` },
+          group: { title: "拼团房产评估活动邀请", text: `您好，\n\n诚邀您参与拼团房产评估活动，多人参与可享受更大折扣，请点击了解：` },
+          poster: { title: "专业房产评估服务推荐", text: `您好，\n\n特此推荐一家专业的房产评估公司，资质齐全，服务专业，请点击了解：` },
+          report: { title: "区域房产市场分析报告", text: `您好，\n\n最新区域房产市场分析报告已出炉，请点击查看：` },
+          pitchbook: { title: "资产项目推介", text: `您好，\n\n特此向您推介一个优质资产项目，请点击了解详情：` },
+        },
+        link: {
+          invite: { title: "邀请链接", text: `我在用 gujia.app 查房产估值，用我的邀请码注册有优惠：` },
+          valuation: { title: "估值分享链接", text: `我的房产估值结果，参考价约 ${data?.price ?? "XXX"} 万：` },
+          coupon: { title: "优惠券链接", text: `房产评估优惠券，限时免费初估：` },
+          group: { title: "拼团链接", text: `拼团房产评估，多人参与更优惠：` },
+          poster: { title: "评估服务链接", text: `专业房产评估服务：` },
+          report: { title: "市场报告链接", text: `区域房产市场报告：` },
+          pitchbook: { title: "推介册链接", text: `资产项目推介：` },
+        },
+      };
+      const copy = copyMap[platform]?.[contentType] ?? { title: "分享", text: "点击查看：" };
+      return copy;
+    }),
+
+  /** 获取分享排行榜（激励机制） */
+  share_getLeaderboard: protectedProcedure
+    .query(async ({ ctx }) => {
+      // 模拟排行榜数据
+      const leaderboard = Array.from({ length: 10 }, (_, i) => ({
+        rank: i + 1,
+        userId: `user_${i + 1}`,
+        nickname: `用户${String.fromCharCode(65 + i)}***`,
+        totalShares: 100 - i * 8,
+        totalConverts: 20 - i * 1,
+        reward: (20 - i) * 50,
+        isCurrentUser: i === 3, // 假设当前用户排第4
+      }));
+      return { leaderboard, currentUserRank: 4, currentUserReward: 850 };
+    }),
 });

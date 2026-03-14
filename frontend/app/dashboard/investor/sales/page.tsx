@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { SalesStatCard } from "@/components/sales/sales-stat-card"
 import { ShareDialog } from "@/components/sales/share-dialog"
+import type { ShareContentType } from "@/components/sales/share-dialog"
 import {
   useInvestorPitchbooks,
   useInvestorGeneratePitchbook,
@@ -31,6 +32,7 @@ export default function InvestorSalesPage() {
   const [shareOpen, setShareOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState("")
   const [shareTitle, setShareTitle] = useState("")
+  const [shareContentType, setShareContentType] = useState<ShareContentType>("pitchbook")
   const [selectedCities, setSelectedCities] = useState<number[]>([1, 2])
   const [newsletterPeriod, setNewsletterPeriod] = useState<"weekly" | "monthly" | "quarterly">("monthly")
   const [inviteForm, setInviteForm] = useState({
@@ -56,9 +58,10 @@ export default function InvestorSalesPage() {
   const generateNewsletter = useInvestorGenerateNewsletter()
   const createInvite = useInvestorCreateProjectInvite()
 
-  const handleShare = (url: string, title: string) => {
+  const handleShare = (url: string, title: string, contentType: ShareContentType = "pitchbook") => {
     setShareUrl(url)
     setShareTitle(title)
+    setShareContentType(contentType)
     setShareOpen(true)
   }
 
@@ -74,7 +77,7 @@ export default function InvestorSalesPage() {
         email: pitchForm.contactEmail,
       },
     })
-    handleShare(result.shareUrl, result.title)
+    handleShare(result.shareUrl, result.title, "pitchbook")
   }
 
   const handleGenerateNewsletter = async () => {
@@ -83,7 +86,7 @@ export default function InvestorSalesPage() {
       period: newsletterPeriod,
       focusAreas: ["价格趋势", "成交量", "政策影响"],
     })
-    handleShare(result.shareUrl, `投资洞察简报 - ${result.period}`)
+    handleShare(result.shareUrl, `投资洞察简报 - ${result.period}`, "report")
   }
 
   const handleCreateInvite = async () => {
@@ -91,7 +94,7 @@ export default function InvestorSalesPage() {
       ...inviteForm,
       deadline: new Date(Date.now() + 30 * 86400000).toISOString(),
     })
-    handleShare(result.inviteUrl, inviteForm.projectTitle)
+    handleShare(result.inviteUrl, inviteForm.projectTitle, "invite")
   }
 
   const statCards = [
@@ -175,7 +178,7 @@ export default function InvestorSalesPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" className="flex-1 bg-violet-600 hover:bg-violet-700" onClick={() => handleShare(pb.shareUrl ?? `https://gujia.app/pitchbook/${pb.id}`, pb.title)}>
+                      <Button size="sm" className="flex-1 bg-violet-600 hover:bg-violet-700" onClick={() => handleShare(pb.shareUrl ?? `https://gujia.app/pitchbook/${pb.id}`, pb.title, "pitchbook")}>
                         <Send className="mr-1.5 h-3.5 w-3.5" />
                         分享推介册
                       </Button>
@@ -457,8 +460,8 @@ export default function InvestorSalesPage() {
         onClose={() => setShareOpen(false)}
         title={shareTitle}
         url={shareUrl}
-        description="分享给目标投资人或合作伙伴"
-        qrUrl={shareUrl}
+        description="选择平台分享，触达目标投资人和合作伙伴"
+        contentType={shareContentType}
       />
     </div>
   )

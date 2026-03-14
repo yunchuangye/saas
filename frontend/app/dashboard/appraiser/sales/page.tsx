@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { SalesStatCard } from "@/components/sales/sales-stat-card"
 import { ShareDialog } from "@/components/sales/share-dialog"
+import type { ShareContentType } from "@/components/sales/share-dialog"
 import {
   useAppraiserMicrosite,
   useAppraiserPosterTemplates,
@@ -30,6 +31,7 @@ export default function AppraiserSalesPage() {
   const [shareOpen, setShareOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState("")
   const [shareTitle, setShareTitle] = useState("")
+  const [shareContentType, setShareContentType] = useState<ShareContentType>("poster")
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null)
   const [posterVars, setPosterVars] = useState<Record<string, string>>({})
   const [couponForm, setCouponForm] = useState({ type: "free_estimate", discount: 20, quantity: 100, expireDays: 30 })
@@ -41,21 +43,22 @@ export default function AppraiserSalesPage() {
   const generatePoster = useAppraiserGeneratePoster()
   const issueCoupon = useAppraiserIssueCoupon()
 
-  const handleShare = (url: string, title: string) => {
+  const handleShare = (url: string, title: string, contentType: ShareContentType = "poster") => {
     setShareUrl(url)
     setShareTitle(title)
+    setShareContentType(contentType)
     setShareOpen(true)
   }
 
   const handleGeneratePoster = async () => {
     if (!selectedTemplate) return
     const result = await generatePoster.mutateAsync({ templateId: selectedTemplate, variables: posterVars })
-    handleShare(result.shareUrl, "分享营销海报")
+    handleShare(result.shareUrl, "分享营销海报", "poster")
   }
 
   const handleIssueCoupon = async () => {
     const result = await issueCoupon.mutateAsync(couponForm as any)
-    handleShare(result.shareUrl, "分享优惠券")
+    handleShare(result.shareUrl, "分享优惠券", "coupon")
   }
 
   const statCards = [
@@ -86,7 +89,7 @@ export default function AppraiserSalesPage() {
         </div>
         <div className="mt-5 grid grid-cols-3 gap-3">
           {[
-            { label: "微官网", icon: Globe, action: () => handleShare(microsite?.micrositeUrl ?? "", "分享我的微官网") },
+            { label: "微官网", icon: Globe, action: () => handleShare(microsite?.micrositeUrl ?? "", "分享我的微官网", "poster") },
             { label: "生成海报", icon: Image, action: () => {} },
             { label: "发优惠券", icon: Gift, action: () => {} },
           ].map((item) => (
@@ -173,7 +176,7 @@ export default function AppraiserSalesPage() {
               <div className="flex gap-3">
                 <Button
                   className="flex-1 bg-teal-600 hover:bg-teal-700"
-                  onClick={() => handleShare(microsite?.micrositeUrl ?? "", "分享我的评估公司微官网")}
+                  onClick={() => handleShare(microsite?.micrositeUrl ?? "", "分享我的评估公司微官网", "poster")}
                 >
                   <ExternalLink className="mr-2 h-4 w-4" />
                   分享微官网
@@ -411,8 +414,8 @@ export default function AppraiserSalesPage() {
         onClose={() => setShareOpen(false)}
         title={shareTitle}
         url={shareUrl}
-        description="复制链接或扫描二维码分享给潜在客户"
-        qrUrl={shareUrl}
+        description="选择平台分享，扩大品牌影响力"
+        contentType={shareContentType}
       />
     </div>
   )

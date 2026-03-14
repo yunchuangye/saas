@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { SalesStatCard } from "@/components/sales/sales-stat-card"
 import { ShareDialog } from "@/components/sales/share-dialog"
+import type { ShareContentType } from "@/components/sales/share-dialog"
 import {
   useBankLoanCalculatorConfig,
   useBankGenerateMarketReport,
@@ -30,6 +31,7 @@ export default function BankSalesPage() {
   const [shareOpen, setShareOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState("")
   const [shareTitle, setShareTitle] = useState("")
+  const [shareContentType, setShareContentType] = useState<ShareContentType>("report")
   const [codeCopied, setCodeCopied] = useState(false)
   const [reportForm, setReportForm] = useState({ cityId: 1, reportType: "monthly" as const, propertyTypes: ["住宅"] })
   const [coForm, setCoForm] = useState({
@@ -48,9 +50,10 @@ export default function BankSalesPage() {
   const generateReport = useBankGenerateMarketReport()
   const createCoMarketing = useBankCreateCoMarketing()
 
-  const handleShare = (url: string, title: string) => {
+  const handleShare = (url: string, title: string, contentType: ShareContentType = "report") => {
     setShareUrl(url)
     setShareTitle(title)
+    setShareContentType(contentType)
     setShareOpen(true)
   }
 
@@ -63,12 +66,12 @@ export default function BankSalesPage() {
 
   const handleGenerateReport = async () => {
     const result = await generateReport.mutateAsync(reportForm)
-    handleShare(result.downloadUrl, `${result.cityName}市场报告`)
+    handleShare(result.downloadUrl, `${result.cityName}市场报告`, "report")
   }
 
   const handleCreateCo = async () => {
     const result = await createCoMarketing.mutateAsync(coForm as any)
-    handleShare(result.shareUrl, coForm.title)
+    handleShare(result.shareUrl, coForm.title, "poster")
   }
 
   const statCards = [
@@ -206,7 +209,7 @@ export default function BankSalesPage() {
               <div className="flex gap-3">
                 <Button
                   className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  onClick={() => handleShare(calcConfig?.widgetUrl ?? "", "分享房贷计算器")}
+                  onClick={() => handleShare(calcConfig?.widgetUrl ?? "", "分享房贷计算器", "poster")}
                 >
                   <Send className="mr-2 h-4 w-4" />
                   分享计算器链接
@@ -363,7 +366,7 @@ export default function BankSalesPage() {
                     size="sm"
                     variant="outline"
                     className="mt-3 w-full"
-                    onClick={() => handleShare(`https://gujia.app/campaign/${c.id}`, c.title)}
+                    onClick={() => handleShare(`https://gujia.app/campaign/${c.id}`, c.title, "poster")}
                   >
                     分享活动链接
                   </Button>
@@ -422,8 +425,8 @@ export default function BankSalesPage() {
         onClose={() => setShareOpen(false)}
         title={shareTitle}
         url={shareUrl}
-        description="分享给客户，获取高意向房贷线索"
-        qrUrl={shareUrl}
+        description="选择平台分享，获取高意向房贷线索"
+        contentType={shareContentType}
       />
     </div>
   )
