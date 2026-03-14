@@ -7,18 +7,28 @@
 | 数据库名 | `gujia` |
 | 字符集 | `utf8mb4` |
 | 排序规则 | `utf8mb4_unicode_ci` |
-| 最后更新 | 2026-03-13 |
+| 最后更新 | 2026-03-15 |
 | 数据库版本 | MySQL 8.0 |
 
 ## 连接配置
 
 ```env
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_USER=gujia
-DB_PASSWORD=gujia123456
+DB_PASSWORD=gujia_dev_2026
 DB_NAME=gujia
 ```
+
+## 文件说明
+
+| 文件 | 说明 | 推荐 |
+|------|------|------|
+| `gujia_full_20260314.sql` | **最新完整备份**（2026-03-14）：26 张表结构 + 全量数据 | **推荐使用** |
+| `gujia_full.sql` | 历史完整备份（初始版本，MySQL 8.0） | 备用 |
+| `gujia_full_mysql57.sql` | MySQL 5.7 兼容版备份 | 备用 |
+| `cities_districts.sql` | 城市/区域数据（可单独导入更新） | 单独使用 |
+| `migrate_cases.sql` | 案例数据迁移脚本 | 单独使用 |
 
 ## 数据表清单
 
@@ -29,11 +39,11 @@ DB_NAME=gujia
 | `org_members` | 机构成员关联 | 3 条 |
 | `cities` | 城市基础数据（全国主要城市） | **45 条** |
 | `districts` | 区/县数据（市辖区、县/县级市、新区） | **505 条** |
-| `estates` | 楼盘/物业数据（含拼音首字母） | 10 条 |
+| `estates` | 楼盘/物业数据 | 10 条 |
 | `buildings` | 楼栋数据 | 12 条 |
 | `units` | 房屋单元数据 | 18 条 |
 | `cases` | 历史成交案例（估价参考数据） | 53 条 |
-| `auto_valuations` | 自动估价记录 | 1 条 |
+| `auto_valuations` | 自动估价记录 | 3 条 |
 | `projects` | 评估项目 | 0 条 |
 | `reports` | 评估报告 | 0 条 |
 | `report_files` | 报告文件 | 0 条 |
@@ -43,6 +53,13 @@ DB_NAME=gujia
 | `openclaw_configs` | OPENCLAW 爬虫配置 | 0 条 |
 | `openclaw_tasks` | OPENCLAW 爬虫任务 | 0 条 |
 | `operation_logs` | 操作日志 | 0 条 |
+| `crawl_jobs` | 采集任务 | 0 条 |
+| `crawl_logs` | 采集日志 | 0 条 |
+| `crawl_alerts` | 采集告警 | 0 条 |
+| `crawl_config` | 采集全局配置 | 0 条 |
+| `crawl_proxies` | 代理 IP | 0 条 |
+| `crawl_raw_data` | 采集原始数据 | 0 条 |
+| `crawl_schedule_history` | 采集调度历史 | 0 条 |
 
 ## 城市数据覆盖范围
 
@@ -70,17 +87,6 @@ DB_NAME=gujia
 ### 其他省会及重要城市（21个）
 成都、武汉、长沙、西安、合肥、南昌、郑州、石家庄、太原、哈尔滨、长春、南宁、昆明、贵阳、海口、呼和浩特、乌鲁木齐、兰州、银川、西宁、拉萨
 
-## districts 表字段说明
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | int | 主键 |
-| `city_id` | int | 所属城市 ID（关联 cities.id） |
-| `name` | varchar(100) | 区/县名称 |
-| `code` | varchar(20) | 行政区划代码 |
-| `type` | varchar(20) | 类型：`district`=市辖区，`county`=县/县级市，`new_area`=新区 |
-| `is_active` | tinyint | 是否启用 |
-
 ## 测试账号
 
 | 用户名 | 密码 | 角色 |
@@ -91,24 +97,27 @@ DB_NAME=gujia
 | `investor1` | `test123456` | 投资人 |
 | `customer1` | `test123456` | 客户 |
 
-## 快速导入方法
+## 快速初始化（推荐）
 
 ```bash
 # 1. 创建数据库和用户
 sudo mysql -u root -e "
 CREATE DATABASE IF NOT EXISTS gujia CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'gujia'@'localhost' IDENTIFIED BY 'gujia123456';
-GRANT ALL PRIVILEGES ON gujia.* TO 'gujia'@'localhost';
-FLUSH PRIVILEGES;
-"
+CREATE USER IF NOT EXISTS 'gujia'@'127.0.0.1' IDENTIFIED WITH mysql_native_password BY 'gujia_dev_2026';
+GRANT ALL PRIVILEGES ON gujia.* TO 'gujia'@'127.0.0.1';
+FLUSH PRIVILEGES;"
 
-# 2. 导入完整数据（含城市+区县）
-mysql -u gujia -pgujia123456 gujia < database/gujia_full.sql
+# 2. 导入最新完整备份（推荐）
+mysql -u gujia -pgujia_dev_2026 -h 127.0.0.1 gujia < database/gujia_full_20260314.sql
 ```
 
-## 文件说明
+## 生成新备份
 
-| 文件 | 说明 |
-|------|------|
-| `gujia_full.sql` | 完整数据库导出（含所有表结构和数据） |
-| `cities_districts.sql` | 仅城市和区县数据（可单独导入更新） |
+每次重要更新后，运行以下命令生成新备份：
+
+```bash
+mysqldump -u gujia -pgujia_dev_2026 -h 127.0.0.1 \
+  --single-transaction --routines --triggers \
+  --add-drop-table --default-character-set=utf8mb4 \
+  gujia > database/gujia_full_$(date +%Y%m%d).sql
+```

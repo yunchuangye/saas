@@ -1,0 +1,916 @@
+-- MySQL dump 10.13  Distrib 8.0.43, for Linux (x86_64)
+--
+-- Host: 127.0.0.1    Database: gujia
+-- ------------------------------------------------------
+-- Server version	8.0.45-0ubuntu0.22.04.1
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `auto_valuations`
+--
+
+DROP TABLE IF EXISTS `auto_valuations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `auto_valuations` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `project_id` int DEFAULT NULL,
+  `user_id` int NOT NULL,
+  `address` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `city_id` int DEFAULT NULL,
+  `estate_id` int DEFAULT NULL,
+  `area` decimal(10,2) DEFAULT NULL,
+  `rooms` int DEFAULT NULL,
+  `floor` int DEFAULT NULL,
+  `property_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `valuation_result` decimal(15,2) DEFAULT NULL,
+  `valuation_min` decimal(15,2) DEFAULT NULL,
+  `valuation_max` decimal(15,2) DEFAULT NULL,
+  `confidence` decimal(5,2) DEFAULT NULL,
+  `method` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `comparable_cases` json DEFAULT NULL,
+  `ai_analysis` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` enum('pending','completed','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
+  `created_at` timestamp NULL DEFAULT (now()),
+  `org_id` int DEFAULT NULL,
+  `property_address` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `building_area` decimal(10,2) DEFAULT NULL,
+  `total_floors` int DEFAULT NULL,
+  `building_age` int DEFAULT NULL,
+  `orientation` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `decoration` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `has_elevator` int DEFAULT '0',
+  `has_parking` int DEFAULT '0',
+  `purpose` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `district` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `city_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `estimated_value` decimal(15,2) DEFAULT NULL,
+  `unit_price` decimal(10,2) DEFAULT NULL,
+  `confidence_level` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `report_data` json DEFAULT NULL,
+  `llm_analysis` json DEFAULT NULL,
+  `comparable_count` int DEFAULT '0',
+  `building_id` int DEFAULT NULL,
+  `unit_id` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `auto_valuations`
+--
+
+LOCK TABLES `auto_valuations` WRITE;
+/*!40000 ALTER TABLE `auto_valuations` DISABLE KEYS */;
+INSERT INTO `auto_valuations` VALUES (1,NULL,2,'万科俊园 1号楼 15层03室',1,NULL,95.00,NULL,15,'residential',6776160.00,5556451.00,7995869.00,60.00,'案例比较法（6个参考案例）+ LLM辅助分析','\"[{\\\"id\\\":26,\\\"cityId\\\":1,\\\"estateId\\\":1,\\\"buildingId\\\":2,\\\"unitId\\\":null,\\\"address\\\":\\\"朝阳公园南路1号万科俊园2号楼15层01室\\\",\\\"area\\\":\\\"95.00\\\",\\\"rooms\\\":3,\\\"floor\\\":15,\\\"totalFloors\\\":28,\\\"orientation\\\":\\\"朝南\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"10200000.00\\\",\\\"unitPrice\\\":\\\"107368.00\\\",\\\"transactionDate\\\":\\\"2026-02-18T00:00:00.000Z\\\",\\\"source\\\":\\\"我爱我家\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.02678571428571428},{\\\"id\\\":23,\\\"cityId\\\":1,\\\"estateId\\\":1,\\\"buildingId\\\":1,\\\"unitId\\\":7,\\\"address\\\":\\\"朝阳公园南路1号万科俊园1号楼15层01室\\\",\\\"area\\\":\\\"89.50\\\",\\\"rooms\\\":3,\\\"floor\\\":15,\\\"totalFloors\\\":32,\\\"orientation\\\":\\\"南北通透\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"9400000.00\\\",\\\"unitPrice\\\":\\\"104972.00\\\",\\\"transactionDate\\\":\\\"2025-11-14T00:00:00.000Z\\\",\\\"source\\\":\\\"贝壳\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.034736842105263156},{\\\"id\\\":51,\\\"cityId\\\":1,\\\"estateId\\\":null,\\\"buildingId\\\":null,\\\"unitId\\\":null,\\\"address\\\":\\\"朝阳区麦子店街道麦子店西路\\\",\\\"area\\\":\\\"92.00\\\",\\\"rooms\\\":3,\\\"floor\\\":12,\\\"totalFloors\\\":28,\\\"orientation\\\":\\\"朝南\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"9500000.00\\\",\\\"unitPrice\\\":\\\"103261.00\\\",\\\"transactionDate\\\":\\\"2026-01-08T00:00:00.000Z\\\",\\\"source\\\":\\\"贝壳\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.03501879699248121},{\\\"id\\\":52,\\\"cityId\\\":1,\\\"estateId\\\":null,\\\"buildingId\\\":null,\\\"unitId\\\":null,\\\"address\\\":\\\"朝阳区朝阳北路101号\\\",\\\"area\\\":\\\"88.00\\\",\\\"rooms\\\":3,\\\"floor\\\":15,\\\"totalFloors\\\":32,\\\"orientation\\\":\\\"南北通透\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"9200000.00\\\",\\\"unitPrice\\\":\\\"104545.00\\\",\\\"transactionDate\\\":\\\"2026-02-25T00:00:00.000Z\\\",\\\"source\\\":\\\"链家\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.04421052631578947},{\\\"id\\\":50,\\\"cityId\\\":1,\\\"estateId\\\":null,\\\"buildingId\\\":null,\\\"unitId\\\":null,\\\"address\\\":\\\"朝阳区朝外大街甲6号\\\",\\\"area\\\":\\\"98.00\\\",\\\"rooms\\\":3,\\\"floor\\\":18,\\\"totalFloors\\\":30,\\\"orientation\\\":\\\"南北通透\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"10100000.00\\\",\\\"unitPrice\\\":\\\"103061.00\\\",\\\"transactionDate\\\":\\\"2025-11-20T00:00:00.000Z\\\",\\\"source\\\":\\\"我爱我家\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.07144736842105262},{\\\"id\\\":39,\\\"cityId\\\":1,\\\"estateId\\\":3,\\\"buildingId\\\":8,\\\"unitId\\\":null,\\\"address\\\":\\\"来广营西路88号保利中央公园3栋18层01室\\\",\\\"area\\\":\\\"98.00\\\",\\\"rooms\\\":3,\\\"floor\\\":18,\\\"totalFloors\\\":28,\\\"orientation\\\":\\\"朝南\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"8800000.00\\\",\\\"unitPrice\\\":\\\"89796.00\\\",\\\"transactionDate\\\":\\\"2025-12-05T00:00:00.000Z\\\",\\\"source\\\":\\\"贝壳\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.08859022556390979}]\"','1. 估价合理性评价：本次估价综合价为677.62万元，单价71,328元/㎡，明显低于参考案例均价约10.3万元/㎡的水平。参考案例均价集中在103,000-107,000元/㎡区间，且均为近半年内成交，时间较为接近，具有较强的可比性。比较法单价107,097元/㎡与市场成交价基本一致，成本法单价23,875元/㎡明显偏低，符合成本法本身偏低的特点。综合估价低于市场价较多，且置信度标注为“低”，说明估价模型或数据存在较大不确定性。整体来看，估价结果偏低，不够合理，建议重新核实数据和方法。\n\n2. 关键影响因素：正面因素包括：位于朝阳区优质地段，南北通透户型，精装修，配备电梯及停车位，楼层适中（15层），楼龄适中（11年）。负面因素可能是物业所在楼栋具体位置、楼层视野、物业管理状况及市场波动影响，此外，估价置信度低也反映出数据或方法的局限。\n\n3. 市场行情判断：朝阳区作为北京核心区域之一，尤其万科俊园所在的成熟社区，市场需求稳定，价格坚挺。近期成交价均价维持在10万元/㎡以上，显示市场保持活跃且价格坚实。考虑到政策环境趋稳，短期内价格大概率维持或小幅上涨。\n\n4. 风险提示：估价置信度低，可能因数据样本不足或模型参数设定不合理导致估价偏差较大；市场波动风险及政策调控风险；物业具体状况（如装修质量、物业管理）未充分反映；参考案例时间虽近但数量有限，可能影响比较法准确性。\n\n5. 建议：建议委托方重点关注市场最新成交数据，结合实地勘察物业具体状况，调整估价模型参数，提升置信度；同时关注政策动态及市场趋势，合理预判价格波动；若用于交易或融资，建议多方评估结果比对，避免单一估价结果误导决策。','completed','2026-03-13 13:31:17',1,'万科俊园 1号楼 15层03室',95.00,32,11,'south_north','fine',1,1,'mortgage','朝阳区','北京',6776160.00,71328.00,'low','\"{\\\"input\\\":{\\\"propertyType\\\":\\\"residential\\\",\\\"city\\\":\\\"北京\\\",\\\"cityId\\\":1,\\\"district\\\":\\\"朝阳区\\\",\\\"address\\\":\\\"万科俊园 1号楼 15层03室\\\",\\\"buildingAge\\\":11,\\\"totalFloors\\\":32,\\\"floor\\\":15,\\\"buildingArea\\\":95,\\\"orientation\\\":\\\"south_north\\\",\\\"decoration\\\":\\\"fine\\\",\\\"hasElevator\\\":true,\\\"hasParking\\\":true,\\\"purpose\\\":\\\"mortgage\\\",\\\"enableLLM\\\":true,\\\"estateId\\\":1,\\\"estateName\\\":\\\"万科俊园\\\"},\\\"result\\\":{\\\"finalValue\\\":6776160,\\\"unitPrice\\\":71328,\\\"confidenceLevel\\\":\\\"low\\\",\\\"valuationDate\\\":\\\"2026-03-13\\\",\\\"comparativeResult\\\":{\\\"method\\\":\\\"市场比较法\\\",\\\"value\\\":10174243,\\\"unitPrice\\\":107097,\\\"details\\\":{\\\"comparableCount\\\":6,\\\"avgComparablePrice\\\":105156,\\\"adjustedUnitPrice\\\":107097,\\\"timeAdjustmentApplied\\\":\\\"是\\\",\\\"physicalAdjustmentApplied\\\":\\\"是\\\"}},\\\"incomeResult\\\":{\\\"method\\\":\\\"收益法（直接资本化法）\\\",\\\"value\\\":1325683,\\\"unitPrice\\\":13955,\\\"details\\\":{\\\"monthlyRent\\\":7268,\\\"grossAnnualIncome\\\":87216,\\\"vacancyRate\\\":\\\"5.0%\\\",\\\"effectiveGrossIncome\\\":82855,\\\"operatingExpenseRate\\\":\\\"20.0%\\\",\\\"netOperatingIncome\\\":66284,\\\"capitalizationRate\\\":\\\"5.00%\\\",\\\"estimatedValue\\\":1325683}},\\\"costResult\\\":{\\\"method\\\":\\\"成本法（重置成本法）\\\",\\\"value\\\":2268103,\\\"unitPrice\\\":23875,\\\"details\\\":{\\\"landUnitPrice\\\":17850,\\\"landValue\\\":1695750,\\\"constructionCostPerSqm\\\":6000,\\\"constructionCost\\\":570000,\\\"developmentCost\\\":45600,\\\"replacementCost\\\":712768,\\\"physicalDepreciation\\\":133288,\\\"intactRate\\\":\\\"81.3%\\\",\\\"buildingValue\\\":572353,\\\"totalValue\\\":2268103}},\\\"weights\\\":{\\\"comparative\\\":0.6,\\\"income\\\":0.25,\\\"cost\\\":0.15},\\\"adjustments\\\":[{\\\"factor\\\":\\\"区位系数\\\",\\\"description\\\":\\\"朝阳区区域相对城市均价调整\\\",\\\"coefficient\\\":0.75,\\\"impact\\\":-1615000},{\\\"factor\\\":\\\"楼层系数\\\",\\\"description\\\":\\\"15/32层楼层位置调整\\\",\\\"coefficient\\\":1,\\\"impact\\\":0},{\\\"factor\\\":\\\"朝向系数\\\",\\\"description\\\":\\\"south_north朝向调整\\\",\\\"coefficient\\\":1.05,\\\"impact\\\":242250},{\\\"factor\\\":\\\"装修系数\\\",\\\"description\\\":\\\"fine装修标准调整\\\",\\\"coefficient\\\":1.08,\\\"impact\\\":387600},{\\\"factor\\\":\\\"楼龄折旧\\\",\\\"description\\\":\\\"楼龄11年，成新率81.3%\\\",\\\"coefficient\\\":0.813,\\\"impact\\\":-906015}],\\\"marketData\\\":{\\\"cityAvgPrice\\\":68000,\\\"districtAvgPrice\\\":51000,\\\"priceIndex\\\":0.75,\\\"marketTrend\\\":\\\"rising\\\",\\\"trendRate\\\":2.5},\\\"methodology\\\":\\\"本次评估采用市场比较法为主要方法，收益法和成本法作为验证方法。住宅类物业市场交易活跃，可比案例充分，比较法结果可靠性高。\\\",\\\"assumptions\\\":[\\\"估价时点为报告出具日，市场条件以当日为准\\\",\\\"物业不存在重大质量缺陷或法律纠纷\\\",\\\"土地使用权在剩余年限内可正常使用\\\",\\\"周边基础设施和配套设施保持现状\\\",\\\"宏观经济政策和房地产调控政策保持稳定\\\"],\\\"limitations\\\":[\\\"本估价结果仅供参考，不构成交易建议\\\",\\\"实际成交价格可能因市场波动、谈判因素等与估价结果存在差异\\\",\\\"如物业存在重大变化，本估价结果将失效\\\"]},\\\"comparables\\\":[{\\\"id\\\":26,\\\"cityId\\\":1,\\\"estateId\\\":1,\\\"buildingId\\\":2,\\\"unitId\\\":null,\\\"address\\\":\\\"朝阳公园南路1号万科俊园2号楼15层01室\\\",\\\"area\\\":\\\"95.00\\\",\\\"rooms\\\":3,\\\"floor\\\":15,\\\"totalFloors\\\":28,\\\"orientation\\\":\\\"朝南\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"10200000.00\\\",\\\"unitPrice\\\":\\\"107368.00\\\",\\\"transactionDate\\\":\\\"2026-02-18T00:00:00.000Z\\\",\\\"source\\\":\\\"我爱我家\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.02678571428571428},{\\\"id\\\":23,\\\"cityId\\\":1,\\\"estateId\\\":1,\\\"buildingId\\\":1,\\\"unitId\\\":7,\\\"address\\\":\\\"朝阳公园南路1号万科俊园1号楼15层01室\\\",\\\"area\\\":\\\"89.50\\\",\\\"rooms\\\":3,\\\"floor\\\":15,\\\"totalFloors\\\":32,\\\"orientation\\\":\\\"南北通透\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"9400000.00\\\",\\\"unitPrice\\\":\\\"104972.00\\\",\\\"transactionDate\\\":\\\"2025-11-14T00:00:00.000Z\\\",\\\"source\\\":\\\"贝壳\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.034736842105263156},{\\\"id\\\":51,\\\"cityId\\\":1,\\\"estateId\\\":null,\\\"buildingId\\\":null,\\\"unitId\\\":null,\\\"address\\\":\\\"朝阳区麦子店街道麦子店西路\\\",\\\"area\\\":\\\"92.00\\\",\\\"rooms\\\":3,\\\"floor\\\":12,\\\"totalFloors\\\":28,\\\"orientation\\\":\\\"朝南\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"9500000.00\\\",\\\"unitPrice\\\":\\\"103261.00\\\",\\\"transactionDate\\\":\\\"2026-01-08T00:00:00.000Z\\\",\\\"source\\\":\\\"贝壳\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.03501879699248121},{\\\"id\\\":52,\\\"cityId\\\":1,\\\"estateId\\\":null,\\\"buildingId\\\":null,\\\"unitId\\\":null,\\\"address\\\":\\\"朝阳区朝阳北路101号\\\",\\\"area\\\":\\\"88.00\\\",\\\"rooms\\\":3,\\\"floor\\\":15,\\\"totalFloors\\\":32,\\\"orientation\\\":\\\"南北通透\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"9200000.00\\\",\\\"unitPrice\\\":\\\"104545.00\\\",\\\"transactionDate\\\":\\\"2026-02-25T00:00:00.000Z\\\",\\\"source\\\":\\\"链家\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.04421052631578947},{\\\"id\\\":50,\\\"cityId\\\":1,\\\"estateId\\\":null,\\\"buildingId\\\":null,\\\"unitId\\\":null,\\\"address\\\":\\\"朝阳区朝外大街甲6号\\\",\\\"area\\\":\\\"98.00\\\",\\\"rooms\\\":3,\\\"floor\\\":18,\\\"totalFloors\\\":30,\\\"orientation\\\":\\\"南北通透\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"10100000.00\\\",\\\"unitPrice\\\":\\\"103061.00\\\",\\\"transactionDate\\\":\\\"2025-11-20T00:00:00.000Z\\\",\\\"source\\\":\\\"我爱我家\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.07144736842105262},{\\\"id\\\":39,\\\"cityId\\\":1,\\\"estateId\\\":3,\\\"buildingId\\\":8,\\\"unitId\\\":null,\\\"address\\\":\\\"来广营西路88号保利中央公园3栋18层01室\\\",\\\"area\\\":\\\"98.00\\\",\\\"rooms\\\":3,\\\"floor\\\":18,\\\"totalFloors\\\":28,\\\"orientation\\\":\\\"朝南\\\",\\\"propertyType\\\":\\\"住宅\\\",\\\"transactionType\\\":\\\"sale\\\",\\\"price\\\":\\\"8800000.00\\\",\\\"unitPrice\\\":\\\"89796.00\\\",\\\"transactionDate\\\":\\\"2025-12-05T00:00:00.000Z\\\",\\\"source\\\":\\\"贝壳\\\",\\\"isAnomaly\\\":false,\\\"anomalyReason\\\":null,\\\"createdAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"updatedAt\\\":\\\"2026-03-13T13:13:35.000Z\\\",\\\"similarityScore\\\":0.08859022556390979}],\\\"llmResult\\\":{\\\"analysis\\\":\\\"1. 估价合理性评价：本次估价综合价为677.62万元，单价71,328元/㎡，明显低于参考案例均价约10.3万元/㎡的水平。参考案例均价集中在103,000-107,000元/㎡区间，且均为近半年内成交，时间较为接近，具有较强的可比性。比较法单价107,097元/㎡与市场成交价基本一致，成本法单价23,875元/㎡明显偏低，符合成本法本身偏低的特点。综合估价低于市场价较多，且置信度标注为“低”，说明估价模型或数据存在较大不确定性。整体来看，估价结果偏低，不够合理，建议重新核实数据和方法。\\\\n\\\\n2. 关键影响因素：正面因素包括：位于朝阳区优质地段，南北通透户型，精装修，配备电梯及停车位，楼层适中（15层），楼龄适中（11年）。负面因素可能是物业所在楼栋具体位置、楼层视野、物业管理状况及市场波动影响，此外，估价置信度低也反映出数据或方法的局限。\\\\n\\\\n3. 市场行情判断：朝阳区作为北京核心区域之一，尤其万科俊园所在的成熟社区，市场需求稳定，价格坚挺。近期成交价均价维持在10万元/㎡以上，显示市场保持活跃且价格坚实。考虑到政策环境趋稳，短期内价格大概率维持或小幅上涨。\\\\n\\\\n4. 风险提示：估价置信度低，可能因数据样本不足或模型参数设定不合理导致估价偏差较大；市场波动风险及政策调控风险；物业具体状况（如装修质量、物业管理）未充分反映；参考案例时间虽近但数量有限，可能影响比较法准确性。\\\\n\\\\n5. 建议：建议委托方重点关注市场最新成交数据，结合实地勘察物业具体状况，调整估价模型参数，提升置信度；同时关注政策动态及市场趋势，合理预判价格波动；若用于交易或融资，建议多方评估结果比对，避免单一估价结果误导决策。\\\",\\\"confidenceScore\\\":55,\\\"riskLevel\\\":\\\"中\\\",\\\"keyFactors\\\":[\\\"地段优势\\\",\\\"楼层适中\\\",\\\"装修精良\\\",\\\"市场活跃\\\",\\\"估价置信度低\\\"]}}\"','\"{\\\"analysis\\\":\\\"1. 估价合理性评价：本次估价综合价为677.62万元，单价71,328元/㎡，明显低于参考案例均价约10.3万元/㎡的水平。参考案例均价集中在103,000-107,000元/㎡区间，且均为近半年内成交，时间较为接近，具有较强的可比性。比较法单价107,097元/㎡与市场成交价基本一致，成本法单价23,875元/㎡明显偏低，符合成本法本身偏低的特点。综合估价低于市场价较多，且置信度标注为“低”，说明估价模型或数据存在较大不确定性。整体来看，估价结果偏低，不够合理，建议重新核实数据和方法。\\\\n\\\\n2. 关键影响因素：正面因素包括：位于朝阳区优质地段，南北通透户型，精装修，配备电梯及停车位，楼层适中（15层），楼龄适中（11年）。负面因素可能是物业所在楼栋具体位置、楼层视野、物业管理状况及市场波动影响，此外，估价置信度低也反映出数据或方法的局限。\\\\n\\\\n3. 市场行情判断：朝阳区作为北京核心区域之一，尤其万科俊园所在的成熟社区，市场需求稳定，价格坚挺。近期成交价均价维持在10万元/㎡以上，显示市场保持活跃且价格坚实。考虑到政策环境趋稳，短期内价格大概率维持或小幅上涨。\\\\n\\\\n4. 风险提示：估价置信度低，可能因数据样本不足或模型参数设定不合理导致估价偏差较大；市场波动风险及政策调控风险；物业具体状况（如装修质量、物业管理）未充分反映；参考案例时间虽近但数量有限，可能影响比较法准确性。\\\\n\\\\n5. 建议：建议委托方重点关注市场最新成交数据，结合实地勘察物业具体状况，调整估价模型参数，提升置信度；同时关注政策动态及市场趋势，合理预判价格波动；若用于交易或融资，建议多方评估结果比对，避免单一估价结果误导决策。\\\",\\\"confidenceScore\\\":55,\\\"riskLevel\\\":\\\"中\\\",\\\"keyFactors\\\":[\\\"地段优势\\\",\\\"楼层适中\\\",\\\"装修精良\\\",\\\"市场活跃\\\",\\\"估价置信度低\\\"]}\"',6,NULL,NULL),(2,NULL,1,'朝阳区建国路88号SOHO现代城3栋15层1502室',NULL,NULL,120.00,NULL,15,'residential',7258320.00,5951822.00,8564818.00,60.00,'比较法(60%) + 收益法(25%) + 成本法(15%)','\"[]\"','本次估价结果综合价为725.83万元，单价约60,486元/㎡，处于比较法结果（83,514元/㎡）与成本法结果（33,522元/㎡）之间，且估价区间较宽（595.18万元至856.48万元），置信度被评为低，反映出估价过程中存在较大不确定性。由于本次估价无参考案例支持，缺乏市场实证数据，导致估价结果的合理性难以充分验证。比较法单价明显高于综合估价，可能因市场成交价偏高或样本选择偏差；成本法单价偏低，反映建筑成本与市场价值存在较大差距，可能未充分考虑地段溢价及装修等因素。物业位于朝阳区核心地段，南北通透、精装修、电梯及停车位等均为价值正面因素，提升物业吸引力和市场竞争力；但10年楼龄及高层位置可能对部分买家吸引力有限。当前北京朝阳区住宅市场整体趋于稳定，价格波动有限，政策调控持续，短期内价格大幅上涨可能性较低。估价风险主要来自缺乏有效参考案例、市场波动及政策影响，以及物业个体差异未充分量化。建议委托方结合更多市场成交数据，更新参考案例库，采用多方法交叉验证估价结果，同时关注政策动态和市场需求变化，合理调整预期价格。若用于交易，应考虑适当议价空间，避免因估价偏差导致交易风险。','completed','2026-03-14 17:13:04',NULL,'朝阳区建国路88号SOHO现代城3栋15层1502室',120.00,18,10,'south_north','fine',1,1,'mortgage','朝阳','北京',7258320.00,60486.00,'low','\"{\\\"input\\\":{\\\"propertyType\\\":\\\"residential\\\",\\\"city\\\":\\\"北京\\\",\\\"district\\\":\\\"朝阳\\\",\\\"address\\\":\\\"朝阳区建国路88号SOHO现代城3栋15层1502室\\\",\\\"buildingAge\\\":10,\\\"totalFloors\\\":18,\\\"floor\\\":15,\\\"buildingArea\\\":120,\\\"orientation\\\":\\\"south_north\\\",\\\"decoration\\\":\\\"fine\\\",\\\"hasElevator\\\":true,\\\"hasParking\\\":true,\\\"purpose\\\":\\\"mortgage\\\",\\\"vacancyRate\\\":5,\\\"operatingExpenseRate\\\":20,\\\"enableLLM\\\":true},\\\"result\\\":{\\\"finalValue\\\":7258320,\\\"unitPrice\\\":60486,\\\"confidenceLevel\\\":\\\"low\\\",\\\"valuationDate\\\":\\\"2026-03-14\\\",\\\"comparativeResult\\\":{\\\"method\\\":\\\"市场比较法\\\",\\\"value\\\":10021675,\\\"unitPrice\\\":83514,\\\"details\\\":{\\\"cityBasePrice\\\":68000,\\\"districtCoefficient\\\":1.15,\\\"floorCoefficient\\\":1.08,\\\"orientationCoefficient\\\":1.05,\\\"decorationCoefficient\\\":1.08,\\\"ageCoefficient\\\":0.83,\\\"adjustedUnitPrice\\\":83514}},\\\"incomeResult\\\":{\\\"method\\\":\\\"收益法（直接资本化法）\\\",\\\"value\\\":2567462,\\\"unitPrice\\\":21396,\\\"details\\\":{\\\"monthlyRent\\\":14076,\\\"grossAnnualIncome\\\":168912,\\\"vacancyRate\\\":\\\"5.0%\\\",\\\"effectiveGrossIncome\\\":160466,\\\"operatingExpenseRate\\\":\\\"20.0%\\\",\\\"netOperatingIncome\\\":128373,\\\"capitalizationRate\\\":\\\"5.00%\\\",\\\"estimatedValue\\\":2567462}},\\\"costResult\\\":{\\\"method\\\":\\\"成本法（重置成本法）\\\",\\\"value\\\":4022677,\\\"unitPrice\\\":33522,\\\"details\\\":{\\\"landUnitPrice\\\":27370,\\\"landValue\\\":3284400,\\\"constructionCostPerSqm\\\":6000,\\\"constructionCost\\\":720000,\\\"developmentCost\\\":57600,\\\"replacementCost\\\":900338,\\\"physicalDepreciation\\\":153058,\\\"intactRate\\\":\\\"83.0%\\\",\\\"buildingValue\\\":738277,\\\"totalValue\\\":4022677}},\\\"weights\\\":{\\\"comparative\\\":0.6,\\\"income\\\":0.25,\\\"cost\\\":0.15},\\\"adjustments\\\":[{\\\"factor\\\":\\\"区位系数\\\",\\\"description\\\":\\\"朝阳区域相对城市均价调整\\\",\\\"coefficient\\\":1.15,\\\"impact\\\":1224000},{\\\"factor\\\":\\\"楼层系数\\\",\\\"description\\\":\\\"15/18层楼层位置调整\\\",\\\"coefficient\\\":1.08,\\\"impact\\\":750720},{\\\"factor\\\":\\\"朝向系数\\\",\\\"description\\\":\\\"south_north朝向调整\\\",\\\"coefficient\\\":1.05,\\\"impact\\\":469200},{\\\"factor\\\":\\\"装修系数\\\",\\\"description\\\":\\\"fine装修标准调整\\\",\\\"coefficient\\\":1.08,\\\"impact\\\":750720},{\\\"factor\\\":\\\"楼龄折旧\\\",\\\"description\\\":\\\"楼龄10年，成新率83.0%\\\",\\\"coefficient\\\":0.83,\\\"impact\\\":-1595280}],\\\"marketData\\\":{\\\"cityAvgPrice\\\":68000,\\\"districtAvgPrice\\\":78200,\\\"priceIndex\\\":1.15,\\\"marketTrend\\\":\\\"rising\\\",\\\"trendRate\\\":2.5},\\\"methodology\\\":\\\"本次评估采用市场比较法为主要方法，收益法和成本法作为验证方法。住宅类物业市场交易活跃，可比案例充分，比较法结果可靠性高。\\\",\\\"assumptions\\\":[\\\"估价时点为报告出具日，市场条件以当日为准\\\",\\\"物业不存在重大质量缺陷或法律纠纷\\\",\\\"土地使用权在剩余年限内可正常使用\\\",\\\"周边基础设施和配套设施保持现状\\\",\\\"宏观经济政策和房地产调控政策保持稳定\\\"],\\\"limitations\\\":[\\\"本估价结果仅供参考，不构成交易建议\\\",\\\"实际成交价格可能因市场波动、谈判因素等与估价结果存在差异\\\",\\\"如物业存在重大变化，本估价结果将失效\\\"]},\\\"comparables\\\":[],\\\"llmResult\\\":{\\\"analysis\\\":\\\"本次估价结果综合价为725.83万元，单价约60,486元/㎡，处于比较法结果（83,514元/㎡）与成本法结果（33,522元/㎡）之间，且估价区间较宽（595.18万元至856.48万元），置信度被评为低，反映出估价过程中存在较大不确定性。由于本次估价无参考案例支持，缺乏市场实证数据，导致估价结果的合理性难以充分验证。比较法单价明显高于综合估价，可能因市场成交价偏高或样本选择偏差；成本法单价偏低，反映建筑成本与市场价值存在较大差距，可能未充分考虑地段溢价及装修等因素。物业位于朝阳区核心地段，南北通透、精装修、电梯及停车位等均为价值正面因素，提升物业吸引力和市场竞争力；但10年楼龄及高层位置可能对部分买家吸引力有限。当前北京朝阳区住宅市场整体趋于稳定，价格波动有限，政策调控持续，短期内价格大幅上涨可能性较低。估价风险主要来自缺乏有效参考案例、市场波动及政策影响，以及物业个体差异未充分量化。建议委托方结合更多市场成交数据，更新参考案例库，采用多方法交叉验证估价结果，同时关注政策动态和市场需求变化，合理调整预期价格。若用于交易，应考虑适当议价空间，避免因估价偏差导致交易风险。\\\",\\\"confidenceScore\\\":55,\\\"riskLevel\\\":\\\"中\\\",\\\"keyFactors\\\":[\\\"核心地段优势\\\",\\\"装修精良\\\",\\\"楼龄较老\\\",\\\"缺乏参考案例\\\",\\\"市场政策影响\\\"]}}\"','\"{\\\"analysis\\\":\\\"本次估价结果综合价为725.83万元，单价约60,486元/㎡，处于比较法结果（83,514元/㎡）与成本法结果（33,522元/㎡）之间，且估价区间较宽（595.18万元至856.48万元），置信度被评为低，反映出估价过程中存在较大不确定性。由于本次估价无参考案例支持，缺乏市场实证数据，导致估价结果的合理性难以充分验证。比较法单价明显高于综合估价，可能因市场成交价偏高或样本选择偏差；成本法单价偏低，反映建筑成本与市场价值存在较大差距，可能未充分考虑地段溢价及装修等因素。物业位于朝阳区核心地段，南北通透、精装修、电梯及停车位等均为价值正面因素，提升物业吸引力和市场竞争力；但10年楼龄及高层位置可能对部分买家吸引力有限。当前北京朝阳区住宅市场整体趋于稳定，价格波动有限，政策调控持续，短期内价格大幅上涨可能性较低。估价风险主要来自缺乏有效参考案例、市场波动及政策影响，以及物业个体差异未充分量化。建议委托方结合更多市场成交数据，更新参考案例库，采用多方法交叉验证估价结果，同时关注政策动态和市场需求变化，合理调整预期价格。若用于交易，应考虑适当议价空间，避免因估价偏差导致交易风险。\\\",\\\"confidenceScore\\\":55,\\\"riskLevel\\\":\\\"中\\\",\\\"keyFactors\\\":[\\\"核心地段优势\\\",\\\"装修精良\\\",\\\"楼龄较老\\\",\\\"缺乏参考案例\\\",\\\"市场政策影响\\\"]}\"',0,NULL,NULL),(3,NULL,1,'朝阳区建国路88号SOHO现代城3栋15层1502室',NULL,NULL,120.00,NULL,15,'residential',7258320.00,5951822.00,8564818.00,60.00,'比较法(60%) + 收益法(25%) + 成本法(15%)','\"[]\"','1. 估价合理性评价：本次估价采用了比较法和成本法两种方法，结果差异较大，比较法单价为83,514元/㎡，成本法单价仅33,522元/㎡，而综合估价单价为60,486元/㎡，处于两者中间。由于无参考案例支持，估价置信度较低，且估价区间跨度较大（595.18万至856.48万），显示估价结果存在较大不确定性。综合来看，估价结果在理论上合理，但缺乏市场数据支撑，需谨慎对待。 2. 关键影响因素：正面因素包括地理位置优越（朝阳区建国路核心地段）、物业南北通透、精装修、电梯及停车位配套齐全，均提升物业价值。负面因素主要是楼龄10年，可能存在一定折旧，且缺乏近期成交参考案例，导致估价不确定性增加。 3. 市场行情判断：当前北京朝阳区核心商务区住宅市场趋于稳定，价格整体维持高位，成交量有所回落，买卖双方趋于理性。考虑到政策调控和市场情绪，短期内价格波动有限，但高价位段成交难度加大。 4. 风险提示：主要风险包括缺乏有效参考案例导致估价偏差较大，市场成交活跃度不足可能影响价格发现，物业内部装修状况及维护情况未详尽披露，可能影响实际价值。此外，政策调控风险和宏观经济变化也需关注。 5. 建议：建议委托方结合更多市场成交数据，特别是同区域、同类型、相似楼层和装修标准的案例进行复核；关注物业维护和装修状况，必要时进行现场核查；在决策时考虑估价区间的波动，避免单一价格决策；密切关注政策和市场动态，合理调整投资策略。','completed','2026-03-14 17:26:19',NULL,'朝阳区建国路88号SOHO现代城3栋15层1502室',120.00,18,10,'south_north','fine',1,1,'mortgage','朝阳','北京',7258320.00,60486.00,'low','\"{\\\"input\\\":{\\\"propertyType\\\":\\\"residential\\\",\\\"city\\\":\\\"北京\\\",\\\"district\\\":\\\"朝阳\\\",\\\"address\\\":\\\"朝阳区建国路88号SOHO现代城3栋15层1502室\\\",\\\"buildingAge\\\":10,\\\"totalFloors\\\":18,\\\"floor\\\":15,\\\"buildingArea\\\":120,\\\"orientation\\\":\\\"south_north\\\",\\\"decoration\\\":\\\"fine\\\",\\\"hasElevator\\\":true,\\\"hasParking\\\":true,\\\"purpose\\\":\\\"mortgage\\\",\\\"vacancyRate\\\":5,\\\"operatingExpenseRate\\\":20,\\\"enableLLM\\\":true},\\\"result\\\":{\\\"finalValue\\\":7258320,\\\"unitPrice\\\":60486,\\\"confidenceLevel\\\":\\\"low\\\",\\\"valuationDate\\\":\\\"2026-03-14\\\",\\\"comparativeResult\\\":{\\\"method\\\":\\\"市场比较法\\\",\\\"value\\\":10021675,\\\"unitPrice\\\":83514,\\\"details\\\":{\\\"cityBasePrice\\\":68000,\\\"districtCoefficient\\\":1.15,\\\"floorCoefficient\\\":1.08,\\\"orientationCoefficient\\\":1.05,\\\"decorationCoefficient\\\":1.08,\\\"ageCoefficient\\\":0.83,\\\"adjustedUnitPrice\\\":83514}},\\\"incomeResult\\\":{\\\"method\\\":\\\"收益法（直接资本化法）\\\",\\\"value\\\":2567462,\\\"unitPrice\\\":21396,\\\"details\\\":{\\\"monthlyRent\\\":14076,\\\"grossAnnualIncome\\\":168912,\\\"vacancyRate\\\":\\\"5.0%\\\",\\\"effectiveGrossIncome\\\":160466,\\\"operatingExpenseRate\\\":\\\"20.0%\\\",\\\"netOperatingIncome\\\":128373,\\\"capitalizationRate\\\":\\\"5.00%\\\",\\\"estimatedValue\\\":2567462}},\\\"costResult\\\":{\\\"method\\\":\\\"成本法（重置成本法）\\\",\\\"value\\\":4022677,\\\"unitPrice\\\":33522,\\\"details\\\":{\\\"landUnitPrice\\\":27370,\\\"landValue\\\":3284400,\\\"constructionCostPerSqm\\\":6000,\\\"constructionCost\\\":720000,\\\"developmentCost\\\":57600,\\\"replacementCost\\\":900338,\\\"physicalDepreciation\\\":153058,\\\"intactRate\\\":\\\"83.0%\\\",\\\"buildingValue\\\":738277,\\\"totalValue\\\":4022677}},\\\"weights\\\":{\\\"comparative\\\":0.6,\\\"income\\\":0.25,\\\"cost\\\":0.15},\\\"adjustments\\\":[{\\\"factor\\\":\\\"区位系数\\\",\\\"description\\\":\\\"朝阳区域相对城市均价调整\\\",\\\"coefficient\\\":1.15,\\\"impact\\\":1224000},{\\\"factor\\\":\\\"楼层系数\\\",\\\"description\\\":\\\"15/18层楼层位置调整\\\",\\\"coefficient\\\":1.08,\\\"impact\\\":750720},{\\\"factor\\\":\\\"朝向系数\\\",\\\"description\\\":\\\"south_north朝向调整\\\",\\\"coefficient\\\":1.05,\\\"impact\\\":469200},{\\\"factor\\\":\\\"装修系数\\\",\\\"description\\\":\\\"fine装修标准调整\\\",\\\"coefficient\\\":1.08,\\\"impact\\\":750720},{\\\"factor\\\":\\\"楼龄折旧\\\",\\\"description\\\":\\\"楼龄10年，成新率83.0%\\\",\\\"coefficient\\\":0.83,\\\"impact\\\":-1595280}],\\\"marketData\\\":{\\\"cityAvgPrice\\\":68000,\\\"districtAvgPrice\\\":78200,\\\"priceIndex\\\":1.15,\\\"marketTrend\\\":\\\"rising\\\",\\\"trendRate\\\":2.5},\\\"methodology\\\":\\\"本次评估采用市场比较法为主要方法，收益法和成本法作为验证方法。住宅类物业市场交易活跃，可比案例充分，比较法结果可靠性高。\\\",\\\"assumptions\\\":[\\\"估价时点为报告出具日，市场条件以当日为准\\\",\\\"物业不存在重大质量缺陷或法律纠纷\\\",\\\"土地使用权在剩余年限内可正常使用\\\",\\\"周边基础设施和配套设施保持现状\\\",\\\"宏观经济政策和房地产调控政策保持稳定\\\"],\\\"limitations\\\":[\\\"本估价结果仅供参考，不构成交易建议\\\",\\\"实际成交价格可能因市场波动、谈判因素等与估价结果存在差异\\\",\\\"如物业存在重大变化，本估价结果将失效\\\"]},\\\"comparables\\\":[],\\\"llmResult\\\":{\\\"analysis\\\":\\\"1. 估价合理性评价：本次估价采用了比较法和成本法两种方法，结果差异较大，比较法单价为83,514元/㎡，成本法单价仅33,522元/㎡，而综合估价单价为60,486元/㎡，处于两者中间。由于无参考案例支持，估价置信度较低，且估价区间跨度较大（595.18万至856.48万），显示估价结果存在较大不确定性。综合来看，估价结果在理论上合理，但缺乏市场数据支撑，需谨慎对待。 2. 关键影响因素：正面因素包括地理位置优越（朝阳区建国路核心地段）、物业南北通透、精装修、电梯及停车位配套齐全，均提升物业价值。负面因素主要是楼龄10年，可能存在一定折旧，且缺乏近期成交参考案例，导致估价不确定性增加。 3. 市场行情判断：当前北京朝阳区核心商务区住宅市场趋于稳定，价格整体维持高位，成交量有所回落，买卖双方趋于理性。考虑到政策调控和市场情绪，短期内价格波动有限，但高价位段成交难度加大。 4. 风险提示：主要风险包括缺乏有效参考案例导致估价偏差较大，市场成交活跃度不足可能影响价格发现，物业内部装修状况及维护情况未详尽披露，可能影响实际价值。此外，政策调控风险和宏观经济变化也需关注。 5. 建议：建议委托方结合更多市场成交数据，特别是同区域、同类型、相似楼层和装修标准的案例进行复核；关注物业维护和装修状况，必要时进行现场核查；在决策时考虑估价区间的波动，避免单一价格决策；密切关注政策和市场动态，合理调整投资策略。\\\",\\\"confidenceScore\\\":55,\\\"riskLevel\\\":\\\"中\\\",\\\"keyFactors\\\":[\\\"地理位置优越\\\",\\\"装修精良\\\",\\\"楼龄折旧\\\",\\\"缺乏参考案例\\\",\\\"市场成交活跃度低\\\"]}}\"','\"{\\\"analysis\\\":\\\"1. 估价合理性评价：本次估价采用了比较法和成本法两种方法，结果差异较大，比较法单价为83,514元/㎡，成本法单价仅33,522元/㎡，而综合估价单价为60,486元/㎡，处于两者中间。由于无参考案例支持，估价置信度较低，且估价区间跨度较大（595.18万至856.48万），显示估价结果存在较大不确定性。综合来看，估价结果在理论上合理，但缺乏市场数据支撑，需谨慎对待。 2. 关键影响因素：正面因素包括地理位置优越（朝阳区建国路核心地段）、物业南北通透、精装修、电梯及停车位配套齐全，均提升物业价值。负面因素主要是楼龄10年，可能存在一定折旧，且缺乏近期成交参考案例，导致估价不确定性增加。 3. 市场行情判断：当前北京朝阳区核心商务区住宅市场趋于稳定，价格整体维持高位，成交量有所回落，买卖双方趋于理性。考虑到政策调控和市场情绪，短期内价格波动有限，但高价位段成交难度加大。 4. 风险提示：主要风险包括缺乏有效参考案例导致估价偏差较大，市场成交活跃度不足可能影响价格发现，物业内部装修状况及维护情况未详尽披露，可能影响实际价值。此外，政策调控风险和宏观经济变化也需关注。 5. 建议：建议委托方结合更多市场成交数据，特别是同区域、同类型、相似楼层和装修标准的案例进行复核；关注物业维护和装修状况，必要时进行现场核查；在决策时考虑估价区间的波动，避免单一价格决策；密切关注政策和市场动态，合理调整投资策略。\\\",\\\"confidenceScore\\\":55,\\\"riskLevel\\\":\\\"中\\\",\\\"keyFactors\\\":[\\\"地理位置优越\\\",\\\"装修精良\\\",\\\"楼龄折旧\\\",\\\"缺乏参考案例\\\",\\\"市场成交活跃度低\\\"]}\"',0,NULL,NULL);
+/*!40000 ALTER TABLE `auto_valuations` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `bids`
+--
+
+DROP TABLE IF EXISTS `bids`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `bids` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `project_id` int NOT NULL,
+  `org_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `price` decimal(15,2) NOT NULL,
+  `days` int NOT NULL,
+  `estimated_days` int DEFAULT NULL,
+  `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` enum('pending','accepted','rejected','awarded') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `bids`
+--
+
+LOCK TABLES `bids` WRITE;
+/*!40000 ALTER TABLE `bids` DISABLE KEYS */;
+/*!40000 ALTER TABLE `bids` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `buildings`
+--
+
+DROP TABLE IF EXISTS `buildings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `buildings` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `estate_id` int NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `floors` int DEFAULT NULL,
+  `units_per_floor` int DEFAULT NULL,
+  `build_year` int DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `buildings`
+--
+
+LOCK TABLES `buildings` WRITE;
+/*!40000 ALTER TABLE `buildings` DISABLE KEYS */;
+INSERT INTO `buildings` VALUES (1,1,'1号楼',32,4,2015,'2026-03-13 13:13:35'),(2,1,'2号楼',28,4,2015,'2026-03-13 13:13:35'),(3,1,'3号楼',25,4,2016,'2026-03-13 13:13:35'),(4,2,'A座',35,4,2018,'2026-03-13 13:13:35'),(5,2,'B座',35,4,2018,'2026-03-13 13:13:35'),(6,3,'1栋',30,6,2016,'2026-03-13 13:13:35'),(7,3,'2栋',30,6,2016,'2026-03-13 13:13:35'),(8,3,'3栋',28,6,2017,'2026-03-13 13:13:35'),(9,4,'1号楼',18,2,2019,'2026-03-13 13:13:35'),(10,4,'2号楼',18,2,2019,'2026-03-13 13:13:35'),(11,5,'T1',40,4,2020,'2026-03-13 13:13:35'),(12,5,'T2',38,4,2020,'2026-03-13 13:13:35');
+/*!40000 ALTER TABLE `buildings` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `cases`
+--
+
+DROP TABLE IF EXISTS `cases`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `cases` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `city_id` int DEFAULT NULL,
+  `estate_id` int DEFAULT NULL,
+  `building_id` int DEFAULT NULL,
+  `unit_id` int DEFAULT NULL,
+  `address` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `area` decimal(10,2) DEFAULT NULL,
+  `rooms` int DEFAULT NULL,
+  `floor` int DEFAULT NULL,
+  `total_floors` int DEFAULT NULL,
+  `orientation` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `property_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `transaction_type` enum('sale','rent') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'sale',
+  `price` decimal(15,2) DEFAULT NULL,
+  `unit_price` decimal(10,2) DEFAULT NULL,
+  `transaction_date` timestamp NULL DEFAULT NULL,
+  `source` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_anomaly` tinyint(1) DEFAULT '0',
+  `anomaly_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT (now()),
+  `updated_at` timestamp NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=54 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `cases`
+--
+
+LOCK TABLES `cases` WRITE;
+/*!40000 ALTER TABLE `cases` DISABLE KEYS */;
+INSERT INTO `cases` VALUES (1,1,1,1,5,'朝阳公园南路1号万科俊园1号楼10层01室',89.50,3,10,32,'南北通透','住宅','sale',8500000.00,94972.00,'2024-01-15 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(2,1,1,1,6,'朝阳公园南路1号万科俊园1号楼10层02室',120.30,4,10,32,'朝南','住宅','sale',11800000.00,98089.00,'2024-02-20 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(3,1,1,2,NULL,'朝阳公园南路1号万科俊园2号楼8层01室',95.00,3,8,28,'朝南','住宅','sale',9200000.00,96842.00,'2024-03-10 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(4,1,1,1,7,'朝阳公园南路1号万科俊园1号楼15层01室',89.50,3,15,32,'南北通透','住宅','sale',8900000.00,99441.00,'2024-04-05 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(5,1,1,1,8,'朝阳公园南路1号万科俊园1号楼15层02室',120.30,4,15,32,'朝南','住宅','sale',12200000.00,101413.00,'2024-05-18 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(6,1,1,2,NULL,'朝阳公园南路1号万科俊园2号楼15层01室',95.00,3,15,28,'朝南','住宅','sale',9600000.00,101053.00,'2024-06-22 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(7,1,1,1,9,'朝阳公园南路1号万科俊园1号楼20层01室',89.50,3,20,32,'南北通透','住宅','sale',9100000.00,101676.00,'2024-07-14 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(8,1,1,1,10,'朝阳公园南路1号万科俊园1号楼20层02室',120.30,4,20,32,'朝南','住宅','sale',12500000.00,103907.00,'2024-08-09 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(9,1,1,2,NULL,'朝阳公园南路1号万科俊园2号楼20层01室',95.00,3,20,28,'朝南','住宅','sale',9800000.00,103158.00,'2024-09-25 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(10,1,1,1,11,'朝阳公园南路1号万科俊园1号楼25层01室',89.50,3,25,32,'南北通透','住宅','sale',9300000.00,103911.00,'2024-10-11 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(11,1,1,1,12,'朝阳公园南路1号万科俊园1号楼25层02室',120.30,4,25,32,'朝南','住宅','sale',12800000.00,106400.00,'2024-11-30 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(12,1,1,2,NULL,'朝阳公园南路1号万科俊园2号楼25层01室',95.00,3,25,28,'朝南','住宅','sale',10000000.00,105263.00,'2024-12-15 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(13,1,1,1,5,'朝阳公园南路1号万科俊园1号楼10层01室',89.50,3,10,32,'南北通透','住宅','sale',8700000.00,97207.00,'2025-01-20 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(14,1,1,3,NULL,'朝阳公园南路1号万科俊园3号楼12层01室',88.00,3,12,25,'朝南','住宅','sale',8600000.00,97727.00,'2025-02-14 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(15,1,1,1,7,'朝阳公园南路1号万科俊园1号楼15层01室',89.50,3,15,32,'南北通透','住宅','sale',9100000.00,101676.00,'2025-03-08 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(16,1,1,2,NULL,'朝阳公园南路1号万科俊园2号楼18层01室',95.00,3,18,28,'朝南','住宅','sale',9800000.00,103158.00,'2025-04-22 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(17,1,1,1,9,'朝阳公园南路1号万科俊园1号楼20层01室',89.50,3,20,32,'南北通透','住宅','sale',9300000.00,103911.00,'2025-05-16 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(18,1,1,1,10,'朝阳公园南路1号万科俊园1号楼20层02室',120.30,4,20,32,'朝南','住宅','sale',12700000.00,105570.00,'2025-06-30 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(19,1,1,2,NULL,'朝阳公园南路1号万科俊园2号楼22层01室',95.00,3,22,28,'朝南','住宅','sale',10100000.00,106316.00,'2025-07-19 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(20,1,1,1,11,'朝阳公园南路1号万科俊园1号楼25层01室',89.50,3,25,32,'南北通透','住宅','sale',9500000.00,106145.00,'2025-08-05 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(21,1,1,1,12,'朝阳公园南路1号万科俊园1号楼25层02室',120.30,4,25,32,'朝南','住宅','sale',13000000.00,108062.00,'2025-09-12 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(22,1,1,2,NULL,'朝阳公园南路1号万科俊园2号楼26层01室',95.00,3,26,28,'朝南','住宅','sale',10300000.00,108421.00,'2025-10-28 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(23,1,1,1,7,'朝阳公园南路1号万科俊园1号楼15层01室',89.50,3,15,32,'南北通透','住宅','sale',9400000.00,104972.00,'2025-11-14 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(24,1,1,3,NULL,'朝阳公园南路1号万科俊园3号楼20层02室',92.00,3,20,25,'朝南','住宅','sale',9800000.00,106522.00,'2025-12-20 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(25,1,1,1,5,'朝阳公园南路1号万科俊园1号楼10层01室',89.50,3,10,32,'南北通透','住宅','sale',9000000.00,100559.00,'2026-01-10 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(26,1,1,2,NULL,'朝阳公园南路1号万科俊园2号楼15层01室',95.00,3,15,28,'朝南','住宅','sale',10200000.00,107368.00,'2026-02-18 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(27,1,1,1,9,'朝阳公园南路1号万科俊园1号楼20层01室',89.50,3,20,32,'南北通透','住宅','sale',9600000.00,107263.00,'2026-03-05 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(28,1,2,4,16,'东三环中路39号中海紫御公馆A座1层01室',130.00,4,1,35,'南北通透','住宅','sale',15000000.00,115385.00,'2024-03-15 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(29,1,2,4,17,'东三环中路39号中海紫御公馆A座10层01室',130.00,4,10,35,'南北通透','住宅','sale',16500000.00,126923.00,'2024-06-20 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(30,1,2,4,18,'东三环中路39号中海紫御公馆A座20层01室',130.00,4,20,35,'南北通透','住宅','sale',17200000.00,132308.00,'2024-09-10 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(31,1,2,5,NULL,'东三环中路39号中海紫御公馆B座15层02室',128.00,4,15,35,'朝南','住宅','sale',16800000.00,131250.00,'2025-01-25 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(32,1,2,5,NULL,'东三环中路39号中海紫御公馆B座25层01室',130.00,4,25,35,'南北通透','住宅','sale',17800000.00,136923.00,'2025-06-15 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(33,1,2,4,17,'东三环中路39号中海紫御公馆A座10层01室',130.00,4,10,35,'南北通透','住宅','sale',17000000.00,130769.00,'2025-11-08 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(34,1,2,5,NULL,'东三环中路39号中海紫御公馆B座30层02室',128.00,4,30,35,'朝南','住宅','sale',18200000.00,142188.00,'2026-02-20 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(35,1,3,6,NULL,'来广营西路88号保利中央公园1栋8层01室',98.00,3,8,30,'朝南','住宅','sale',8200000.00,83673.00,'2024-04-12 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(36,1,3,6,NULL,'来广营西路88号保利中央公园1栋15层02室',105.00,3,15,30,'南北通透','住宅','sale',9100000.00,86667.00,'2024-08-22 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(37,1,3,7,NULL,'来广营西路88号保利中央公园2栋20层01室',98.00,3,20,30,'朝南','住宅','sale',8600000.00,87755.00,'2025-02-10 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(38,1,3,7,NULL,'来广营西路88号保利中央公园2栋25层02室',105.00,3,25,30,'南北通透','住宅','sale',9500000.00,90476.00,'2025-07-30 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(39,1,3,8,NULL,'来广营西路88号保利中央公园3栋18层01室',98.00,3,18,28,'朝南','住宅','sale',8800000.00,89796.00,'2025-12-05 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(40,1,3,6,NULL,'来广营西路88号保利中央公园1栋22层01室',105.00,3,22,30,'南北通透','住宅','sale',9700000.00,92381.00,'2026-01-18 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(41,1,NULL,NULL,NULL,'朝阳区东三环北路甲19号',92.00,3,12,28,'朝南','住宅','sale',8800000.00,95652.00,'2024-05-20 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(42,1,NULL,NULL,NULL,'朝阳区朝阳公园路6号',88.00,3,8,25,'南北通透','住宅','sale',8300000.00,94318.00,'2024-07-15 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(43,1,NULL,NULL,NULL,'朝阳区亮马桥路50号',115.00,4,18,32,'朝南','住宅','sale',11500000.00,100000.00,'2024-09-08 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(44,1,NULL,NULL,NULL,'朝阳区工体北路8号',96.00,3,22,30,'南北通透','住宅','sale',9500000.00,98958.00,'2024-11-25 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(45,1,NULL,NULL,NULL,'朝阳区三里屯路19号',88.00,3,15,28,'朝南','住宅','sale',8700000.00,98864.00,'2025-01-12 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(46,1,NULL,NULL,NULL,'朝阳区东四环中路66号',102.00,3,10,35,'南北通透','住宅','sale',10200000.00,100000.00,'2025-03-28 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(47,1,NULL,NULL,NULL,'朝阳区望京街道望京西路',95.00,3,20,32,'朝南','住宅','sale',9600000.00,101053.00,'2025-05-14 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(48,1,NULL,NULL,NULL,'朝阳区酒仙桥路10号',88.00,3,8,25,'南北通透','住宅','sale',8900000.00,101136.00,'2025-07-22 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(49,1,NULL,NULL,NULL,'朝阳区建国路88号',120.00,4,25,38,'朝南','住宅','sale',12500000.00,104167.00,'2025-09-30 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(50,1,NULL,NULL,NULL,'朝阳区朝外大街甲6号',98.00,3,18,30,'南北通透','住宅','sale',10100000.00,103061.00,'2025-11-20 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(51,1,NULL,NULL,NULL,'朝阳区麦子店街道麦子店西路',92.00,3,12,28,'朝南','住宅','sale',9500000.00,103261.00,'2026-01-08 00:00:00','贝壳',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(52,1,NULL,NULL,NULL,'朝阳区朝阳北路101号',88.00,3,15,32,'南北通透','住宅','sale',9200000.00,104545.00,'2026-02-25 00:00:00','链家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(53,1,NULL,NULL,NULL,'朝阳区劲松街道劲松中街',105.00,3,20,35,'朝南','住宅','sale',11000000.00,104762.00,'2026-03-10 00:00:00','我爱我家',0,NULL,'2026-03-13 13:13:35','2026-03-13 13:13:35');
+/*!40000 ALTER TABLE `cases` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `cities`
+--
+
+DROP TABLE IF EXISTS `cities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `cities` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `province` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `cities`
+--
+
+LOCK TABLES `cities` WRITE;
+/*!40000 ALTER TABLE `cities` DISABLE KEYS */;
+INSERT INTO `cities` VALUES (1,'北京','北京市','110000',1,'2026-03-14 16:24:19'),(2,'上海','上海市','310000',1,'2026-03-14 16:24:19'),(3,'天津','天津市','120000',1,'2026-03-14 16:24:19'),(4,'重庆','重庆市','500000',1,'2026-03-14 16:24:19'),(5,'广州','广东省','440100',1,'2026-03-14 16:24:19'),(6,'深圳','广东省','440300',1,'2026-03-14 16:24:19'),(7,'东莞','广东省','441900',1,'2026-03-14 16:24:19'),(8,'佛山','广东省','440600',1,'2026-03-14 16:24:19'),(9,'珠海','广东省','440400',1,'2026-03-14 16:24:19'),(10,'南京','江苏省','320100',1,'2026-03-14 16:24:19'),(11,'苏州','江苏省','320500',1,'2026-03-14 16:24:19'),(12,'无锡','江苏省','320200',1,'2026-03-14 16:24:19'),(13,'南通','江苏省','320600',1,'2026-03-14 16:24:19'),(14,'杭州','浙江省','330100',1,'2026-03-14 16:24:19'),(15,'宁波','浙江省','330200',1,'2026-03-14 16:24:19'),(16,'温州','浙江省','330300',1,'2026-03-14 16:24:19'),(17,'金华','浙江省','330700',1,'2026-03-14 16:24:19'),(18,'成都','四川省','510100',1,'2026-03-14 16:24:19'),(19,'武汉','湖北省','420100',1,'2026-03-14 16:24:19'),(20,'长沙','湖南省','430100',1,'2026-03-14 16:24:19'),(21,'西安','陕西省','610100',1,'2026-03-14 16:24:19'),(22,'沈阳','辽宁省','210100',1,'2026-03-14 16:24:19'),(23,'大连','辽宁省','210200',1,'2026-03-14 16:24:19'),(24,'济南','山东省','370100',1,'2026-03-14 16:24:19'),(25,'青岛','山东省','370200',1,'2026-03-14 16:24:19'),(26,'烟台','山东省','370600',1,'2026-03-14 16:24:19'),(27,'福州','福建省','350100',1,'2026-03-14 16:24:19'),(28,'厦门','福建省','350200',1,'2026-03-14 16:24:19'),(29,'合肥','安徽省','340100',1,'2026-03-14 16:24:19'),(30,'南昌','江西省','360100',1,'2026-03-14 16:24:19'),(31,'郑州','河南省','410100',1,'2026-03-14 16:24:19'),(32,'石家庄','河北省','130100',1,'2026-03-14 16:24:19'),(33,'太原','山西省','140100',1,'2026-03-14 16:24:19'),(34,'哈尔滨','黑龙江省','230100',1,'2026-03-14 16:24:19'),(35,'长春','吉林省','220100',1,'2026-03-14 16:24:19'),(36,'南宁','广西壮族自治区','450100',1,'2026-03-14 16:24:19'),(37,'昆明','云南省','530100',1,'2026-03-14 16:24:19'),(38,'贵阳','贵州省','520100',1,'2026-03-14 16:24:19'),(39,'海口','海南省','460100',1,'2026-03-14 16:24:19'),(40,'呼和浩特','内蒙古自治区','150100',1,'2026-03-14 16:24:19'),(41,'乌鲁木齐','新疆维吾尔自治区','650100',1,'2026-03-14 16:24:19'),(42,'兰州','甘肃省','620100',1,'2026-03-14 16:24:19'),(43,'银川','宁夏回族自治区','640100',1,'2026-03-14 16:24:19'),(44,'西宁','青海省','630100',1,'2026-03-14 16:24:19'),(45,'拉萨','西藏自治区','540100',1,'2026-03-14 16:24:19');
+/*!40000 ALTER TABLE `cities` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `crawl_alerts`
+--
+
+DROP TABLE IF EXISTS `crawl_alerts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `crawl_alerts` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `job_id` int DEFAULT NULL,
+  `level` enum('info','warn','error','critical') COLLATE utf8mb4_unicode_ci DEFAULT 'warn',
+  `type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `message` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_read` tinyint(1) DEFAULT '0',
+  `resolved_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `crawl_alerts`
+--
+
+LOCK TABLES `crawl_alerts` WRITE;
+/*!40000 ALTER TABLE `crawl_alerts` DISABLE KEYS */;
+/*!40000 ALTER TABLE `crawl_alerts` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `crawl_config`
+--
+
+DROP TABLE IF EXISTS `crawl_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `crawl_config` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `key` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `value` text COLLATE utf8mb4_unicode_ci,
+  `description` varchar(300) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `key` (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `crawl_config`
+--
+
+LOCK TABLES `crawl_config` WRITE;
+/*!40000 ALTER TABLE `crawl_config` DISABLE KEYS */;
+/*!40000 ALTER TABLE `crawl_config` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `crawl_jobs`
+--
+
+DROP TABLE IF EXISTS `crawl_jobs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `crawl_jobs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `data_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `city_id` int DEFAULT NULL,
+  `city_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `district_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `keyword` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `max_pages` int DEFAULT '10',
+  `concurrency` int DEFAULT '2',
+  `delay_min` int DEFAULT '2000',
+  `delay_max` int DEFAULT '5000',
+  `use_proxy` tinyint(1) DEFAULT '0',
+  `proxy_config` text COLLATE utf8mb4_unicode_ci,
+  `status` enum('pending','running','paused','completed','failed') COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
+  `progress` int DEFAULT '0',
+  `total_count` int DEFAULT '0',
+  `success_count` int DEFAULT '0',
+  `fail_count` int DEFAULT '0',
+  `duplicate_count` int DEFAULT '0',
+  `error_message` text COLLATE utf8mb4_unicode_ci,
+  `schedule_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'manual',
+  `cron_expression` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_by` int DEFAULT NULL,
+  `started_at` timestamp NULL DEFAULT NULL,
+  `completed_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `crawl_jobs`
+--
+
+LOCK TABLES `crawl_jobs` WRITE;
+/*!40000 ALTER TABLE `crawl_jobs` DISABLE KEYS */;
+/*!40000 ALTER TABLE `crawl_jobs` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `crawl_logs`
+--
+
+DROP TABLE IF EXISTS `crawl_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `crawl_logs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `job_id` int NOT NULL,
+  `level` enum('info','warn','error','success') COLLATE utf8mb4_unicode_ci DEFAULT 'info',
+  `message` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `url` varchar(1000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `data_count` int DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `crawl_logs`
+--
+
+LOCK TABLES `crawl_logs` WRITE;
+/*!40000 ALTER TABLE `crawl_logs` DISABLE KEYS */;
+/*!40000 ALTER TABLE `crawl_logs` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `crawl_proxies`
+--
+
+DROP TABLE IF EXISTS `crawl_proxies`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `crawl_proxies` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `host` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `port` int NOT NULL,
+  `protocol` enum('http','https','socks5') COLLATE utf8mb4_unicode_ci DEFAULT 'http',
+  `username` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `password` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `region` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `provider` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('active','inactive','testing','banned') COLLATE utf8mb4_unicode_ci DEFAULT 'active',
+  `success_count` int DEFAULT '0',
+  `fail_count` int DEFAULT '0',
+  `avg_response_ms` int DEFAULT NULL,
+  `last_tested_at` timestamp NULL DEFAULT NULL,
+  `last_used_at` timestamp NULL DEFAULT NULL,
+  `expire_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `crawl_proxies`
+--
+
+LOCK TABLES `crawl_proxies` WRITE;
+/*!40000 ALTER TABLE `crawl_proxies` DISABLE KEYS */;
+/*!40000 ALTER TABLE `crawl_proxies` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `crawl_raw_data`
+--
+
+DROP TABLE IF EXISTS `crawl_raw_data`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `crawl_raw_data` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `job_id` int NOT NULL,
+  `source` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `data_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_data` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `parsed_data` text COLLATE utf8mb4_unicode_ci,
+  `status` enum('raw','parsed','imported','error') COLLATE utf8mb4_unicode_ci DEFAULT 'raw',
+  `error_msg` text COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `crawl_raw_data`
+--
+
+LOCK TABLES `crawl_raw_data` WRITE;
+/*!40000 ALTER TABLE `crawl_raw_data` DISABLE KEYS */;
+/*!40000 ALTER TABLE `crawl_raw_data` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `crawl_schedule_history`
+--
+
+DROP TABLE IF EXISTS `crawl_schedule_history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `crawl_schedule_history` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `job_id` int NOT NULL,
+  `triggered_by` enum('cron','manual','api') COLLATE utf8mb4_unicode_ci DEFAULT 'cron',
+  `status` enum('success','failed','skipped') COLLATE utf8mb4_unicode_ci DEFAULT 'success',
+  `success_count` int DEFAULT '0',
+  `fail_count` int DEFAULT '0',
+  `duration_ms` int DEFAULT NULL,
+  `error_message` text COLLATE utf8mb4_unicode_ci,
+  `started_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `completed_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `crawl_schedule_history`
+--
+
+LOCK TABLES `crawl_schedule_history` WRITE;
+/*!40000 ALTER TABLE `crawl_schedule_history` DISABLE KEYS */;
+/*!40000 ALTER TABLE `crawl_schedule_history` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `districts`
+--
+
+DROP TABLE IF EXISTS `districts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `districts` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `city_id` int NOT NULL COMMENT '所属城市ID',
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '区/县名称',
+  `code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '行政区划代码',
+  `type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'district' COMMENT 'district=市辖区 county=县/县级市 new_area=新区',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`),
+  KEY `idx_city_id` (`city_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=506 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='区/县数据表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `districts`
+--
+
+LOCK TABLES `districts` WRITE;
+/*!40000 ALTER TABLE `districts` DISABLE KEYS */;
+INSERT INTO `districts` VALUES (1,1,'东城区','110101','district',1,'2026-03-14 16:24:19'),(2,1,'西城区','110102','district',1,'2026-03-14 16:24:19'),(3,1,'朝阳区','110105','district',1,'2026-03-14 16:24:19'),(4,1,'丰台区','110106','district',1,'2026-03-14 16:24:19'),(5,1,'石景山区','110107','district',1,'2026-03-14 16:24:19'),(6,1,'海淀区','110108','district',1,'2026-03-14 16:24:19'),(7,1,'门头沟区','110109','district',1,'2026-03-14 16:24:19'),(8,1,'房山区','110111','district',1,'2026-03-14 16:24:19'),(9,1,'通州区','110112','district',1,'2026-03-14 16:24:19'),(10,1,'顺义区','110113','district',1,'2026-03-14 16:24:19'),(11,1,'昌平区','110114','district',1,'2026-03-14 16:24:19'),(12,1,'大兴区','110115','district',1,'2026-03-14 16:24:19'),(13,1,'怀柔区','110116','district',1,'2026-03-14 16:24:19'),(14,1,'平谷区','110117','district',1,'2026-03-14 16:24:19'),(15,1,'密云区','110118','district',1,'2026-03-14 16:24:19'),(16,1,'延庆区','110119','district',1,'2026-03-14 16:24:19'),(17,2,'黄浦区','310101','district',1,'2026-03-14 16:24:19'),(18,2,'徐汇区','310104','district',1,'2026-03-14 16:24:19'),(19,2,'长宁区','310105','district',1,'2026-03-14 16:24:19'),(20,2,'静安区','310106','district',1,'2026-03-14 16:24:19'),(21,2,'普陀区','310107','district',1,'2026-03-14 16:24:19'),(22,2,'虹口区','310109','district',1,'2026-03-14 16:24:19'),(23,2,'杨浦区','310110','district',1,'2026-03-14 16:24:19'),(24,2,'闵行区','310112','district',1,'2026-03-14 16:24:19'),(25,2,'宝山区','310113','district',1,'2026-03-14 16:24:19'),(26,2,'嘉定区','310114','district',1,'2026-03-14 16:24:19'),(27,2,'浦东新区','310115','new_area',1,'2026-03-14 16:24:19'),(28,2,'金山区','310116','district',1,'2026-03-14 16:24:19'),(29,2,'松江区','310117','district',1,'2026-03-14 16:24:19'),(30,2,'青浦区','310118','district',1,'2026-03-14 16:24:19'),(31,2,'奉贤区','310120','district',1,'2026-03-14 16:24:19'),(32,2,'崇明区','310151','district',1,'2026-03-14 16:24:19'),(33,3,'和平区','120101','district',1,'2026-03-14 16:24:19'),(34,3,'河东区','120102','district',1,'2026-03-14 16:24:19'),(35,3,'河西区','120103','district',1,'2026-03-14 16:24:19'),(36,3,'南开区','120104','district',1,'2026-03-14 16:24:19'),(37,3,'河北区','120105','district',1,'2026-03-14 16:24:19'),(38,3,'红桥区','120106','district',1,'2026-03-14 16:24:19'),(39,3,'东丽区','120110','district',1,'2026-03-14 16:24:19'),(40,3,'西青区','120111','district',1,'2026-03-14 16:24:19'),(41,3,'津南区','120112','district',1,'2026-03-14 16:24:19'),(42,3,'北辰区','120113','district',1,'2026-03-14 16:24:19'),(43,3,'武清区','120114','district',1,'2026-03-14 16:24:19'),(44,3,'宝坻区','120115','district',1,'2026-03-14 16:24:19'),(45,3,'滨海新区','120116','new_area',1,'2026-03-14 16:24:19'),(46,3,'宁河区','120117','district',1,'2026-03-14 16:24:19'),(47,3,'静海区','120118','district',1,'2026-03-14 16:24:19'),(48,3,'蓟州区','120119','district',1,'2026-03-14 16:24:19'),(49,4,'渝中区','500103','district',1,'2026-03-14 16:24:19'),(50,4,'大渡口区','500104','district',1,'2026-03-14 16:24:19'),(51,4,'江北区','500105','district',1,'2026-03-14 16:24:19'),(52,4,'沙坪坝区','500106','district',1,'2026-03-14 16:24:19'),(53,4,'九龙坡区','500107','district',1,'2026-03-14 16:24:19'),(54,4,'南岸区','500108','district',1,'2026-03-14 16:24:19'),(55,4,'北碚区','500109','district',1,'2026-03-14 16:24:19'),(56,4,'綦江区','500110','district',1,'2026-03-14 16:24:19'),(57,4,'大足区','500111','district',1,'2026-03-14 16:24:19'),(58,4,'渝北区','500112','district',1,'2026-03-14 16:24:19'),(59,4,'巴南区','500113','district',1,'2026-03-14 16:24:19'),(60,4,'黔江区','500114','district',1,'2026-03-14 16:24:19'),(61,4,'长寿区','500115','district',1,'2026-03-14 16:24:19'),(62,4,'江津区','500116','district',1,'2026-03-14 16:24:19'),(63,4,'合川区','500117','district',1,'2026-03-14 16:24:19'),(64,4,'永川区','500118','district',1,'2026-03-14 16:24:19'),(65,4,'南川区','500119','district',1,'2026-03-14 16:24:19'),(66,4,'璧山区','500120','district',1,'2026-03-14 16:24:19'),(67,4,'铜梁区','500151','district',1,'2026-03-14 16:24:19'),(68,4,'潼南区','500152','district',1,'2026-03-14 16:24:19'),(69,4,'荣昌区','500153','district',1,'2026-03-14 16:24:19'),(70,4,'开州区','500154','district',1,'2026-03-14 16:24:19'),(71,4,'梁平区','500155','district',1,'2026-03-14 16:24:19'),(72,4,'武隆区','500156','district',1,'2026-03-14 16:24:19'),(73,5,'荔湾区','440103','district',1,'2026-03-14 16:24:19'),(74,5,'越秀区','440104','district',1,'2026-03-14 16:24:19'),(75,5,'海珠区','440105','district',1,'2026-03-14 16:24:19'),(76,5,'天河区','440106','district',1,'2026-03-14 16:24:19'),(77,5,'白云区','440111','district',1,'2026-03-14 16:24:19'),(78,5,'黄埔区','440112','district',1,'2026-03-14 16:24:19'),(79,5,'番禺区','440113','district',1,'2026-03-14 16:24:19'),(80,5,'花都区','440114','district',1,'2026-03-14 16:24:19'),(81,5,'南沙区','440115','new_area',1,'2026-03-14 16:24:19'),(82,5,'从化区','440117','district',1,'2026-03-14 16:24:19'),(83,5,'增城区','440118','district',1,'2026-03-14 16:24:19'),(84,6,'罗湖区','440303','district',1,'2026-03-14 16:24:19'),(85,6,'福田区','440304','district',1,'2026-03-14 16:24:19'),(86,6,'南山区','440305','district',1,'2026-03-14 16:24:19'),(87,6,'宝安区','440306','district',1,'2026-03-14 16:24:19'),(88,6,'龙岗区','440307','district',1,'2026-03-14 16:24:19'),(89,6,'盐田区','440308','district',1,'2026-03-14 16:24:19'),(90,6,'龙华区','440309','district',1,'2026-03-14 16:24:19'),(91,6,'坪山区','440310','district',1,'2026-03-14 16:24:19'),(92,6,'光明区','440311','new_area',1,'2026-03-14 16:24:19'),(93,6,'大鹏新区','440312','new_area',1,'2026-03-14 16:24:19'),(94,7,'莞城街道','441900001','district',1,'2026-03-14 16:24:19'),(95,7,'南城街道','441900002','district',1,'2026-03-14 16:24:19'),(96,7,'东城街道','441900003','district',1,'2026-03-14 16:24:19'),(97,7,'万江街道','441900004','district',1,'2026-03-14 16:24:19'),(98,7,'松山湖','441900005','new_area',1,'2026-03-14 16:24:19'),(99,7,'虎门镇','441900006','district',1,'2026-03-14 16:24:19'),(100,7,'长安镇','441900007','district',1,'2026-03-14 16:24:19'),(101,7,'塘厦镇','441900008','district',1,'2026-03-14 16:24:19'),(102,7,'凤岗镇','441900009','district',1,'2026-03-14 16:24:19'),(103,7,'寮步镇','441900010','district',1,'2026-03-14 16:24:19'),(104,8,'禅城区','440604','district',1,'2026-03-14 16:24:19'),(105,8,'南海区','440605','district',1,'2026-03-14 16:24:19'),(106,8,'顺德区','440606','district',1,'2026-03-14 16:24:19'),(107,8,'三水区','440607','district',1,'2026-03-14 16:24:19'),(108,8,'高明区','440608','district',1,'2026-03-14 16:24:19'),(109,9,'香洲区','440402','district',1,'2026-03-14 16:24:19'),(110,9,'斗门区','440403','district',1,'2026-03-14 16:24:19'),(111,9,'金湾区','440404','district',1,'2026-03-14 16:24:19'),(112,9,'横琴新区','440405','new_area',1,'2026-03-14 16:24:19'),(113,10,'玄武区','320102','district',1,'2026-03-14 16:24:19'),(114,10,'秦淮区','320104','district',1,'2026-03-14 16:24:19'),(115,10,'建邺区','320105','district',1,'2026-03-14 16:24:19'),(116,10,'鼓楼区','320106','district',1,'2026-03-14 16:24:19'),(117,10,'浦口区','320111','district',1,'2026-03-14 16:24:19'),(118,10,'栖霞区','320113','district',1,'2026-03-14 16:24:19'),(119,10,'雨花台区','320114','district',1,'2026-03-14 16:24:19'),(120,10,'江宁区','320115','district',1,'2026-03-14 16:24:19'),(121,10,'六合区','320116','district',1,'2026-03-14 16:24:19'),(122,10,'溧水区','320117','district',1,'2026-03-14 16:24:19'),(123,10,'高淳区','320118','district',1,'2026-03-14 16:24:19'),(124,10,'江北新区','320119','new_area',1,'2026-03-14 16:24:19'),(125,11,'姑苏区','320508','district',1,'2026-03-14 16:24:19'),(126,11,'虎丘区','320505','district',1,'2026-03-14 16:24:19'),(127,11,'吴中区','320506','district',1,'2026-03-14 16:24:19'),(128,11,'相城区','320507','district',1,'2026-03-14 16:24:19'),(129,11,'吴江区','320509','district',1,'2026-03-14 16:24:19'),(130,11,'苏州工业园区','320571','new_area',1,'2026-03-14 16:24:19'),(131,11,'常熟市','320581','county',1,'2026-03-14 16:24:19'),(132,11,'张家港市','320582','county',1,'2026-03-14 16:24:19'),(133,11,'昆山市','320583','county',1,'2026-03-14 16:24:19'),(134,11,'太仓市','320585','county',1,'2026-03-14 16:24:19'),(135,12,'梁溪区','320202','district',1,'2026-03-14 16:24:19'),(136,12,'锡山区','320205','district',1,'2026-03-14 16:24:19'),(137,12,'惠山区','320206','district',1,'2026-03-14 16:24:19'),(138,12,'滨湖区','320211','district',1,'2026-03-14 16:24:19'),(139,12,'新吴区','320214','new_area',1,'2026-03-14 16:24:19'),(140,12,'江阴市','320281','county',1,'2026-03-14 16:24:19'),(141,12,'宜兴市','320282','county',1,'2026-03-14 16:24:19'),(142,13,'崇川区','320602','district',1,'2026-03-14 16:24:19'),(143,13,'通州区','320612','district',1,'2026-03-14 16:24:19'),(144,13,'海门区','320615','district',1,'2026-03-14 16:24:19'),(145,13,'如皋市','320682','county',1,'2026-03-14 16:24:19'),(146,13,'启东市','320681','county',1,'2026-03-14 16:24:19'),(147,13,'如东县','320623','county',1,'2026-03-14 16:24:19'),(148,13,'海安市','320685','county',1,'2026-03-14 16:24:19'),(149,14,'上城区','330102','district',1,'2026-03-14 16:24:19'),(150,14,'拱墅区','330105','district',1,'2026-03-14 16:24:19'),(151,14,'西湖区','330106','district',1,'2026-03-14 16:24:19'),(152,14,'滨江区','330108','district',1,'2026-03-14 16:24:19'),(153,14,'萧山区','330109','district',1,'2026-03-14 16:24:19'),(154,14,'余杭区','330110','district',1,'2026-03-14 16:24:19'),(155,14,'富阳区','330111','district',1,'2026-03-14 16:24:19'),(156,14,'临安区','330112','district',1,'2026-03-14 16:24:19'),(157,14,'临平区','330113','district',1,'2026-03-14 16:24:19'),(158,14,'钱塘区','330114','new_area',1,'2026-03-14 16:24:19'),(159,14,'桐庐县','330122','county',1,'2026-03-14 16:24:19'),(160,14,'淳安县','330127','county',1,'2026-03-14 16:24:19'),(161,14,'建德市','330182','county',1,'2026-03-14 16:24:19'),(162,15,'海曙区','330203','district',1,'2026-03-14 16:24:19'),(163,15,'江北区','330205','district',1,'2026-03-14 16:24:19'),(164,15,'北仑区','330206','district',1,'2026-03-14 16:24:19'),(165,15,'镇海区','330211','district',1,'2026-03-14 16:24:19'),(166,15,'鄞州区','330212','district',1,'2026-03-14 16:24:19'),(167,15,'奉化区','330213','district',1,'2026-03-14 16:24:19'),(168,15,'象山县','330225','county',1,'2026-03-14 16:24:19'),(169,15,'宁海县','330226','county',1,'2026-03-14 16:24:19'),(170,15,'余姚市','330281','county',1,'2026-03-14 16:24:19'),(171,15,'慈溪市','330282','county',1,'2026-03-14 16:24:19'),(172,16,'鹿城区','330302','district',1,'2026-03-14 16:24:19'),(173,16,'龙湾区','330303','district',1,'2026-03-14 16:24:19'),(174,16,'瓯海区','330304','district',1,'2026-03-14 16:24:19'),(175,16,'洞头区','330305','district',1,'2026-03-14 16:24:19'),(176,16,'瑞安市','330381','county',1,'2026-03-14 16:24:19'),(177,16,'乐清市','330382','county',1,'2026-03-14 16:24:19'),(178,16,'龙港市','330383','county',1,'2026-03-14 16:24:19'),(179,16,'永嘉县','330324','county',1,'2026-03-14 16:24:19'),(180,16,'平阳县','330326','county',1,'2026-03-14 16:24:19'),(181,16,'苍南县','330327','county',1,'2026-03-14 16:24:19'),(182,16,'文成县','330328','county',1,'2026-03-14 16:24:19'),(183,16,'泰顺县','330329','county',1,'2026-03-14 16:24:19'),(184,17,'婺城区','330702','district',1,'2026-03-14 16:24:19'),(185,17,'金东区','330703','district',1,'2026-03-14 16:24:19'),(186,17,'义乌市','330782','county',1,'2026-03-14 16:24:19'),(187,17,'东阳市','330783','county',1,'2026-03-14 16:24:19'),(188,17,'永康市','330784','county',1,'2026-03-14 16:24:19'),(189,17,'兰溪市','330781','county',1,'2026-03-14 16:24:19'),(190,17,'浦江县','330726','county',1,'2026-03-14 16:24:19'),(191,17,'武义县','330723','county',1,'2026-03-14 16:24:19'),(192,17,'磐安县','330727','county',1,'2026-03-14 16:24:19'),(193,18,'锦江区','510104','district',1,'2026-03-14 16:24:19'),(194,18,'青羊区','510105','district',1,'2026-03-14 16:24:19'),(195,18,'金牛区','510106','district',1,'2026-03-14 16:24:19'),(196,18,'武侯区','510107','district',1,'2026-03-14 16:24:19'),(197,18,'成华区','510108','district',1,'2026-03-14 16:24:19'),(198,18,'龙泉驿区','510112','district',1,'2026-03-14 16:24:19'),(199,18,'青白江区','510113','district',1,'2026-03-14 16:24:19'),(200,18,'新都区','510114','district',1,'2026-03-14 16:24:19'),(201,18,'温江区','510115','district',1,'2026-03-14 16:24:19'),(202,18,'双流区','510116','district',1,'2026-03-14 16:24:19'),(203,18,'郫都区','510117','district',1,'2026-03-14 16:24:19'),(204,18,'新津区','510118','district',1,'2026-03-14 16:24:19'),(205,18,'天府新区','510119','new_area',1,'2026-03-14 16:24:19'),(206,18,'金堂县','510121','county',1,'2026-03-14 16:24:19'),(207,18,'大邑县','510129','county',1,'2026-03-14 16:24:19'),(208,18,'蒲江县','510131','county',1,'2026-03-14 16:24:19'),(209,18,'都江堰市','510181','county',1,'2026-03-14 16:24:19'),(210,18,'彭州市','510182','county',1,'2026-03-14 16:24:19'),(211,18,'邛崃市','510183','county',1,'2026-03-14 16:24:19'),(212,18,'崇州市','510184','county',1,'2026-03-14 16:24:19'),(213,18,'简阳市','510185','county',1,'2026-03-14 16:24:19'),(214,19,'江岸区','420102','district',1,'2026-03-14 16:24:19'),(215,19,'江汉区','420103','district',1,'2026-03-14 16:24:19'),(216,19,'硚口区','420104','district',1,'2026-03-14 16:24:19'),(217,19,'汉阳区','420105','district',1,'2026-03-14 16:24:19'),(218,19,'武昌区','420106','district',1,'2026-03-14 16:24:19'),(219,19,'青山区','420107','district',1,'2026-03-14 16:24:19'),(220,19,'洪山区','420111','district',1,'2026-03-14 16:24:19'),(221,19,'东西湖区','420112','district',1,'2026-03-14 16:24:19'),(222,19,'汉南区','420113','district',1,'2026-03-14 16:24:19'),(223,19,'蔡甸区','420114','district',1,'2026-03-14 16:24:19'),(224,19,'江夏区','420115','district',1,'2026-03-14 16:24:19'),(225,19,'黄陂区','420116','district',1,'2026-03-14 16:24:19'),(226,19,'新洲区','420117','district',1,'2026-03-14 16:24:19'),(227,19,'武汉经济技术开发区','420118','new_area',1,'2026-03-14 16:24:19'),(228,19,'东湖新技术开发区','420119','new_area',1,'2026-03-14 16:24:19'),(229,20,'芙蓉区','430102','district',1,'2026-03-14 16:24:19'),(230,20,'天心区','430103','district',1,'2026-03-14 16:24:19'),(231,20,'岳麓区','430104','district',1,'2026-03-14 16:24:19'),(232,20,'开福区','430105','district',1,'2026-03-14 16:24:19'),(233,20,'雨花区','430111','district',1,'2026-03-14 16:24:19'),(234,20,'望城区','430112','district',1,'2026-03-14 16:24:19'),(235,20,'长沙县','430121','county',1,'2026-03-14 16:24:19'),(236,20,'浏阳市','430181','county',1,'2026-03-14 16:24:19'),(237,20,'宁乡市','430182','county',1,'2026-03-14 16:24:19'),(238,21,'新城区','610102','district',1,'2026-03-14 16:24:19'),(239,21,'碑林区','610103','district',1,'2026-03-14 16:24:19'),(240,21,'莲湖区','610104','district',1,'2026-03-14 16:24:19'),(241,21,'灞桥区','610111','district',1,'2026-03-14 16:24:19'),(242,21,'未央区','610112','district',1,'2026-03-14 16:24:19'),(243,21,'雁塔区','610113','district',1,'2026-03-14 16:24:19'),(244,21,'阎良区','610114','district',1,'2026-03-14 16:24:19'),(245,21,'临潼区','610115','district',1,'2026-03-14 16:24:19'),(246,21,'长安区','610116','district',1,'2026-03-14 16:24:19'),(247,21,'高陵区','610117','district',1,'2026-03-14 16:24:19'),(248,21,'鄠邑区','610118','district',1,'2026-03-14 16:24:19'),(249,21,'蓝田县','610122','county',1,'2026-03-14 16:24:19'),(250,21,'周至县','610124','county',1,'2026-03-14 16:24:19'),(251,21,'西咸新区','610125','new_area',1,'2026-03-14 16:24:19'),(252,22,'和平区','210102','district',1,'2026-03-14 16:24:19'),(253,22,'沈河区','210103','district',1,'2026-03-14 16:24:19'),(254,22,'大东区','210104','district',1,'2026-03-14 16:24:19'),(255,22,'皇姑区','210105','district',1,'2026-03-14 16:24:19'),(256,22,'铁西区','210106','district',1,'2026-03-14 16:24:19'),(257,22,'苏家屯区','210111','district',1,'2026-03-14 16:24:19'),(258,22,'浑南区','210112','district',1,'2026-03-14 16:24:19'),(259,22,'沈北新区','210113','new_area',1,'2026-03-14 16:24:19'),(260,22,'于洪区','210114','district',1,'2026-03-14 16:24:19'),(261,22,'辽中区','210115','district',1,'2026-03-14 16:24:19'),(262,22,'康平县','210123','county',1,'2026-03-14 16:24:19'),(263,22,'法库县','210124','county',1,'2026-03-14 16:24:19'),(264,22,'新民市','210181','county',1,'2026-03-14 16:24:19'),(265,23,'中山区','210202','district',1,'2026-03-14 16:24:19'),(266,23,'西岗区','210203','district',1,'2026-03-14 16:24:19'),(267,23,'沙河口区','210204','district',1,'2026-03-14 16:24:19'),(268,23,'甘井子区','210211','district',1,'2026-03-14 16:24:19'),(269,23,'旅顺口区','210212','district',1,'2026-03-14 16:24:19'),(270,23,'金州区','210213','district',1,'2026-03-14 16:24:19'),(271,23,'普兰店区','210214','district',1,'2026-03-14 16:24:19'),(272,23,'长海县','210224','county',1,'2026-03-14 16:24:19'),(273,23,'瓦房店市','210281','county',1,'2026-03-14 16:24:19'),(274,23,'庄河市','210283','county',1,'2026-03-14 16:24:19'),(275,24,'历下区','370102','district',1,'2026-03-14 16:24:19'),(276,24,'市中区','370103','district',1,'2026-03-14 16:24:19'),(277,24,'槐荫区','370104','district',1,'2026-03-14 16:24:19'),(278,24,'天桥区','370105','district',1,'2026-03-14 16:24:19'),(279,24,'历城区','370112','district',1,'2026-03-14 16:24:19'),(280,24,'长清区','370113','district',1,'2026-03-14 16:24:19'),(281,24,'章丘区','370114','district',1,'2026-03-14 16:24:19'),(282,24,'济阳区','370115','district',1,'2026-03-14 16:24:19'),(283,24,'莱芜区','370116','district',1,'2026-03-14 16:24:19'),(284,24,'钢城区','370117','district',1,'2026-03-14 16:24:19'),(285,24,'平阴县','370124','county',1,'2026-03-14 16:24:19'),(286,24,'商河县','370126','county',1,'2026-03-14 16:24:19'),(287,25,'市南区','370202','district',1,'2026-03-14 16:24:19'),(288,25,'市北区','370203','district',1,'2026-03-14 16:24:19'),(289,25,'黄岛区','370211','district',1,'2026-03-14 16:24:19'),(290,25,'崂山区','370212','district',1,'2026-03-14 16:24:19'),(291,25,'李沧区','370213','district',1,'2026-03-14 16:24:19'),(292,25,'城阳区','370214','district',1,'2026-03-14 16:24:19'),(293,25,'即墨区','370215','district',1,'2026-03-14 16:24:19'),(294,25,'胶州市','370281','county',1,'2026-03-14 16:24:19'),(295,25,'平度市','370283','county',1,'2026-03-14 16:24:19'),(296,25,'莱西市','370285','county',1,'2026-03-14 16:24:19'),(297,26,'芝罘区','370602','district',1,'2026-03-14 16:24:19'),(298,26,'福山区','370611','district',1,'2026-03-14 16:24:19'),(299,26,'牟平区','370612','district',1,'2026-03-14 16:24:19'),(300,26,'莱山区','370613','district',1,'2026-03-14 16:24:19'),(301,26,'蓬莱区','370614','district',1,'2026-03-14 16:24:19'),(302,26,'龙口市','370681','county',1,'2026-03-14 16:24:19'),(303,26,'莱阳市','370682','county',1,'2026-03-14 16:24:19'),(304,26,'莱州市','370683','county',1,'2026-03-14 16:24:19'),(305,26,'招远市','370685','county',1,'2026-03-14 16:24:19'),(306,26,'栖霞市','370686','county',1,'2026-03-14 16:24:19'),(307,26,'海阳市','370687','county',1,'2026-03-14 16:24:19'),(308,27,'鼓楼区','350102','district',1,'2026-03-14 16:24:19'),(309,27,'台江区','350103','district',1,'2026-03-14 16:24:19'),(310,27,'仓山区','350104','district',1,'2026-03-14 16:24:19'),(311,27,'马尾区','350105','district',1,'2026-03-14 16:24:19'),(312,27,'晋安区','350111','district',1,'2026-03-14 16:24:19'),(313,27,'长乐区','350112','district',1,'2026-03-14 16:24:19'),(314,27,'闽侯县','350121','county',1,'2026-03-14 16:24:19'),(315,27,'连江县','350122','county',1,'2026-03-14 16:24:19'),(316,27,'罗源县','350123','county',1,'2026-03-14 16:24:19'),(317,27,'闽清县','350124','county',1,'2026-03-14 16:24:19'),(318,27,'永泰县','350125','county',1,'2026-03-14 16:24:19'),(319,27,'平潭县','350128','county',1,'2026-03-14 16:24:19'),(320,27,'福清市','350181','county',1,'2026-03-14 16:24:19'),(321,28,'思明区','350203','district',1,'2026-03-14 16:24:19'),(322,28,'海沧区','350205','district',1,'2026-03-14 16:24:19'),(323,28,'湖里区','350206','district',1,'2026-03-14 16:24:19'),(324,28,'集美区','350211','district',1,'2026-03-14 16:24:19'),(325,28,'同安区','350212','district',1,'2026-03-14 16:24:19'),(326,28,'翔安区','350213','district',1,'2026-03-14 16:24:19'),(327,29,'瑶海区','340102','district',1,'2026-03-14 16:24:19'),(328,29,'庐阳区','340103','district',1,'2026-03-14 16:24:19'),(329,29,'蜀山区','340104','district',1,'2026-03-14 16:24:19'),(330,29,'包河区','340111','district',1,'2026-03-14 16:24:19'),(331,29,'长丰县','340121','county',1,'2026-03-14 16:24:19'),(332,29,'肥东县','340122','county',1,'2026-03-14 16:24:19'),(333,29,'肥西县','340123','county',1,'2026-03-14 16:24:19'),(334,29,'庐江县','340124','county',1,'2026-03-14 16:24:19'),(335,29,'巢湖市','340181','county',1,'2026-03-14 16:24:19'),(336,29,'滨湖新区','340182','new_area',1,'2026-03-14 16:24:19'),(337,30,'东湖区','360102','district',1,'2026-03-14 16:24:19'),(338,30,'西湖区','360103','district',1,'2026-03-14 16:24:19'),(339,30,'青云谱区','360104','district',1,'2026-03-14 16:24:19'),(340,30,'青山湖区','360111','district',1,'2026-03-14 16:24:19'),(341,30,'新建区','360112','district',1,'2026-03-14 16:24:19'),(342,30,'红谷滩区','360113','new_area',1,'2026-03-14 16:24:19'),(343,30,'南昌县','360121','county',1,'2026-03-14 16:24:19'),(344,30,'安义县','360123','county',1,'2026-03-14 16:24:19'),(345,30,'进贤县','360124','county',1,'2026-03-14 16:24:19'),(346,31,'中原区','410102','district',1,'2026-03-14 16:24:19'),(347,31,'二七区','410103','district',1,'2026-03-14 16:24:19'),(348,31,'管城回族区','410104','district',1,'2026-03-14 16:24:19'),(349,31,'金水区','410105','district',1,'2026-03-14 16:24:19'),(350,31,'上街区','410106','district',1,'2026-03-14 16:24:19'),(351,31,'惠济区','410108','district',1,'2026-03-14 16:24:19'),(352,31,'中牟县','410122','county',1,'2026-03-14 16:24:19'),(353,31,'巩义市','410181','county',1,'2026-03-14 16:24:19'),(354,31,'荥阳市','410182','county',1,'2026-03-14 16:24:19'),(355,31,'新密市','410183','county',1,'2026-03-14 16:24:19'),(356,31,'新郑市','410184','county',1,'2026-03-14 16:24:19'),(357,31,'登封市','410185','county',1,'2026-03-14 16:24:19'),(358,31,'郑东新区','410186','new_area',1,'2026-03-14 16:24:19'),(359,32,'长安区','130102','district',1,'2026-03-14 16:24:19'),(360,32,'桥西区','130104','district',1,'2026-03-14 16:24:19'),(361,32,'新华区','130105','district',1,'2026-03-14 16:24:19'),(362,32,'井陉矿区','130107','district',1,'2026-03-14 16:24:19'),(363,32,'裕华区','130108','district',1,'2026-03-14 16:24:19'),(364,32,'藁城区','130109','district',1,'2026-03-14 16:24:19'),(365,32,'鹿泉区','130110','district',1,'2026-03-14 16:24:19'),(366,32,'栾城区','130111','district',1,'2026-03-14 16:24:19'),(367,32,'井陉县','130121','county',1,'2026-03-14 16:24:19'),(368,32,'正定县','130123','county',1,'2026-03-14 16:24:19'),(369,32,'行唐县','130125','county',1,'2026-03-14 16:24:19'),(370,32,'灵寿县','130126','county',1,'2026-03-14 16:24:19'),(371,32,'高邑县','130127','county',1,'2026-03-14 16:24:19'),(372,32,'深泽县','130128','county',1,'2026-03-14 16:24:19'),(373,32,'赞皇县','130129','county',1,'2026-03-14 16:24:19'),(374,32,'无极县','130130','county',1,'2026-03-14 16:24:19'),(375,32,'平山县','130131','county',1,'2026-03-14 16:24:19'),(376,32,'元氏县','130132','county',1,'2026-03-14 16:24:19'),(377,32,'赵县','130133','county',1,'2026-03-14 16:24:19'),(378,32,'辛集市','130181','county',1,'2026-03-14 16:24:19'),(379,32,'晋州市','130183','county',1,'2026-03-14 16:24:19'),(380,32,'新乐市','130184','county',1,'2026-03-14 16:24:19'),(381,33,'小店区','140105','district',1,'2026-03-14 16:24:19'),(382,33,'迎泽区','140106','district',1,'2026-03-14 16:24:19'),(383,33,'杏花岭区','140107','district',1,'2026-03-14 16:24:19'),(384,33,'尖草坪区','140108','district',1,'2026-03-14 16:24:19'),(385,33,'万柏林区','140109','district',1,'2026-03-14 16:24:19'),(386,33,'晋源区','140110','district',1,'2026-03-14 16:24:19'),(387,33,'清徐县','140121','county',1,'2026-03-14 16:24:19'),(388,33,'阳曲县','140122','county',1,'2026-03-14 16:24:19'),(389,33,'娄烦县','140123','county',1,'2026-03-14 16:24:19'),(390,33,'古交市','140181','county',1,'2026-03-14 16:24:19'),(391,34,'道里区','230102','district',1,'2026-03-14 16:24:19'),(392,34,'南岗区','230103','district',1,'2026-03-14 16:24:19'),(393,34,'道外区','230104','district',1,'2026-03-14 16:24:19'),(394,34,'平房区','230108','district',1,'2026-03-14 16:24:19'),(395,34,'松北区','230109','district',1,'2026-03-14 16:24:19'),(396,34,'香坊区','230110','district',1,'2026-03-14 16:24:19'),(397,34,'呼兰区','230111','district',1,'2026-03-14 16:24:19'),(398,34,'阿城区','230112','district',1,'2026-03-14 16:24:19'),(399,34,'双城区','230113','district',1,'2026-03-14 16:24:19'),(400,34,'依兰县','230123','county',1,'2026-03-14 16:24:19'),(401,34,'方正县','230124','county',1,'2026-03-14 16:24:19'),(402,34,'宾县','230125','county',1,'2026-03-14 16:24:19'),(403,34,'巴彦县','230126','county',1,'2026-03-14 16:24:19'),(404,34,'木兰县','230127','county',1,'2026-03-14 16:24:19'),(405,34,'通河县','230128','county',1,'2026-03-14 16:24:19'),(406,34,'延寿县','230129','county',1,'2026-03-14 16:24:19'),(407,34,'尚志市','230183','county',1,'2026-03-14 16:24:19'),(408,34,'五常市','230184','county',1,'2026-03-14 16:24:19'),(409,35,'南关区','220102','district',1,'2026-03-14 16:24:19'),(410,35,'宽城区','220103','district',1,'2026-03-14 16:24:19'),(411,35,'朝阳区','220104','district',1,'2026-03-14 16:24:19'),(412,35,'二道区','220105','district',1,'2026-03-14 16:24:19'),(413,35,'绿园区','220106','district',1,'2026-03-14 16:24:19'),(414,35,'双阳区','220112','district',1,'2026-03-14 16:24:19'),(415,35,'九台区','220113','district',1,'2026-03-14 16:24:19'),(416,35,'农安县','220122','county',1,'2026-03-14 16:24:19'),(417,35,'榆树市','220182','county',1,'2026-03-14 16:24:19'),(418,35,'德惠市','220183','county',1,'2026-03-14 16:24:19'),(419,35,'公主岭市','220184','county',1,'2026-03-14 16:24:19'),(420,36,'兴宁区','450102','district',1,'2026-03-14 16:24:19'),(421,36,'青秀区','450103','district',1,'2026-03-14 16:24:19'),(422,36,'江南区','450105','district',1,'2026-03-14 16:24:19'),(423,36,'西乡塘区','450107','district',1,'2026-03-14 16:24:19'),(424,36,'良庆区','450108','district',1,'2026-03-14 16:24:19'),(425,36,'邕宁区','450109','district',1,'2026-03-14 16:24:19'),(426,36,'武鸣区','450110','district',1,'2026-03-14 16:24:19'),(427,36,'隆安县','450123','county',1,'2026-03-14 16:24:19'),(428,36,'马山县','450124','county',1,'2026-03-14 16:24:19'),(429,36,'上林县','450125','county',1,'2026-03-14 16:24:19'),(430,36,'宾阳县','450126','county',1,'2026-03-14 16:24:19'),(431,36,'横州市','450181','county',1,'2026-03-14 16:24:19'),(432,37,'五华区','530102','district',1,'2026-03-14 16:24:19'),(433,37,'盘龙区','530103','district',1,'2026-03-14 16:24:19'),(434,37,'官渡区','530111','district',1,'2026-03-14 16:24:19'),(435,37,'西山区','530112','district',1,'2026-03-14 16:24:19'),(436,37,'东川区','530113','district',1,'2026-03-14 16:24:19'),(437,37,'呈贡区','530114','district',1,'2026-03-14 16:24:19'),(438,37,'晋宁区','530115','district',1,'2026-03-14 16:24:19'),(439,37,'富民县','530124','county',1,'2026-03-14 16:24:19'),(440,37,'宜良县','530125','county',1,'2026-03-14 16:24:19'),(441,37,'石林彝族自治县','530126','county',1,'2026-03-14 16:24:19'),(442,37,'嵩明县','530127','county',1,'2026-03-14 16:24:19'),(443,37,'禄劝彝族苗族自治县','530128','county',1,'2026-03-14 16:24:19'),(444,37,'寻甸回族彝族自治县','530129','county',1,'2026-03-14 16:24:19'),(445,37,'安宁市','530181','county',1,'2026-03-14 16:24:19'),(446,38,'南明区','520102','district',1,'2026-03-14 16:24:19'),(447,38,'云岩区','520103','district',1,'2026-03-14 16:24:19'),(448,38,'花溪区','520111','district',1,'2026-03-14 16:24:19'),(449,38,'乌当区','520112','district',1,'2026-03-14 16:24:19'),(450,38,'白云区','520113','district',1,'2026-03-14 16:24:19'),(451,38,'观山湖区','520115','new_area',1,'2026-03-14 16:24:19'),(452,38,'开阳县','520121','county',1,'2026-03-14 16:24:19'),(453,38,'息烽县','520122','county',1,'2026-03-14 16:24:19'),(454,38,'修文县','520123','county',1,'2026-03-14 16:24:19'),(455,38,'清镇市','520181','county',1,'2026-03-14 16:24:19'),(456,39,'秀英区','460105','district',1,'2026-03-14 16:24:19'),(457,39,'龙华区','460106','district',1,'2026-03-14 16:24:19'),(458,39,'琼山区','460107','district',1,'2026-03-14 16:24:19'),(459,39,'美兰区','460108','district',1,'2026-03-14 16:24:19'),(460,40,'回民区','150102','district',1,'2026-03-14 16:24:19'),(461,40,'玉泉区','150103','district',1,'2026-03-14 16:24:19'),(462,40,'赛罕区','150104','district',1,'2026-03-14 16:24:19'),(463,40,'新城区','150105','district',1,'2026-03-14 16:24:19'),(464,40,'土默特左旗','150121','county',1,'2026-03-14 16:24:19'),(465,40,'托克托县','150122','county',1,'2026-03-14 16:24:19'),(466,40,'和林格尔县','150123','county',1,'2026-03-14 16:24:19'),(467,40,'清水河县','150124','county',1,'2026-03-14 16:24:19'),(468,40,'武川县','150125','county',1,'2026-03-14 16:24:19'),(469,41,'天山区','650102','district',1,'2026-03-14 16:24:19'),(470,41,'沙依巴克区','650103','district',1,'2026-03-14 16:24:19'),(471,41,'新市区','650104','district',1,'2026-03-14 16:24:19'),(472,41,'水磨沟区','650105','district',1,'2026-03-14 16:24:19'),(473,41,'头屯河区','650106','district',1,'2026-03-14 16:24:19'),(474,41,'达坂城区','650107','district',1,'2026-03-14 16:24:19'),(475,41,'米东区','650109','district',1,'2026-03-14 16:24:19'),(476,41,'乌鲁木齐县','650121','county',1,'2026-03-14 16:24:19'),(477,42,'城关区','620102','district',1,'2026-03-14 16:24:19'),(478,42,'七里河区','620103','district',1,'2026-03-14 16:24:19'),(479,42,'西固区','620104','district',1,'2026-03-14 16:24:19'),(480,42,'安宁区','620105','district',1,'2026-03-14 16:24:19'),(481,42,'红古区','620111','district',1,'2026-03-14 16:24:19'),(482,42,'永登县','620121','county',1,'2026-03-14 16:24:19'),(483,42,'皋兰县','620122','county',1,'2026-03-14 16:24:19'),(484,42,'榆中县','620123','county',1,'2026-03-14 16:24:19'),(485,43,'兴庆区','640104','district',1,'2026-03-14 16:24:19'),(486,43,'西夏区','640105','district',1,'2026-03-14 16:24:19'),(487,43,'金凤区','640106','district',1,'2026-03-14 16:24:19'),(488,43,'永宁县','640121','county',1,'2026-03-14 16:24:19'),(489,43,'贺兰县','640122','county',1,'2026-03-14 16:24:19'),(490,43,'灵武市','640181','county',1,'2026-03-14 16:24:19'),(491,44,'城东区','630102','district',1,'2026-03-14 16:24:19'),(492,44,'城中区','630103','district',1,'2026-03-14 16:24:19'),(493,44,'城西区','630104','district',1,'2026-03-14 16:24:19'),(494,44,'城北区','630105','district',1,'2026-03-14 16:24:19'),(495,44,'湟中区','630106','district',1,'2026-03-14 16:24:19'),(496,44,'大通回族土族自治县','630121','county',1,'2026-03-14 16:24:19'),(497,44,'湟源县','630123','county',1,'2026-03-14 16:24:19'),(498,45,'城关区','540102','district',1,'2026-03-14 16:24:19'),(499,45,'堆龙德庆区','540103','district',1,'2026-03-14 16:24:19'),(500,45,'达孜区','540104','district',1,'2026-03-14 16:24:19'),(501,45,'林周县','540121','county',1,'2026-03-14 16:24:19'),(502,45,'当雄县','540122','county',1,'2026-03-14 16:24:19'),(503,45,'尼木县','540123','county',1,'2026-03-14 16:24:19'),(504,45,'曲水县','540124','county',1,'2026-03-14 16:24:19'),(505,45,'墨竹工卡县','540127','county',1,'2026-03-14 16:24:19');
+/*!40000 ALTER TABLE `districts` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `estates`
+--
+
+DROP TABLE IF EXISTS `estates`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `estates` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `city_id` int NOT NULL,
+  `address` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `developer` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `build_year` int DEFAULT NULL,
+  `property_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `total_units` int DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `estates`
+--
+
+LOCK TABLES `estates` WRITE;
+/*!40000 ALTER TABLE `estates` DISABLE KEYS */;
+INSERT INTO `estates` VALUES (1,'万科俊园',1,'北京市朝阳区朝阳公园南路1号','万科地产',2015,'住宅',800,1,'2026-03-13 13:13:35'),(2,'中海紫御公馆',1,'北京市朝阳区东三环中路39号','中海地产',2018,'住宅',600,1,'2026-03-13 13:13:35'),(3,'保利中央公园',1,'北京市朝阳区来广营西路88号','保利地产',2016,'住宅',1200,1,'2026-03-13 13:13:35'),(4,'龙湖颐和原著',1,'北京市海淀区西北旺镇北清路','龙湖地产',2019,'住宅',400,1,'2026-03-13 13:13:35'),(5,'金茂府',1,'北京市朝阳区东坝乡','中国金茂',2020,'住宅',500,1,'2026-03-13 13:13:35'),(6,'华润橡树湾',1,'北京市昌平区回龙观镇','华润置地',2014,'住宅',2000,1,'2026-03-13 13:13:35'),(7,'绿城玉兰花园',1,'北京市海淀区温泉镇','绿城地产',2017,'住宅',350,1,'2026-03-13 13:13:35'),(8,'汤臣一品',2,'上海市浦东新区滨江大道3388号','汤臣集团',2006,'住宅',200,1,'2026-03-13 13:13:35'),(9,'中海御景熙岸',2,'上海市浦东新区张江高科技园区','中海地产',2019,'住宅',800,1,'2026-03-13 13:13:35'),(10,'万科翡翠滨江',2,'上海市黄浦区外滩','万科地产',2021,'住宅',300,1,'2026-03-13 13:13:35');
+/*!40000 ALTER TABLE `estates` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `messages`
+--
+
+DROP TABLE IF EXISTS `messages`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `messages` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `from_user_id` int NOT NULL,
+  `to_user_id` int NOT NULL,
+  `project_id` int DEFAULT NULL,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `messages`
+--
+
+LOCK TABLES `messages` WRITE;
+/*!40000 ALTER TABLE `messages` DISABLE KEYS */;
+/*!40000 ALTER TABLE `messages` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `notifications`
+--
+
+DROP TABLE IF EXISTS `notifications`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `notifications` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `title` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'system',
+  `is_read` tinyint(1) NOT NULL DEFAULT '0',
+  `related_id` int DEFAULT NULL,
+  `related_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `notifications`
+--
+
+LOCK TABLES `notifications` WRITE;
+/*!40000 ALTER TABLE `notifications` DISABLE KEYS */;
+/*!40000 ALTER TABLE `notifications` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `openclaw_configs`
+--
+
+DROP TABLE IF EXISTS `openclaw_configs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `openclaw_configs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `api_url` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `api_key` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `target_city_ids` json DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT (now()),
+  `updated_at` timestamp NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `openclaw_configs`
+--
+
+LOCK TABLES `openclaw_configs` WRITE;
+/*!40000 ALTER TABLE `openclaw_configs` DISABLE KEYS */;
+/*!40000 ALTER TABLE `openclaw_configs` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `openclaw_tasks`
+--
+
+DROP TABLE IF EXISTS `openclaw_tasks`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `openclaw_tasks` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `config_id` int NOT NULL,
+  `city_id` int DEFAULT NULL,
+  `status` enum('pending','running','completed','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
+  `total_count` int DEFAULT '0',
+  `success_count` int DEFAULT '0',
+  `error_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `started_at` timestamp NULL DEFAULT NULL,
+  `completed_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `openclaw_tasks`
+--
+
+LOCK TABLES `openclaw_tasks` WRITE;
+/*!40000 ALTER TABLE `openclaw_tasks` DISABLE KEYS */;
+/*!40000 ALTER TABLE `openclaw_tasks` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `operation_logs`
+--
+
+DROP TABLE IF EXISTS `operation_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `operation_logs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int DEFAULT NULL,
+  `action` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `resource` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `resource_id` int DEFAULT NULL,
+  `details` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `detail` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `ip` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ip_address` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `operation_logs`
+--
+
+LOCK TABLES `operation_logs` WRITE;
+/*!40000 ALTER TABLE `operation_logs` DISABLE KEYS */;
+/*!40000 ALTER TABLE `operation_logs` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `org_members`
+--
+
+DROP TABLE IF EXISTS `org_members`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `org_members` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `org_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `role` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'member',
+  `joined_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `org_members`
+--
+
+LOCK TABLES `org_members` WRITE;
+/*!40000 ALTER TABLE `org_members` DISABLE KEYS */;
+INSERT INTO `org_members` VALUES (1,1,2,'admin','2026-03-13 13:13:35'),(2,2,3,'admin','2026-03-13 13:13:35'),(3,3,4,'admin','2026-03-13 13:13:35');
+/*!40000 ALTER TABLE `org_members` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `organizations`
+--
+
+DROP TABLE IF EXISTS `organizations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `organizations` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` enum('appraiser','bank','investor') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `license` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `address` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `contact_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `contact_phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rating` decimal(3,1) DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `logo` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT (now()),
+  `updated_at` timestamp NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `organizations`
+--
+
+LOCK TABLES `organizations` WRITE;
+/*!40000 ALTER TABLE `organizations` DISABLE KEYS */;
+INSERT INTO `organizations` VALUES (1,'中诚信房地产评估有限公司','appraiser',NULL,NULL,'张总','13800138001',NULL,NULL,NULL,1,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(2,'建设银行北京分行','bank',NULL,NULL,'李行长','13900139001',NULL,NULL,NULL,1,'2026-03-13 13:13:35','2026-03-13 13:13:35'),(3,'中信证券投资部','investor',NULL,NULL,'王总监','13700137001',NULL,NULL,NULL,1,'2026-03-13 13:13:35','2026-03-13 13:13:35');
+/*!40000 ALTER TABLE `organizations` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `projects`
+--
+
+DROP TABLE IF EXISTS `projects`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `projects` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `project_no` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `title` varchar(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` enum('bidding','active','completed','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'bidding',
+  `client_id` int NOT NULL,
+  `client_org_id` int DEFAULT NULL,
+  `bank_org_id` int DEFAULT NULL,
+  `bank_user_id` int DEFAULT NULL,
+  `assigned_org_id` int DEFAULT NULL,
+  `assigned_user_id` int DEFAULT NULL,
+  `property_address` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `property_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `area` decimal(10,2) DEFAULT NULL,
+  `estimated_value` decimal(15,2) DEFAULT NULL,
+  `deadline` timestamp NULL DEFAULT NULL,
+  `city_id` int DEFAULT NULL,
+  `estate_id` int DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT (now()),
+  `updated_at` timestamp NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `projects_project_no_unique` (`project_no`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `projects`
+--
+
+LOCK TABLES `projects` WRITE;
+/*!40000 ALTER TABLE `projects` DISABLE KEYS */;
+/*!40000 ALTER TABLE `projects` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `report_files`
+--
+
+DROP TABLE IF EXISTS `report_files`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `report_files` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `report_id` int NOT NULL,
+  `file_name` varchar(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `file_url` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `file_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `file_size` int DEFAULT NULL,
+  `uploaded_by` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `report_files`
+--
+
+LOCK TABLES `report_files` WRITE;
+/*!40000 ALTER TABLE `report_files` DISABLE KEYS */;
+/*!40000 ALTER TABLE `report_files` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `reports`
+--
+
+DROP TABLE IF EXISTS `reports`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `reports` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `report_no` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `project_id` int NOT NULL,
+  `title` varchar(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('draft','submitted','reviewing','approved','rejected','archived') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `author_id` int NOT NULL,
+  `reviewer_id` int DEFAULT NULL,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `property_address` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `property_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `property_area` decimal(10,2) DEFAULT NULL,
+  `valuation_result` decimal(15,2) DEFAULT NULL,
+  `valuation_min` decimal(15,2) DEFAULT NULL,
+  `valuation_max` decimal(15,2) DEFAULT NULL,
+  `final_value` decimal(15,2) DEFAULT NULL,
+  `ai_review_result` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `ai_score` int DEFAULT NULL,
+  `submitted_at` timestamp NULL DEFAULT NULL,
+  `approved_at` timestamp NULL DEFAULT NULL,
+  `completed_at` timestamp NULL DEFAULT NULL,
+  `rating` int DEFAULT NULL,
+  `rating_comment` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT (now()),
+  `updated_at` timestamp NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `reports_report_no_unique` (`report_no`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `reports`
+--
+
+LOCK TABLES `reports` WRITE;
+/*!40000 ALTER TABLE `reports` DISABLE KEYS */;
+/*!40000 ALTER TABLE `reports` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `units`
+--
+
+DROP TABLE IF EXISTS `units`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `units` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `building_id` int NOT NULL,
+  `estate_id` int NOT NULL,
+  `unit_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `floor` int DEFAULT NULL,
+  `area` decimal(10,2) DEFAULT NULL,
+  `rooms` int DEFAULT NULL,
+  `bathrooms` int DEFAULT NULL,
+  `orientation` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT (now()),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `units`
+--
+
+LOCK TABLES `units` WRITE;
+/*!40000 ALTER TABLE `units` DISABLE KEYS */;
+INSERT INTO `units` VALUES (1,1,1,'0101',1,89.50,3,2,'南北通透','2026-03-13 13:13:35'),(2,1,1,'0102',1,120.30,4,2,'朝南','2026-03-13 13:13:35'),(3,1,1,'0201',2,89.50,3,2,'南北通透','2026-03-13 13:13:35'),(4,1,1,'0202',2,120.30,4,2,'朝南','2026-03-13 13:13:35'),(5,1,1,'1001',10,89.50,3,2,'南北通透','2026-03-13 13:13:35'),(6,1,1,'1002',10,120.30,4,2,'朝南','2026-03-13 13:13:35'),(7,1,1,'1501',15,89.50,3,2,'南北通透','2026-03-13 13:13:35'),(8,1,1,'1502',15,120.30,4,2,'朝南','2026-03-13 13:13:35'),(9,1,1,'2001',20,89.50,3,2,'南北通透','2026-03-13 13:13:35'),(10,1,1,'2002',20,120.30,4,2,'朝南','2026-03-13 13:13:35'),(11,1,1,'2501',25,89.50,3,2,'南北通透','2026-03-13 13:13:35'),(12,1,1,'2502',25,120.30,4,2,'朝南','2026-03-13 13:13:35'),(13,2,1,'0101',1,95.00,3,2,'朝南','2026-03-13 13:13:35'),(14,2,1,'1001',10,95.00,3,2,'朝南','2026-03-13 13:13:35'),(15,2,1,'2001',20,95.00,3,2,'朝南','2026-03-13 13:13:35'),(16,4,2,'0101',1,130.00,4,2,'南北通透','2026-03-13 13:13:35'),(17,4,2,'1001',10,130.00,4,2,'南北通透','2026-03-13 13:13:35'),(18,4,2,'2001',20,130.00,4,2,'南北通透','2026-03-13 13:13:35');
+/*!40000 ALTER TABLE `units` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `users` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `password_hash` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `role` enum('appraiser','bank','investor','customer','admin') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'customer',
+  `org_id` int DEFAULT NULL,
+  `display_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `real_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `avatar` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT (now()),
+  `updated_at` timestamp NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `users_username_unique` (`username`),
+  UNIQUE KEY `users_email_unique` (`email`),
+  UNIQUE KEY `users_phone_unique` (`phone`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `users`
+--
+
+LOCK TABLES `users` WRITE;
+/*!40000 ALTER TABLE `users` DISABLE KEYS */;
+INSERT INTO `users` VALUES (1,'admin','admin@gujia.app','13800000001','$2a$10$H6mbbvCuRMCKvAGtU2zScuILNmlft0Qr5hMAJYi.r051KiHTGXidO','admin',NULL,'系统管理员','管理员',NULL,1,'2026-03-13 13:13:35','2026-03-13 13:13:55'),(2,'appraiser1','appraiser1@zhongcheng.com','13811111111','$2a$10$whRpCA54fZoArgKWjiqsk.5fP9rlnUUfetq8zpkFHdhyd0OarCcXe','appraiser',1,'张评估师','张评',NULL,1,'2026-03-13 13:13:35','2026-03-13 13:13:55'),(3,'bank1','bank1@ccb.com','13822222222','$2a$10$whRpCA54fZoArgKWjiqsk.5fP9rlnUUfetq8zpkFHdhyd0OarCcXe','bank',2,'李银行员','李行',NULL,1,'2026-03-13 13:13:35','2026-03-13 13:13:55'),(4,'investor1','investor1@citic.com','13833333333','$2a$10$whRpCA54fZoArgKWjiqsk.5fP9rlnUUfetq8zpkFHdhyd0OarCcXe','investor',3,'王投资人','王总',NULL,1,'2026-03-13 13:13:35','2026-03-13 13:13:55'),(5,'customer1','customer1@example.com','13844444444','$2a$10$whRpCA54fZoArgKWjiqsk.5fP9rlnUUfetq8zpkFHdhyd0OarCcXe','customer',NULL,'陈客户','陈先生',NULL,1,'2026-03-13 13:13:35','2026-03-13 13:13:55');
+/*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Dumping routines for database 'gujia'
+--
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2026-03-14 15:18:46
