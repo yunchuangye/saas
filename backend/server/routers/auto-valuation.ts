@@ -7,10 +7,19 @@ import { calculateValuation, formatCurrency, PropertyInput } from '../lib/valuat
 import { getMonthlyPriceTrend } from './property-search'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-})
+// 懒加载 OpenAI 客户端：仅在配置了 OPENAI_API_KEY 时才初始化
+// 未配置时 AI 分析功能将优雅降级，不影响后端正常启动
+let _openai: OpenAI | null = null
+function getOpenAIClient(): OpenAI | null {
+  if (!process.env.OPENAI_API_KEY) return null
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+    })
+  }
+  return _openai
+}
 
 // ============================================================
 // 从案例库检索相似案例（住宅专用）
@@ -114,8 +123,20 @@ ${comparableCases.slice(0, 5).map((c, i) =>
   "keyFactors": ["因素1", "因素2", "因素3"]
 }`
 
+  // 检查是否配置了 OpenAI API Key
+  const openaiClient = getOpenAIClient()
+  if (!openaiClient) {
+    console.log('[AI 分析] 未配置 OPENAI_API_KEY，跳过 AI 分析，返回默认结果')
+    return {
+      analysis: '未配置 AI 分析服务（OPENAI_API_KEY），请在后端 .env 中配置后重启服务以启用智能分析功能。',
+      confidenceScore: 70,
+      riskLevel: '中',
+      keyFactors: ['市场波动', '楼龄折旧', '区位因素'],
+    }
+  }
+
   try {
-    const response = await openai.chat.completions.create({
+    const response = await openaiClient.chat.completions.create({
       model: process.env.LLM_MODEL || 'gpt-4.1-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
