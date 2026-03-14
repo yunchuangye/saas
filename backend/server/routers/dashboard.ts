@@ -24,17 +24,30 @@ export const dashboardRouter = router({
         .select({ count: count() })
         .from(reports)
         .where(eq(reports.status, "reviewing"));
+      const [totalCases] = await ctx.db.select({ count: count() }).from(cases);
+      const [activeProj] = await ctx.db
+        .select({ count: count() })
+        .from(projects)
+        .where(eq(projects.status, "active"));
 
       stats = {
         totalUsers: totalUsers.count,
+        // activeUsers 与 totalUsers 同义（注册即活跃）
+        activeUsers: totalUsers.count,
         totalProjects: totalProjects.count,
+        activeProjects: activeProj.count,
+        completedProjects: 0,
         totalReports: totalReports.count,
         pendingReports: pendingReports.count,
-        activeProjects: 0,
-        completedProjects: 0,
+        // 案例总数
+        totalCases: totalCases.count,
       };
     } else if (role === "appraiser") {
       const orgId = ctx.user.orgId;
+      const [allProj] = await ctx.db
+        .select({ count: count() })
+        .from(projects)
+        .where(orgId ? eq(projects.assignedOrgId, orgId) : sql`1=1`);
       const [activeProj] = await ctx.db
         .select({ count: count() })
         .from(projects)
@@ -53,6 +66,8 @@ export const dashboardRouter = router({
         .where(eq(reports.authorId, ctx.user.id));
 
       stats = {
+        // totalProjects 供 appraiser analytics 页面使用
+        totalProjects: allProj.count,
         activeProjects: activeProj.count,
         completedProjects: completedProj.count,
         biddingProjects: biddingProj.count,
@@ -73,12 +88,23 @@ export const dashboardRouter = router({
           eq(projects.status, "active"),
           orgId ? eq(projects.clientOrgId, orgId) : eq(projects.clientId, ctx.user.id)
         ));
+      const [completedProj] = await ctx.db
+        .select({ count: count() })
+        .from(projects)
+        .where(and(
+          eq(projects.status, "completed"),
+          orgId ? eq(projects.clientOrgId, orgId) : eq(projects.clientId, ctx.user.id)
+        ));
+      const [pendingRep] = await ctx.db
+        .select({ count: count() })
+        .from(reports)
+        .where(eq(reports.status, "reviewing"));
 
       stats = {
         totalProjects: myProjects.count,
         activeProjects: activeProj.count,
-        completedProjects: 0,
-        pendingReports: 0,
+        completedProjects: completedProj.count,
+        pendingReports: pendingRep.count,
         totalValuation: 0,
         avgValuation: 0,
       };
@@ -88,11 +114,19 @@ export const dashboardRouter = router({
         .select({ count: count() })
         .from(projects)
         .where(eq(projects.clientId, ctx.user.id));
+      const [activeProj] = await ctx.db
+        .select({ count: count() })
+        .from(projects)
+        .where(and(eq(projects.status, "active"), eq(projects.clientId, ctx.user.id)));
+      const [completedRep] = await ctx.db
+        .select({ count: count() })
+        .from(reports)
+        .where(eq(reports.status, "approved"));
 
       stats = {
         totalApplications: myProjects.count,
-        activeApplications: 0,
-        completedReports: 0,
+        activeApplications: activeProj.count,
+        completedReports: completedRep.count,
         pendingReports: 0,
       };
     }
@@ -126,11 +160,22 @@ export const dashboardRouter = router({
     .input(z.object({ limit: z.number().default(5) }))
     .query(async ({ input, ctx }) => {
       const role = ctx.user.role;
-      let query = ctx.db.select().from(projects);
+      const orgId = ctx.user.orgId;
+
+      // 根据角色过滤项目
+      let whereCondition: any = undefined;
+      if (role === "appraiser" && orgId) {
+        whereCondition = eq(projects.assignedOrgId, orgId);
+      } else if ((role === "bank" || role === "investor") && orgId) {
+        whereCondition = eq(projects.clientOrgId, orgId);
+      } else if (role === "customer") {
+        whereCondition = eq(projects.clientId, ctx.user.id);
+      }
 
       const results = await ctx.db
         .select()
         .from(projects)
+        .where(whereCondition)
         .orderBy(desc(projects.createdAt))
         .limit(input.limit);
 

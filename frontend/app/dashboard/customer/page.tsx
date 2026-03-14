@@ -13,10 +13,10 @@ export default function CustomerDashboardPage() {
   const { data: recentProjectsRaw } = useRecentProjects(5);
 
   const statCards = [
-    { title: "进行中申请", value: (stats as any)?.activeProjects ?? 0, icon: FolderOpen, description: "正在处理中" },
-    { title: "待付款", value: (stats as any)?.pendingPayment ?? 0, icon: Clock, description: "请尽快完成支付" },
-    { title: "已完成报告", value: (stats as any)?.completedProjects ?? 0, icon: FileText, trend: { value: 25, label: "较去年" } },
-    { title: "历史申请", value: (stats as any)?.totalProjects ?? 0, icon: CheckCircle2 },
+    { title: "进行中申请", value: (stats as any)?.activeApplications ?? 0, icon: FolderOpen, description: "正在处理中" },
+    { title: "待处理", value: (stats as any)?.pendingReports ?? 0, icon: Clock, description: "需要关注" },
+    { title: "已完成报告", value: (stats as any)?.completedReports ?? 0, icon: FileText, trend: { value: 25, label: "较去年" } },
+    { title: "历史申请", value: (stats as any)?.totalApplications ?? 0, icon: CheckCircle2 },
   ];
   const recentProjects: Project[] = (recentProjectsRaw ?? []).map((p: any) => ({
     id: String(p.id), name: p.title, address: p.propertyAddress ?? "地址待填写",

@@ -100,7 +100,7 @@ export default function AppraiserAnalyticsPage() {
           <CardContent>
             <div className="text-2xl font-bold">{stats?.activeProjects || 0}</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <span>待竞价 {stats?.pendingBids || 0} 个</span>
+              <span>待竞价 {stats?.biddingProjects || 0} 个</span>
             </p>
           </CardContent>
         </Card>
@@ -110,10 +110,10 @@ export default function AppraiserAnalyticsPage() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.pendingReports || 0}</div>
+            <div className="text-2xl font-bold">{stats?.myReports || 0}</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <TrendingUp className="h-3 w-3 text-success" />
-              <span>需要处理</span>
+              <span>我的报告总数</span>
             </p>
           </CardContent>
         </Card>
