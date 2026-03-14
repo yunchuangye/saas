@@ -121,6 +121,7 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
     {
       title: "报告管理",
       items: [
+        { title: "自动估价", href: "/dashboard/appraiser/valuation", icon: Calculator },
         { title: "报告编制", href: "/dashboard/appraiser/reports/edit", icon: FileText },
         { title: "审核管理", href: "/dashboard/appraiser/reports/review", icon: UserCheck, badge: 5 },
         { title: "报告归档", href: "/dashboard/appraiser/reports/archive", icon: Briefcase },
@@ -173,7 +174,7 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
     {
       title: "报告中心",
       items: [
-        { title: "自动估价", href: "/dashboard/bank/reports/auto-valuation", icon: Calculator },
+        { title: "自动估价", href: "/dashboard/bank/valuation", icon: Calculator },
         { title: "报告审核", href: "/dashboard/bank/reports/review", icon: FileText, badge: 4 },
         { title: "报告归档", href: "/dashboard/bank/reports/archive", icon: UserCheck },
       ],
@@ -218,7 +219,7 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
     {
       title: "报告中心",
       items: [
-        { title: "自动估价", href: "/dashboard/investor/reports/auto-valuation", icon: Calculator },
+        { title: "自动估价", href: "/dashboard/investor/valuation", icon: Calculator },
         { title: "报告审核", href: "/dashboard/investor/reports/review", icon: FileText, badge: 4 },
         { title: "报告归档", href: "/dashboard/investor/reports/archive", icon: UserCheck },
       ],
