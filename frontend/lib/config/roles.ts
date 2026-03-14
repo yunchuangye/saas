@@ -121,7 +121,7 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
     {
       title: "报告管理",
       items: [
-        { title: "自动估价", href: "/dashboard/appraiser/valuation", icon: Calculator },
+        { title: "估价记录", href: "/dashboard/appraiser/valuation", icon: Calculator },
         { title: "报告编制", href: "/dashboard/appraiser/reports/edit", icon: FileText },
         { title: "审核管理", href: "/dashboard/appraiser/reports/review", icon: UserCheck, badge: 5 },
         { title: "报告归档", href: "/dashboard/appraiser/reports/archive", icon: Briefcase },
@@ -166,6 +166,7 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
     {
       title: "项目跟踪",
       items: [
+        { title: "自动估价", href: "/dashboard/bank/valuation", icon: Calculator },
         { title: "全部项目", href: "/dashboard/bank/projects", icon: FolderOpen },
         { title: "进行中", href: "/dashboard/bank/projects/active", icon: ClipboardCheck, badge: 15 },
         { title: "已完成", href: "/dashboard/bank/projects/completed", icon: Briefcase },
@@ -174,7 +175,7 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
     {
       title: "报告中心",
       items: [
-        { title: "自动估价", href: "/dashboard/bank/valuation", icon: Calculator },
+        { title: "估价记录", href: "/dashboard/bank/reports/auto-valuation", icon: Calculator },
         { title: "报告审核", href: "/dashboard/bank/reports/review", icon: FileText, badge: 4 },
         { title: "报告归档", href: "/dashboard/bank/reports/archive", icon: UserCheck },
       ],
@@ -211,6 +212,7 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
     {
       title: "项目跟踪",
       items: [
+        { title: "自动估价", href: "/dashboard/investor/valuation", icon: Calculator },
         { title: "全部项目", href: "/dashboard/investor/projects", icon: FolderOpen },
         { title: "进行中", href: "/dashboard/investor/projects/active", icon: ClipboardCheck, badge: 15 },
         { title: "已完成", href: "/dashboard/investor/projects/completed", icon: Briefcase },
@@ -219,7 +221,7 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
     {
       title: "报告中心",
       items: [
-        { title: "自动估价", href: "/dashboard/investor/valuation", icon: Calculator },
+        { title: "估价记录", href: "/dashboard/investor/reports/auto-valuation", icon: Calculator },
         { title: "报告审核", href: "/dashboard/investor/reports/review", icon: FileText, badge: 4 },
         { title: "报告归档", href: "/dashboard/investor/reports/archive", icon: UserCheck },
       ],

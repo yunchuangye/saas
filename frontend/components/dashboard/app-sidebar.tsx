@@ -2,8 +2,9 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { ChevronRight, ChevronsUpDown, LogOut, Settings, User } from "lucide-react"
+import { trpc } from "@/lib/trpc"
 
 import { Logo } from "@/components/brand/logo"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -46,8 +47,27 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ role, user, ...props }: AppSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const navigation = getNavigation(role)
   const roleConfig = getRoleConfig(role)
+
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSuccess: () => {
+      // 后端已清除 httpOnly cookie，跳转到登录页
+      router.push("/login")
+      router.refresh()
+    },
+    onError: () => {
+      // 即使后端出错，也强制跳转登录页
+      router.push("/login")
+      router.refresh()
+    },
+  })
+
+  const handleLogout = (e: React.MouseEvent) => {
+    e.preventDefault()
+    logoutMutation.mutate()
+  }
 
   const defaultUser = {
     name: "张三",
@@ -141,11 +161,13 @@ export function AppSidebar({ role, user, ...props }: AppSidebarProps) {
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/login">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    退出登录
-                  </Link>
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  disabled={logoutMutation.isPending}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  {logoutMutation.isPending ? "退出中..." : "退出登录"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
