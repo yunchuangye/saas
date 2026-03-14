@@ -150,12 +150,27 @@ app.get('/api/valuation-report/:id', async (req, res) => {
     const [record] = await db.select().from(autoValuations).where(eq(autoValuations.id, Number(req.params.id))).limit(1)
     if (!record) return res.status(404).json({ error: '记录不存在' })
 
-    const comparableCases = record.comparableCases ? JSON.parse(record.comparableCases as string) : []
-    const llmData = record.llmAnalysis ? JSON.parse(record.llmAnalysis as string) : null
-    const reportData = record.reportData ? JSON.parse(record.reportData as string) : null
+    // 安全解析：llmAnalysis 可能是纯字符串或 JSON 对象
+    let comparableCases: any[] = []
+    try { comparableCases = record.comparableCases ? JSON.parse(record.comparableCases as string) : [] } catch { comparableCases = [] }
+    let llmAnalysisText = ''
+    try {
+      const raw = record.llmAnalysis
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw as string)
+          llmAnalysisText = parsed?.analysis || parsed?.summary || (typeof parsed === 'string' ? parsed : '')
+        } catch {
+          llmAnalysisText = typeof raw === 'string' ? raw : ''
+        }
+      }
+    } catch { llmAnalysisText = '' }
+    let reportData: any = null
+    try { reportData = record.reportData ? JSON.parse(record.reportData as string) : null } catch { reportData = null }
 
-    // 生成 HTML 报告
-    const html = generateReportHTML(record, comparableCases, llmData, reportData)
+    // 生成 HTML 报告（一张纸简易估价说明模板）
+    const { generateReportHTML: genHTML } = await import('./report-template')
+    const html = genHTML(record, comparableCases, llmAnalysisText, reportData)
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.setHeader('Content-Disposition', `inline; filename="valuation-report-${record.id}.html"`)
@@ -166,7 +181,8 @@ app.get('/api/valuation-report/:id', async (req, res) => {
   }
 })
 
-function generateReportHTML(record: any, comparableCases: any[], llmData: any, reportData: any): string {
+// generateReportHTML 已移至 ./report-template.ts
+function _unused_generateReportHTML_REMOVED(record: any, comparableCases: any[], llmData: any, reportData: any): string {
   const formatMoney = (v: number) => {
     if (!v) return '—'
     if (v >= 100000000) return `${(v / 100000000).toFixed(2)}亿元`

@@ -11,10 +11,12 @@ import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import { trpc } from "@/lib/trpc"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Building2, MapPin, Calculator, FileText, ChevronRight,
   TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2, Download,
-  BarChart3, Home, Layers, Clock, Sparkles, Brain, Search, RefreshCw
+  BarChart3, Home, Layers, Clock, Sparkles, Brain, Search, RefreshCw, ChevronsUpDown, Check
 } from "lucide-react"
 
 const PROPERTY_TYPES = [
@@ -136,11 +138,53 @@ function ConfidenceBar({ score }: { score: number }) {
   )
 }
 
+const CITY_ID_MAP: Record<string, number> = {
+  "北京": 1, "上海": 2, "深圳": 3, "广州": 4, "杭州": 5,
+  "成都": 6, "武汉": 7, "南京": 8, "重庆": 9, "西安": 10,
+}
+
 export default function ValuationPage() {
   const [step, setStep] = useState(1)
   const [form, setForm] = useState<FormData>(defaultForm)
   const [result, setResult] = useState<any>(null)
   const [recordId, setRecordId] = useState<number | null>(null)
+  // 三级联动状态
+  const [estateSearch, setEstateSearch] = useState("")
+  const [estateOpen, setEstateOpen] = useState(false)
+  const [selectedEstate, setSelectedEstate] = useState<{ id: number; name: string; pinyin?: string } | null>(null)
+  const [selectedBuilding, setSelectedBuilding] = useState<{ id: number; name: string; floors?: number } | null>(null)
+  const [selectedUnit, setSelectedUnit] = useState<{ id: number; unitNumber: string; floor?: number; area?: string } | null>(null)
+  const cityId = CITY_ID_MAP[form.city]
+  // 楼盘检索（支持中文+拼音首字母）
+  const { data: estatesData } = trpc.directory.searchEstatesForValuation.useQuery(
+    { cityId, search: estateSearch || undefined, pageSize: 20 },
+    { enabled: true }
+  )
+  // 楼栋列表
+  const { data: buildingsData } = trpc.directory.getBuildingsForValuation.useQuery(
+    { estateId: selectedEstate?.id ?? 0 },
+    { enabled: !!selectedEstate }
+  )
+  // 房屋列表
+  const { data: unitsData } = trpc.directory.getUnitsForValuation.useQuery(
+    { buildingId: selectedBuilding?.id ?? 0 },
+    { enabled: !!selectedBuilding }
+  )
+  // 选择楼盘后自动填充地址
+  const handleSelectEstate = (estate: { id: number; name: string; address?: string; pinyin?: string }) => {
+    setSelectedEstate(estate)
+    setSelectedBuilding(null)
+    setSelectedUnit(null)
+    setEstateOpen(false)
+    if (estate.address) set("address", estate.address)
+  }
+  // 选择房屋后自动填充面积/楼层
+  const handleSelectUnit = (unit: { id: number; unitNumber: string; floor?: number; area?: string; rooms?: number; orientation?: string }) => {
+    setSelectedUnit(unit)
+    if (unit.area) set("buildingArea", unit.area)
+    if (unit.floor) set("floor", String(unit.floor))
+    if (unit.orientation) set("orientation", unit.orientation)
+  }
 
   const calculateMutation = trpc.autoValuation.calculate.useMutation({
     onSuccess: (data) => {
@@ -186,6 +230,10 @@ export default function ValuationPage() {
     setResult(null)
     setRecordId(null)
     setForm(defaultForm)
+    setSelectedEstate(null)
+    setSelectedBuilding(null)
+    setSelectedUnit(null)
+    setEstateSearch("")
   }
 
   const confidence = result ? CONFIDENCE_MAP[result.confidenceLevel as keyof typeof CONFIDENCE_MAP] : null
@@ -272,7 +320,7 @@ export default function ValuationPage() {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>所在城市 *</Label>
-                <Select value={form.city} onValueChange={v => { set("city", v); set("district", DISTRICTS[v]?.[0] || "其他") }}>
+                <Select value={form.city} onValueChange={v => { set("city", v); set("district", DISTRICTS[v]?.[0] || "其他"); setSelectedEstate(null); setSelectedBuilding(null); setSelectedUnit(null) }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{CITIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
@@ -290,6 +338,105 @@ export default function ValuationPage() {
               </div>
             </div>
 
+            {/* 住宅三级联动：楼盘 → 楼栋 → 房屋 */}
+            {isResidential && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Building2 className="h-4 w-4" />
+                  楼盘信息（可选，选择后自动填充物业参数）
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  {/* 楼盘搜索（支持中文+拼音首字母，如WKJY=万科俊园） */}
+                  <div className="space-y-2">
+                    <Label>楼盘名称</Label>
+                    <Popover open={estateOpen} onOpenChange={setEstateOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                          {selectedEstate ? selectedEstate.name : "搜索楼盘（支持拼音首字母）"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[280px] p-0">
+                        <Command>
+                          <CommandInput
+                            placeholder="输入楼盘名或首字母，如WKJY"
+                            value={estateSearch}
+                            onValueChange={setEstateSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>未找到楼盘，可手动填写地址</CommandEmpty>
+                            <CommandGroup>
+                              {(estatesData || []).map((e: any) => (
+                                <CommandItem
+                                  key={e.id}
+                                  value={e.name}
+                                  onSelect={() => handleSelectEstate(e)}
+                                >
+                                  <Check className={`mr-2 h-4 w-4 ${selectedEstate?.id === e.id ? "opacity-100" : "opacity-0"}`} />
+                                  <div>
+                                    <div className="font-medium">{e.name}</div>
+                                    {e.pinyin && <div className="text-xs text-muted-foreground">{e.pinyin}</div>}
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  {/* 楼栋选择 */}
+                  <div className="space-y-2">
+                    <Label>楼栋</Label>
+                    <Select
+                      disabled={!selectedEstate || !buildingsData?.length}
+                      value={selectedBuilding ? String(selectedBuilding.id) : ""}
+                      onValueChange={v => {
+                        const b = buildingsData?.find((b: any) => String(b.id) === v)
+                        if (b) { setSelectedBuilding(b); setSelectedUnit(null); if (b.floors) set("totalFloors", String(b.floors)) }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedEstate ? (buildingsData?.length ? "选择楼栋" : "暂无楼栋数据") : "请先选择楼盘"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(buildingsData || []).map((b: any) => (
+                          <SelectItem key={b.id} value={String(b.id)}>{b.name}{b.floors ? `（${b.floors}层）` : ""}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* 房屋选择 */}
+                  <div className="space-y-2">
+                    <Label>房屋</Label>
+                    <Select
+                      disabled={!selectedBuilding || !unitsData?.length}
+                      value={selectedUnit ? String(selectedUnit.id) : ""}
+                      onValueChange={v => {
+                        const u = unitsData?.find((u: any) => String(u.id) === v)
+                        if (u) handleSelectUnit(u)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedBuilding ? (unitsData?.length ? "选择房屋" : "暂无房屋数据") : "请先选择楼栋"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(unitsData || []).map((u: any) => (
+                          <SelectItem key={u.id} value={String(u.id)}>
+                            {u.unitNumber}{u.floor ? ` · ${u.floor}层` : ""}{u.area ? ` · ${u.area}㎡` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {selectedUnit && (
+                  <div className="text-xs text-green-600 bg-green-50 border border-green-200 rounded px-3 py-2">
+                    ✓ 已自动填充：面积 {selectedUnit.area}㎡，楼层 {selectedUnit.floor} 层
+                  </div>
+                )}
+              </div>
+            )}
             <Separator />
 
             <div className="grid grid-cols-3 gap-4">

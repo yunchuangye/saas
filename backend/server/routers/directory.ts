@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "../lib/trpc";
 import { cities, estates, buildings, units, cases, type InsertCity, type InsertEstate, type InsertBuilding } from "../lib/schema";
-import { eq, and, desc, like, count, sql } from "drizzle-orm";
+import { eq, and, desc, like, count, sql, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { pinyin } from "pinyin-pro";
 
 const citiesRouter = router({
   list: protectedProcedure
@@ -74,7 +75,14 @@ const estatesRouter = router({
 
       let conditions: any[] = [eq(estates.isActive, true)];
       if (cityId) conditions.push(eq(estates.cityId, cityId));
-      if (search) conditions.push(like(estates.name, `%${search}%`));
+      if (search) {
+        // 同时支持中文名称检索和拼音首字母检索（如 WKJY 匹配万科俊园）
+        const searchUpper = search.toUpperCase();
+        conditions.push(or(
+          like(estates.name, `%${search}%`),
+          like(estates.pinyin as any, `%${searchUpper}%`)
+        ) as any);
+      }
 
       const items = await ctx.db
         .select()
@@ -111,7 +119,9 @@ const estatesRouter = router({
       totalUnits: z.number().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const [result] = await ctx.db.insert(estates).values({ ...input, isActive: true } as InsertEstate);
+      // 自动生成拼音首字母
+      const py = pinyin(input.name, { pattern: 'first', toneType: 'none', separator: '' }).toUpperCase();
+      const [result] = await ctx.db.insert(estates).values({ ...input, pinyin: py, isActive: true } as any);
       return { id: (result as any).insertId, success: true };
     }),
 
@@ -408,15 +418,67 @@ export const directoryRouter = router({
       return { items, total: items.length };
     }),
   listEstates: protectedProcedure
-    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), search: z.string().optional() }).optional())
+    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), search: z.string().optional(), cityId: z.number().optional() }).optional())
     .query(async ({ input, ctx }) => {
-      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20; const search = input?.search;
+      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20; const search = input?.search; const cityId = input?.cityId;
       const offset = (page - 1) * pageSize;
-      let conditions: any[] = [];
-      if (search) conditions.push(like(estates.name, `%${search}%`));
-      const items = await ctx.db.select().from(estates).where(conditions.length > 0 ? and(...conditions) : undefined).orderBy(desc(estates.createdAt)).limit(pageSize).offset(offset);
-      const [totalResult] = await ctx.db.select({ count: count() }).from(estates).where(conditions.length > 0 ? and(...conditions) : undefined);
+      let conditions: any[] = [eq(estates.isActive, true)];
+      if (cityId) conditions.push(eq(estates.cityId, cityId));
+      if (search) {
+        const searchUpper = search.toUpperCase();
+        conditions.push(or(like(estates.name, `%${search}%`), like(estates.pinyin as any, `%${searchUpper}%`)) as any);
+      }
+      const items = await ctx.db.select().from(estates).where(and(...conditions)).orderBy(desc(estates.createdAt)).limit(pageSize).offset(offset);
+      const [totalResult] = await ctx.db.select({ count: count() }).from(estates).where(and(...conditions));
       return { items, total: totalResult.count, page, pageSize };
+    }),
+
+  // 估价三级联动：根据城市搜索楼盘（支持拼音首字母）
+  searchEstatesForValuation: protectedProcedure
+    .input(z.object({
+      cityId: z.number().optional(),
+      search: z.string().optional(),
+      pageSize: z.number().default(20),
+    }))
+    .query(async ({ input, ctx }) => {
+      const { cityId, search, pageSize } = input;
+      let conditions: any[] = [eq(estates.isActive, true)];
+      if (cityId) conditions.push(eq(estates.cityId, cityId));
+      if (search) {
+        const searchUpper = search.toUpperCase();
+        conditions.push(or(like(estates.name, `%${search}%`), like(estates.pinyin as any, `%${searchUpper}%`)) as any);
+      }
+      const items = await ctx.db
+        .select({ id: estates.id, name: estates.name, pinyin: estates.pinyin, address: estates.address, propertyType: estates.propertyType })
+        .from(estates)
+        .where(and(...conditions))
+        .orderBy(estates.name)
+        .limit(pageSize);
+      return items;
+    }),
+
+  // 估价三级联动：根据楼盘获取楼栋列表
+  getBuildingsForValuation: protectedProcedure
+    .input(z.object({ estateId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      const items = await ctx.db
+        .select({ id: buildings.id, name: buildings.name, floors: buildings.floors })
+        .from(buildings)
+        .where(eq(buildings.estateId, input.estateId))
+        .orderBy(buildings.name);
+      return items;
+    }),
+
+  // 估价三级联动：根据楼栋获取房屋列表
+  getUnitsForValuation: protectedProcedure
+    .input(z.object({ buildingId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      const items = await ctx.db
+        .select({ id: units.id, unitNumber: units.unitNumber, floor: units.floor, area: units.area, rooms: units.rooms, orientation: units.orientation })
+        .from(units)
+        .where(eq(units.buildingId, input.buildingId))
+        .orderBy(units.floor, units.unitNumber);
+      return items;
     }),
   listBuildings: protectedProcedure
     .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), search: z.string().optional() }).optional())

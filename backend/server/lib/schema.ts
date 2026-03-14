@@ -180,6 +180,7 @@ export const districts = mysqlTable("districts", {
 export const estates = mysqlTable("estates", {
   id: int("id").primaryKey().autoincrement(),
   name: varchar("name", { length: 200 }).notNull(),
+  pinyin: varchar("pinyin", { length: 200 }),  // 拼音首字母，如 WKJY
   cityId: int("city_id").notNull(),
   address: varchar("address", { length: 500 }),
   developer: varchar("developer", { length: 200 }),
