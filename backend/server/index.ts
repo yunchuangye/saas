@@ -7,7 +7,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "./routers";
-import { createContext } from "./lib/trpc";
+import { createContext, JWT_SECRET_KEY } from "./lib/trpc";
 import { db, redis } from "./lib/db";
 import { users, type InsertUser } from "./lib/schema";
 import bcrypt from "bcryptjs";
@@ -140,7 +140,7 @@ app.get('/api/valuation-report/:id', async (req, res) => {
     // 验证 JWT
     const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '')
     if (!token) return res.status(401).json({ error: '未登录' })
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'gujia-secret-key-2026') as any
+    const decoded = jwt.verify(token, JWT_SECRET_KEY) as any
     if (!decoded?.id && !decoded?.userId) return res.status(401).json({ error: '无效令牌' })
 
     const { db } = await import('./lib/db')

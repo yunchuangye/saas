@@ -138,10 +138,16 @@ function ConfidenceBar({ score }: { score: number }) {
   )
 }
 
-// 城市ID映射（与数据库 cities 表对应）
+// 城市ID映射（与数据库 cities 表完全对应）
 const CITY_ID_MAP: Record<string, number> = {
-  "北京": 1, "上海": 2, "深圳": 3, "广州": 4, "杭州": 5,
-  "成都": 6, "武汉": 7, "南京": 8, "重庆": 9, "西安": 10,
+  "北京": 1, "上海": 2, "天津": 3, "重庆": 4, "广州": 5,
+  "深圳": 6, "东莞": 7, "佛山": 8, "珠海": 9, "南京": 10,
+  "苏州": 11, "无锡": 12, "南通": 13, "杭州": 14, "宁波": 15,
+  "温州": 16, "金华": 17, "成都": 18, "武汉": 19, "长沙": 20,
+  "西安": 21, "沈阳": 22, "大连": 23, "济南": 24, "青岛": 25,
+  "烟台": 26, "福州": 27, "厦门": 28, "合肥": 29, "南昌": 30,
+  "郑州": 31, "石家庄": 32, "太原": 33, "哈尔滨": 34, "长春": 35,
+  "南宁": 36, "昆明": 37, "贵阳": 38, "海口": 39, "其他": 0,
 }
 
 export default function ValuationPage() {
@@ -186,12 +192,28 @@ export default function ValuationPage() {
     if (estate.address) set("address", estate.address)
   }
 
+  // 中文朝向到英文枚举的映射
+  const ORIENTATION_CN_MAP: Record<string, string> = {
+    "南北通透": "south_north",
+    "朝南": "south",
+    "朝北": "north",
+    "朝东": "east",
+    "朝西": "west",
+    "东南": "south",
+    "西南": "south",
+    "东北": "north",
+    "西北": "north",
+    "其他": "other",
+  }
   // 选择房屋后自动填充面积/楼层
   const handleSelectUnit = (unit: { id: number; unitNumber: string; floor?: number; area?: string; rooms?: number; orientation?: string }) => {
     setSelectedUnit(unit)
     if (unit.area) set("buildingArea", unit.area)
     if (unit.floor) set("floor", String(unit.floor))
-    if (unit.orientation) set("orientation", unit.orientation)
+    if (unit.orientation) {
+      const mappedOrientation = ORIENTATION_CN_MAP[unit.orientation] || unit.orientation
+      set("orientation", mappedOrientation)
+    }
   }
 
   const calculateMutation = trpc.autoValuation.calculate.useMutation({
@@ -230,7 +252,7 @@ export default function ValuationPage() {
 
   const handleDownloadPDF = () => {
     if (!recordId) return
-    window.open(`/api/valuation-report/${recordId}`, "_blank")
+    window.open(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8721'}/api/valuation-report/${recordId}`, '_blank')
   }
 
   const handleReset = () => {
@@ -361,7 +383,7 @@ export default function ValuationPage() {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[280px] p-0">
-                        <Command>
+                        <Command shouldFilter={false}>
                           <CommandInput
                             placeholder="输入楼盘名或首字母，如WKJY"
                             value={estateSearch}
