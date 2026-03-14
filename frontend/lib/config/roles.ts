@@ -23,6 +23,7 @@ import {
   Bot,
   Calculator,
   Database,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react"
 
@@ -132,6 +133,12 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
         { title: "消息中心", href: "/dashboard/appraiser/messages", icon: MessageSquare },
       ],
     },
+    {
+      title: "营销推广",
+      items: [
+        { title: "营销中心", href: "/dashboard/appraiser/sales", icon: Megaphone },
+      ],
+    },
   ],
   bank: [
     {
@@ -169,6 +176,12 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
         { title: "自动估价", href: "/dashboard/bank/reports/auto-valuation", icon: Calculator },
         { title: "报告审核", href: "/dashboard/bank/reports/review", icon: FileText, badge: 4 },
         { title: "报告归档", href: "/dashboard/bank/reports/archive", icon: UserCheck },
+      ],
+    },
+    {
+      title: "营销推广",
+      items: [
+        { title: "营销中心", href: "/dashboard/bank/sales", icon: Megaphone },
       ],
     },
   ],
@@ -210,6 +223,12 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
         { title: "报告归档", href: "/dashboard/investor/reports/archive", icon: UserCheck },
       ],
     },
+    {
+      title: "营销推广",
+      items: [
+        { title: "营销中心", href: "/dashboard/investor/sales", icon: Megaphone },
+      ],
+    },
   ],
   customer: [
     {
@@ -237,6 +256,12 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       title: "消息",
       items: [
         { title: "通知消息", href: "/dashboard/customer/notifications", icon: Bell, badge: 3 },
+      ],
+    },
+    {
+      title: "营销推广",
+      items: [
+        { title: "邀请赚钱", href: "/dashboard/customer/sales", icon: Megaphone },
       ],
     },
   ],

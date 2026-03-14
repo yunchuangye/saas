@@ -12,6 +12,7 @@ import { autoValuationRouter } from './auto-valuation';
 import { pdfReportRouter } from './pdf-report';
 import { propertySearchRouter } from './property-search';
 import { crawlRouter } from './crawl';
+import { salesRouter } from './sales';
 
 export const appRouter = router({
   auth: authRouter,
@@ -32,6 +33,7 @@ export const appRouter = router({
   pdfReport: pdfReportRouter,
   propertySearch: propertySearchRouter,
   crawl: crawlRouter,
+  sales: salesRouter,
 });
 
 export type AppRouter = typeof appRouter;
