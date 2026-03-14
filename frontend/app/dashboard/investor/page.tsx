@@ -36,7 +36,7 @@ export default function InvestorDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <WelcomeCard userName={user?.name ?? "用户"} role="投资机构" quickActions={[
+      <WelcomeCard userName={user?.displayName ?? "用户"} role="投资机构" quickActions={[
         { label: "发起新评估需求", href: "/dashboard/investor/demand/new" },
         { label: "查看竞价项目", href: "/dashboard/investor/bidding" },
       ]} />

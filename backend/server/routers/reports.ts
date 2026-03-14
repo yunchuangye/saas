@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../lib/trpc";
-import { reports, reportFiles } from "../lib/schema";
+import { reports, reportFiles, type InsertReport } from "../lib/schema";
 import { eq, and, desc, count } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
@@ -88,7 +88,7 @@ export const reportsRouter = router({
         valuationMax: input.valuationMax ? String(input.valuationMax) : null,
         authorId: ctx.user.id,
         status: "draft",
-      });
+      } as InsertReport);
 
       return { id: (result as any).insertId, success: true };
     }),
@@ -116,7 +116,7 @@ export const reportsRouter = router({
       if (updateData.valuationMax) data.valuationMax = String(updateData.valuationMax);
       if (updateData.status) data.status = updateData.status;
 
-      await ctx.db.update(reports).set(data).where(eq(reports.id, id));
+      await ctx.db.update(reports).set(data as Partial<InsertReport>).where(eq(reports.id, id));
       return { success: true };
     }),
 
@@ -126,7 +126,7 @@ export const reportsRouter = router({
     .mutation(async ({ input, ctx }) => {
       await ctx.db
         .update(reports)
-        .set({ status: "submitted", updatedAt: new Date() })
+        .set({ status: "submitted", updatedAt: new Date() } as Partial<InsertReport>)
         .where(eq(reports.id, input.id));
       return { success: true };
     }),
@@ -147,7 +147,7 @@ export const reportsRouter = router({
           status: input.approved ? "approved" : "rejected",
           reviewerId: ctx.user.id,
           updatedAt: new Date(),
-        })
+        } as Partial<InsertReport>)
         .where(eq(reports.id, input.id));
       return { success: true };
     }),
@@ -181,7 +181,7 @@ export const reportsRouter = router({
           aiReviewResult: JSON.stringify(aiResult),
           aiScore: aiResult.score,
           updatedAt: new Date(),
-        })
+        } as Partial<InsertReport>)
         .where(eq(reports.id, input.reportId));
 
       return aiResult;
@@ -193,7 +193,7 @@ export const reportsRouter = router({
     .mutation(async ({ input, ctx }) => {
       await ctx.db
         .update(reports)
-        .set({ status: "archived", updatedAt: new Date() })
+        .set({ status: "archived", updatedAt: new Date() } as Partial<InsertReport>)
         .where(eq(reports.id, input.id));
       return { success: true };
     }),

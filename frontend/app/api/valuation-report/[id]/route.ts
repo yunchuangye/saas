@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const id = params.id
+  const { id } = await context.params
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8721"
 
   try {

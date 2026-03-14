@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "../lib/trpc";
-import { cities, estates, buildings, units, cases } from "../lib/schema";
+import { cities, estates, buildings, units, cases, type InsertCity, type InsertEstate, type InsertBuilding } from "../lib/schema";
 import { eq, and, desc, like, count, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
@@ -40,7 +40,7 @@ const citiesRouter = router({
   create: adminProcedure
     .input(z.object({ name: z.string(), province: z.string().optional(), code: z.string().optional() }))
     .mutation(async ({ input, ctx }) => {
-      const [result] = await ctx.db.insert(cities).values({ ...input, isActive: true });
+      const [result] = await ctx.db.insert(cities).values({ ...input, isActive: true } as InsertCity);
       return { id: (result as any).insertId, success: true };
     }),
 
@@ -48,14 +48,14 @@ const citiesRouter = router({
     .input(z.object({ id: z.number(), name: z.string().optional(), province: z.string().optional(), isActive: z.boolean().optional() }))
     .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
-      await ctx.db.update(cities).set(data).where(eq(cities.id, id));
+      await ctx.db.update(cities).set(data as Partial<InsertCity>).where(eq(cities.id, id));
       return { success: true };
     }),
 
   delete: adminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      await ctx.db.update(cities).set({ isActive: false }).where(eq(cities.id, input.id));
+      await ctx.db.update(cities).set({ isActive: false } as Partial<InsertCity>).where(eq(cities.id, input.id));
       return { success: true };
     }),
 });
@@ -111,7 +111,7 @@ const estatesRouter = router({
       totalUnits: z.number().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const [result] = await ctx.db.insert(estates).values({ ...input, isActive: true });
+      const [result] = await ctx.db.insert(estates).values({ ...input, isActive: true } as InsertEstate);
       return { id: (result as any).insertId, success: true };
     }),
 
@@ -119,14 +119,14 @@ const estatesRouter = router({
     .input(z.object({ id: z.number(), name: z.string().optional(), address: z.string().optional(), isActive: z.boolean().optional() }))
     .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
-      await ctx.db.update(estates).set(data).where(eq(estates.id, id));
+      await ctx.db.update(estates).set(data as Partial<InsertEstate>).where(eq(estates.id, id));
       return { success: true };
     }),
 
   delete: adminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      await ctx.db.update(estates).set({ isActive: false }).where(eq(estates.id, input.id));
+      await ctx.db.update(estates).set({ isActive: false } as Partial<InsertEstate>).where(eq(estates.id, input.id));
       return { success: true };
     }),
 });
@@ -159,7 +159,7 @@ const buildingsRouter = router({
   create: adminProcedure
     .input(z.object({ estateId: z.number(), name: z.string(), floors: z.number().optional(), unitsPerFloor: z.number().optional() }))
     .mutation(async ({ input, ctx }) => {
-      const [result] = await ctx.db.insert(buildings).values(input);
+      const [result] = await ctx.db.insert(buildings).values(input as InsertBuilding);
       return { id: (result as any).insertId, success: true };
     }),
 
@@ -167,7 +167,7 @@ const buildingsRouter = router({
     .input(z.object({ id: z.number(), name: z.string().optional(), floors: z.number().optional() }))
     .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
-      await ctx.db.update(buildings).set(data).where(eq(buildings.id, id));
+      await ctx.db.update(buildings).set(data as Partial<InsertBuilding>).where(eq(buildings.id, id));
       return { success: true };
     }),
 

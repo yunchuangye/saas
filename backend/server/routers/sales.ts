@@ -405,8 +405,8 @@ export const salesRouter = router({
       const campaign = {
         id: couponCode,
         userId: ctx.user.id,
-        type: "coupon",
         ...input,
+        campaignType: "coupon",
         createdAt: new Date().toISOString(),
         usedCount: 0,
         expireAt: new Date(Date.now() + input.expireDays * 86400000).toISOString(),

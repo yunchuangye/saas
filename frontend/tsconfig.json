@@ -25,6 +25,12 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "../../backend/server/routers": [
+        "../backend/server/routers/index.ts"
+      ],
+      "../../backend/server/routers/index": [
+        "../backend/server/routers/index.ts"
       ]
     }
   },

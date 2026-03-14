@@ -49,7 +49,7 @@ export default function AppraiserBiddingPage() {
       projectId: selectedProject.id,
       price: parseFloat(bidAmount),
       estimatedDays: parseInt(bidDays),
-      note: bidNote,
+      message: bidNote,
     })
   }
 

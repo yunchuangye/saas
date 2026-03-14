@@ -52,7 +52,7 @@ export function useReviewReport() {
 }
 
 export function useAIReviewReport() {
-  return trpc.reports.aiReview.useMutation();
+  return trpc.reports.review.useMutation();
 }
 
 export function useAIAssistReport() {

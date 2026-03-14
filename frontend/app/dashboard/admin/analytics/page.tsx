@@ -5,7 +5,7 @@ import { BarChart3, TrendingUp, Users, FileText } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 
 export default function AdminAnalyticsPage() {
-  const { data, isLoading } = trpc.dashboard.adminStats.useQuery()
+  const { data, isLoading } = trpc.dashboard.stats.useQuery()
 
   return (
     <div className="space-y-6">

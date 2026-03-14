@@ -26,7 +26,7 @@ export default function BiddingPage() {
   })
 
   const projects = data?.items ?? []
-  const bids = bidsData?.items ?? []
+  const bids = bidsData ?? []
 
   return (
     <div className="space-y-6">

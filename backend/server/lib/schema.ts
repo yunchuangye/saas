@@ -455,3 +455,85 @@ export const crawlConfig = mysqlTable("crawl_config", {
   description: varchar("description", { length: 300 }),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
+
+// ============================================================
+// 类型导出（解决 Drizzle ORM v0.38 严格类型推断问题）
+// 使用 $inferInsert 导出完整 insert 类型，包含所有有默认值的字段
+// ============================================================
+export type InsertUser = typeof users.$inferInsert
+export type SelectUser = typeof users.$inferSelect
+
+export type InsertOrganization = typeof organizations.$inferInsert
+export type SelectOrganization = typeof organizations.$inferSelect
+
+export type InsertOrgMember = typeof orgMembers.$inferInsert
+export type SelectOrgMember = typeof orgMembers.$inferSelect
+
+export type InsertProject = typeof projects.$inferInsert
+export type SelectProject = typeof projects.$inferSelect
+
+export type InsertBid = typeof bids.$inferInsert
+export type SelectBid = typeof bids.$inferSelect
+
+export type InsertReport = typeof reports.$inferInsert
+export type SelectReport = typeof reports.$inferSelect
+
+export type InsertReportFile = typeof reportFiles.$inferInsert
+export type SelectReportFile = typeof reportFiles.$inferSelect
+
+export type InsertNotification = typeof notifications.$inferInsert
+export type SelectNotification = typeof notifications.$inferSelect
+
+export type InsertMessage = typeof messages.$inferInsert
+export type SelectMessage = typeof messages.$inferSelect
+
+export type InsertCity = typeof cities.$inferInsert
+export type SelectCity = typeof cities.$inferSelect
+
+export type InsertDistrict = typeof districts.$inferInsert
+export type SelectDistrict = typeof districts.$inferSelect
+
+export type InsertEstate = typeof estates.$inferInsert
+export type SelectEstate = typeof estates.$inferSelect
+
+export type InsertBuilding = typeof buildings.$inferInsert
+export type SelectBuilding = typeof buildings.$inferSelect
+
+export type InsertUnit = typeof units.$inferInsert
+export type SelectUnit = typeof units.$inferSelect
+
+export type InsertCase = typeof cases.$inferInsert
+export type SelectCase = typeof cases.$inferSelect
+
+export type InsertAutoValuation = typeof autoValuations.$inferInsert
+export type SelectAutoValuation = typeof autoValuations.$inferSelect
+
+export type InsertOpenclawConfig = typeof openclawConfigs.$inferInsert
+export type SelectOpenclawConfig = typeof openclawConfigs.$inferSelect
+
+export type InsertOpenclawTask = typeof openclawTasks.$inferInsert
+export type SelectOpenclawTask = typeof openclawTasks.$inferSelect
+
+export type InsertOperationLog = typeof operationLogs.$inferInsert
+export type SelectOperationLog = typeof operationLogs.$inferSelect
+
+export type InsertCrawlJob = typeof crawlJobs.$inferInsert
+export type SelectCrawlJob = typeof crawlJobs.$inferSelect
+
+export type InsertCrawlLog = typeof crawlLogs.$inferInsert
+export type SelectCrawlLog = typeof crawlLogs.$inferSelect
+
+export type InsertCrawlRawData = typeof crawlRawData.$inferInsert
+export type SelectCrawlRawData = typeof crawlRawData.$inferSelect
+
+export type InsertCrawlProxy = typeof crawlProxies.$inferInsert
+export type SelectCrawlProxy = typeof crawlProxies.$inferSelect
+
+export type InsertCrawlAlert = typeof crawlAlerts.$inferInsert
+export type SelectCrawlAlert = typeof crawlAlerts.$inferSelect
+
+export type InsertCrawlScheduleHistory = typeof crawlScheduleHistory.$inferInsert
+export type SelectCrawlScheduleHistory = typeof crawlScheduleHistory.$inferSelect
+
+export type InsertCrawlConfig = typeof crawlConfig.$inferInsert
+export type SelectCrawlConfig = typeof crawlConfig.$inferSelect

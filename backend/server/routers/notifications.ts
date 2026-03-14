@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../lib/trpc";
-import { notifications, messages } from "../lib/schema";
+import { notifications, messages, type InsertNotification, type InsertMessage } from "../lib/schema";
 import { eq, and, desc, count } from "drizzle-orm";
 
 export const notificationsRouter = router({
@@ -43,7 +43,7 @@ export const notificationsRouter = router({
     .mutation(async ({ input, ctx }) => {
       await ctx.db
         .update(notifications)
-        .set({ isRead: true })
+        .set({ isRead: true } as Partial<InsertNotification>)
         .where(and(eq(notifications.id, input.id), eq(notifications.userId, ctx.user.id)));
       return { success: true };
     }),
@@ -52,7 +52,7 @@ export const notificationsRouter = router({
   markAllRead: protectedProcedure.mutation(async ({ ctx }) => {
     await ctx.db
       .update(notifications)
-      .set({ isRead: true })
+      .set({ isRead: true } as Partial<InsertNotification>)
       .where(eq(notifications.userId, ctx.user.id));
     return { success: true };
   }),
@@ -107,7 +107,7 @@ export const messagesRouter = router({
         content: input.content,
         projectId: input.projectId || null,
         isRead: false,
-      });
+      } as InsertMessage);
 
       return { id: (result as any).insertId, success: true };
     }),
@@ -118,7 +118,7 @@ export const messagesRouter = router({
     .mutation(async ({ input, ctx }) => {
       await ctx.db
         .update(messages)
-        .set({ isRead: true })
+        .set({ isRead: true } as Partial<InsertMessage>)
         .where(and(eq(messages.id, input.id), eq(messages.toUserId, ctx.user.id)));
       return { success: true };
     }),

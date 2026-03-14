@@ -10,9 +10,9 @@ import {
 // ============================================================
 // 类型定义
 // ============================================================
-interface EstateOption { id: number; name: string; pinyinInitials: string; address?: string; developer?: string }
+interface EstateOption { id: number; name: string; pinyinInitials: string; pinyinFull?: string; address?: string | null; developer?: string | null; cityId?: number; buildYear?: number | null; propertyType?: string | null; totalUnits?: number | null }
 interface BuildingOption { id: number; name: string; totalFloors?: number }
-interface UnitOption { id: number; unitNumber: string; floor: number; area?: string; rooms?: number; orientation?: string; decoration?: string }
+interface UnitOption { id: number; unitNumber: string; floor: number | null; area?: string; rooms?: number; orientation?: string; decoration?: string }
 
 // ============================================================
 // 拼音首字母搜索下拉组件
@@ -136,7 +136,7 @@ export default function ValuationPage() {
     if (selectedUnit) {
       setForm(f => ({
         ...f,
-        floor: selectedUnit.floor,
+        floor: selectedUnit.floor ?? f.floor,
         buildingArea: selectedUnit.area ? Number(selectedUnit.area) : f.buildingArea,
         orientation: selectedUnit.orientation || f.orientation,
         decoration: selectedUnit.decoration || f.decoration,
@@ -285,12 +285,12 @@ export default function ValuationPage() {
                   value={selectedBuilding?.id || ''}
                   onChange={e => {
                     const b = buildings.find(b => b.id === Number(e.target.value))
-                    setSelectedBuilding(b ? { id: b.id, name: b.name, totalFloors: b.totalFloors ?? undefined } : null)
+                    setSelectedBuilding(b ? { id: b.id, name: b.name, totalFloors: b.floors ?? undefined } : null)
                     setSelectedUnit(null)
                   }}
                 >
                   <option value="">请选择楼栋</option>
-                  {buildings.map(b => <option key={b.id} value={b.id}>{b.name}（{b.totalFloors}层）</option>)}
+                  {buildings.map(b => <option key={b.id} value={b.id}>{b.name}（{b.floors}层）</option>)}
                 </select>
               </div>
             )}
@@ -304,7 +304,7 @@ export default function ValuationPage() {
                   value={selectedUnit?.id || ''}
                   onChange={e => {
                     const u = units.find(u => u.id === Number(e.target.value))
-                    setSelectedUnit(u ? { id: u.id, unitNumber: u.unitNumber, floor: u.floor, area: u.area ?? undefined, rooms: u.rooms ?? undefined, orientation: u.orientation ?? undefined, decoration: u.decoration ?? undefined } : null)
+                    setSelectedUnit(u ? { id: u.id, unitNumber: u.unitNumber, floor: u.floor, area: u.area ?? undefined, rooms: u.rooms ?? undefined, orientation: u.orientation ?? undefined, decoration: undefined } : null)
                   }}
                 >
                   <option value="">请选择房屋（可选）</option>

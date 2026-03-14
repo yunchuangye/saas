@@ -3,7 +3,7 @@ import { eq, and, ne } from "drizzle-orm"
 import bcrypt from "bcryptjs"
 import { router, protectedProcedure } from "../lib/trpc"
 import { db } from "../lib/db"
-import { users, organizations } from "../lib/schema"
+import { users, organizations, type InsertUser } from "../lib/schema"
 
 export const teamRouter = router({
   // 列出本机构所有成员
@@ -73,7 +73,7 @@ export const teamRouter = router({
         role: role as any,
         orgId: user.orgId,
         isActive: true,
-      }).$returningId()
+      } as InsertUser).$returningId()
 
       return { success: true, userId: newUser.id }
     }),
@@ -103,7 +103,7 @@ export const teamRouter = router({
       if (input.phone !== undefined) updateData.phone = input.phone
       if (input.password) updateData.passwordHash = await bcrypt.hash(input.password, 10)
 
-      await db.update(users).set(updateData).where(eq(users.id, input.userId))
+      await db.update(users).set(updateData as Partial<InsertUser>).where(eq(users.id, input.userId))
       return { success: true }
     }),
 
@@ -121,7 +121,7 @@ export const teamRouter = router({
       const target = await db.select({ id: users.id, orgId: users.orgId }).from(users).where(eq(users.id, input.userId)).limit(1)
       if (!target[0] || target[0].orgId !== user.orgId) throw new Error("无权操作此用户")
 
-      await db.update(users).set({ isActive: input.isActive }).where(eq(users.id, input.userId))
+      await db.update(users).set({ isActive: input.isActive } as Partial<InsertUser>).where(eq(users.id, input.userId))
       return { success: true }
     }),
 })

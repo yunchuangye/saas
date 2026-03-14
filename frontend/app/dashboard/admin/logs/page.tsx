@@ -12,7 +12,7 @@ import { trpc } from "@/lib/trpc"
 export default function AdminLogsPage() {
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
-  const { data, isLoading } = trpc.logs.list.useQuery({ page, pageSize: 30, search: search || undefined })
+  const { data, isLoading } = trpc.logs.list.useQuery({ page, pageSize: 30 })
   const logs = data?.items ?? []
   const total = data?.total ?? 0
 

@@ -144,9 +144,10 @@ async function humanScroll(page: Page): Promise<void> {
       let totalHeight = 0;
       const distance = 200 + Math.floor(Math.random() * 200);
       const timer = setInterval(() => {
-        (window as any).scrollBy(0, distance);
+        (globalThis as any).window?.scrollBy(0, distance);
         totalHeight += distance;
-        if (totalHeight >= (document as any).body.scrollHeight) {
+        const scrollHeight = (globalThis as any).document?.body?.scrollHeight as number | undefined;
+        if (totalHeight >= (scrollHeight ?? 10000)) {
           clearInterval(timer);
           resolve();
         }

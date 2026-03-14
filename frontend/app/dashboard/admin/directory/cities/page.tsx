@@ -123,7 +123,7 @@ export default function CitiesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditCity(null)}>取消</Button>
-            <Button onClick={() => updateMutation.mutate({ id: editCity.id, name: form.name, province: form.province || undefined, code: form.code || undefined })} disabled={updateMutation.isPending || !form.name}>
+            <Button onClick={() => updateMutation.mutate({ id: editCity.id, name: form.name, province: form.province || undefined })} disabled={updateMutation.isPending || !form.name}>
               {updateMutation.isPending ? "保存中..." : "保存"}
             </Button>
           </DialogFooter>

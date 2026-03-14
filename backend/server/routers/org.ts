@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { router, protectedProcedure, adminProcedure } from "../lib/trpc";
-import { organizations, orgMembers, users, openclawConfigs, openclawTasks, operationLogs, cases, cities } from "../lib/schema";
+import { organizations, orgMembers, users, openclawConfigs, openclawTasks, operationLogs, cases, cities, type InsertOrganization, type InsertOrgMember, type InsertUser, type InsertOpenclawConfig, type InsertOpenclawTask, type InsertCase } from "../lib/schema";
 import { eq, and, desc, count, like, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
@@ -44,7 +44,7 @@ export const orgRouter = router({
       contactPhone: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const [result] = await ctx.db.insert(organizations).values({ ...input, isActive: true });
+      const [result] = await ctx.db.insert(organizations).values({ ...input, isActive: true } as InsertOrganization);
       const orgId = (result as any).insertId;
 
       // 将当前用户加入组织
@@ -52,9 +52,9 @@ export const orgRouter = router({
         orgId,
         userId: ctx.user.id,
         role: "admin",
-      });
+      } as InsertOrgMember);
 
-      await ctx.db.update(users).set({ orgId }).where(eq(users.id, ctx.user.id));
+      await ctx.db.update(users).set({ orgId } as Partial<InsertUser>).where(eq(users.id, ctx.user.id));
 
       return { id: orgId, success: true };
     }),
@@ -121,7 +121,7 @@ export const openclawRouter = router({
         apiKey: input.apiKey || null,
         targetCityIds: input.targetCityIds ? JSON.stringify(input.targetCityIds) : null,
         isActive: true,
-      });
+      } as InsertOpenclawConfig);
       return { id: (result as any).insertId, success: true };
     }),
 
@@ -136,7 +136,7 @@ export const openclawRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
-      await ctx.db.update(openclawConfigs).set({ ...data, updatedAt: new Date() }).where(eq(openclawConfigs.id, id));
+      await ctx.db.update(openclawConfigs).set({ ...data, updatedAt: new Date() } as Partial<InsertOpenclawConfig>).where(eq(openclawConfigs.id, id));
       return { success: true };
     }),
 
@@ -173,7 +173,7 @@ export const openclawRouter = router({
         configId: input.configId,
         cityId: input.cityId || null,
         status: 'pending',
-      });
+      } as InsertOpenclawTask);
       return { id: (result as any).insertId, success: true };
     }),
 
@@ -191,7 +191,7 @@ export const openclawRouter = router({
 
       // 更新任务状态为运行中
       await ctx.db.update(openclawTasks)
-        .set({ status: 'running', startedAt: new Date() } as any)
+        .set({ status: 'running', startedAt: new Date() } as Partial<InsertOpenclawTask>)
         .where(eq(openclawTasks.id, input.taskId));
 
       // 获取目标城市
@@ -264,7 +264,7 @@ export const openclawRouter = router({
 
       // 批量插入案例
       if (newCases.length > 0) {
-        await ctx.db.insert(cases).values(newCases as any);
+        await ctx.db.insert(cases).values(newCases as InsertCase[]);
       }
 
       // 更新任务状态为完成
@@ -273,7 +273,7 @@ export const openclawRouter = router({
           status: 'completed',
           completedAt: new Date(),
           dataCount: newCases.length,
-        } as any)
+        } as Partial<InsertOpenclawTask>)
         .where(eq(openclawTasks.id, input.taskId));
 
       return {
@@ -392,7 +392,7 @@ export const adminUsersRouter = router({
         role: input.role,
         orgId: input.orgId || null,
         isActive: true,
-      });
+      } as InsertUser);
       return { id: (result as any).insertId, success: true };
     }),
 
@@ -413,7 +413,7 @@ export const adminUsersRouter = router({
         const bcrypt = await import("bcryptjs");
         updateData.passwordHash = await bcrypt.hash(password, 10);
       }
-      await ctx.db.update(users).set(updateData).where(eq(users.id, id));
+      await ctx.db.update(users).set(updateData as Partial<InsertUser>).where(eq(users.id, id));
       return { success: true };
     }),
 
@@ -423,7 +423,7 @@ export const adminUsersRouter = router({
     .mutation(async ({ input, ctx }) => {
       await ctx.db
         .update(users)
-        .set({ isActive: input.isActive, updatedAt: new Date() })
+        .set({ isActive: input.isActive, updatedAt: new Date() } as Partial<InsertUser>)
         .where(eq(users.id, input.id));
       return { success: true };
     }),
@@ -441,7 +441,7 @@ export const adminUsersRouter = router({
         : input.status === "active";
       await ctx.db
         .update(users)
-        .set({ isActive, updatedAt: new Date() })
+        .set({ isActive, updatedAt: new Date() } as Partial<InsertUser>)
         .where(eq(users.id, input.userId));
       return { success: true };
     }),

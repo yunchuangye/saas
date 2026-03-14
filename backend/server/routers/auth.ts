@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, publicProcedure, protectedProcedure, JWT_SECRET_KEY } from "../lib/trpc";
-import { users, organizations } from "../lib/schema";
+import { users, organizations, type InsertUser } from "../lib/schema";
 import { eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -114,7 +114,7 @@ export const authRouter = router({
         displayName: displayName || username,
         role,
         isActive: true,
-      });
+      } as InsertUser);
 
       const userId = (result as any).insertId;
 
@@ -216,7 +216,7 @@ export const authRouter = router({
     .mutation(async ({ input, ctx }) => {
       await ctx.db
         .update(users)
-        .set({ ...input, updatedAt: new Date() })
+        .set({ ...input, updatedAt: new Date() } as Partial<InsertUser>)
         .where(eq(users.id, ctx.user.id));
       return { success: true };
     }),
@@ -246,7 +246,7 @@ export const authRouter = router({
       const newHash = await bcrypt.hash(input.newPassword, 10);
       await ctx.db
         .update(users)
-        .set({ passwordHash: newHash, updatedAt: new Date() })
+        .set({ passwordHash: newHash, updatedAt: new Date() } as Partial<InsertUser>)
         .where(eq(users.id, ctx.user.id));
 
       return { success: true };

@@ -154,7 +154,7 @@ export default function UsersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditUser(null)}>取消</Button>
-            <Button onClick={() => updateMutation.mutate({ userId: editUser.id, username: form.username, realName: form.realName, email: form.email, phone: form.phone, password: form.password || undefined })}
+            <Button onClick={() => updateMutation.mutate({ id: editUser.id, realName: form.realName, email: form.email, phone: form.phone, password: form.password || undefined })}
               disabled={updateMutation.isPending}>
               {updateMutation.isPending ? "保存中..." : "保存"}
             </Button>

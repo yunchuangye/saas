@@ -119,7 +119,7 @@ export default function EstatesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>取消</Button>
-            <Button onClick={() => createMutation.mutate({ name: form.name, address: form.address || undefined, cityId: form.cityId ? Number(form.cityId) : undefined })} disabled={createMutation.isPending || !form.name}>
+            <Button onClick={() => createMutation.mutate({ name: form.name, address: form.address || undefined, cityId: form.cityId ? Number(form.cityId) : 1 })} disabled={createMutation.isPending || !form.name}>
               {createMutation.isPending ? "添加中..." : "添加"}
             </Button>
           </DialogFooter>

@@ -1,5 +1,5 @@
 import { db } from '../../lib/db';
-import { crawlLogs } from '../../lib/schema';
+import { crawlLogs, type InsertCrawlLog } from '../../lib/schema';
 
 /** 随机延迟 */
 export async function randomDelay(minMs: number, maxMs: number): Promise<void> {
@@ -16,7 +16,7 @@ export async function writeLog(
   dataCount?: number
 ) {
   try {
-    await db.insert(crawlLogs).values({ jobId, level, message, url, dataCount: dataCount ?? 0 });
+    await db.insert(crawlLogs).values({ jobId, level, message, url, dataCount: dataCount ?? 0 } as InsertCrawlLog);
   } catch (e) {
     console.error('[CrawlLog] 写入日志失败:', e);
   }

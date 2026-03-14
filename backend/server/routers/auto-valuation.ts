@@ -218,10 +218,29 @@ export const autoValuationRouter = router({
 
       // 3. 运行估价引擎
       const engineInput: PropertyInput = {
-        ...input,
+        propertyType: input.propertyType,
+        city: input.city,
+        district: input.district,
+        address: input.address,
+        buildingAge: input.buildingAge,
+        totalFloors: input.totalFloors,
+        floor: input.floor,
+        buildingArea: input.buildingArea,
+        landArea: input.landArea,
+        orientation: input.orientation,
+        decoration: input.decoration,
+        hasElevator: input.hasElevator,
+        hasParking: input.hasParking,
+        purpose: input.purpose,
+        monthlyRent: input.monthlyRent,
+        vacancyRate: input.vacancyRate,
+        operatingExpenseRate: input.operatingExpenseRate,
+        capRate: input.capRate,
+        landPrice: input.landPrice,
+        constructionCost: input.constructionCost,
         comparables: comparables.length >= 2 ? comparables : undefined,
       }
-      const result = calculateValuation(engineInput as any)
+      const result = calculateValuation(engineInput)
 
       // 4. 计算估价区间（±10%~15%，置信度越高区间越窄）
       const intervalRate = result.confidenceLevel === 'high' ? 0.08 : 

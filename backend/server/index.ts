@@ -9,7 +9,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "./routers";
 import { createContext } from "./lib/trpc";
 import { db, redis } from "./lib/db";
-import { users } from "./lib/schema";
+import { users, type InsertUser } from "./lib/schema";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { startCrawlWorker } from './crawler/engines/job-queue';
@@ -72,7 +72,7 @@ async function initDB() {
         displayName: "系统管理员",
         role: "admin",
         isActive: true,
-      });
+      } as InsertUser);
       console.log("Default admin created: admin / admin123456");
     }
 
@@ -99,7 +99,7 @@ async function initDB() {
           displayName: u.displayName,
           role: u.role,
           isActive: true,
-        });
+        } as InsertUser);
         console.log(`Test user created: ${u.username} / ${u.password}`);
       }
     }

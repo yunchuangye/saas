@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../lib/trpc";
-import { autoValuations, cases } from "../lib/schema";
+import { autoValuations, cases, type InsertAutoValuation } from "../lib/schema";
 import { eq, and, desc, count } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
@@ -75,7 +75,7 @@ export const valuationRouter = router({
         status: "completed",
       };
 
-      const [result] = await ctx.db.insert(autoValuations).values(data);
+      const [result] = await ctx.db.insert(autoValuations).values(data as InsertAutoValuation);
 
       return {
         id: (result as any).insertId,

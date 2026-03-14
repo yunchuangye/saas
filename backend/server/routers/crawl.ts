@@ -7,7 +7,9 @@ import { router, protectedProcedure, adminProcedure } from '../lib/trpc';
 import { db } from '../lib/db';
 import {
   crawlJobs, crawlLogs, crawlRawData, crawlProxies, crawlAlerts,
-  crawlScheduleHistory, crawlConfig, cities, cases
+  crawlScheduleHistory, crawlConfig, cities, cases,
+  type InsertCrawlJob, type InsertCrawlProxy, type InsertCrawlAlert,
+  type InsertCrawlScheduleHistory, type InsertCrawlConfig
 } from '../lib/schema';
 import { eq, desc, and, gte, count, sql, ne, lt, isNull } from 'drizzle-orm';
 import { enqueueJob, pauseJob, getQueueStats } from '../crawler/engines/job-queue';
@@ -91,9 +93,9 @@ export const crawlRouter = router({
           .where(eq(cities.id, input.cityId)).limit(1);
         cityName = city?.name;
       }
-      const [job] = await (db.insert(crawlJobs) as any).values({
+      const [job] = await db.insert(crawlJobs).values({
         ...input, cityName, createdBy: ctx.user.id, status: 'pending',
-      }).$returningId();
+      } as InsertCrawlJob).$returningId();
 
       // 如果是 cron 任务，注册调度
       if (input.scheduleType === 'cron' && input.cronExpression) {
@@ -123,12 +125,12 @@ export const crawlRouter = router({
       const [job] = await db.select().from(crawlJobs).where(eq(crawlJobs.id, input.id)).limit(1);
       if (!job) throw new Error('任务不存在');
       if (job.status === 'running') throw new Error('任务已在运行中');
-      await db.update(crawlJobs).set({ status: 'pending' }).where(eq(crawlJobs.id, input.id));
+      await db.update(crawlJobs).set({ status: 'pending' } as Partial<InsertCrawlJob>).where(eq(crawlJobs.id, input.id));
       const queueId = await enqueueJob(input.id);
       // 记录手动触发历史
-      await (db.insert(crawlScheduleHistory) as any).values({
+      await db.insert(crawlScheduleHistory).values({
         jobId: input.id, triggeredBy: 'manual', status: 'success', startedAt: new Date(),
-      });
+      } as InsertCrawlScheduleHistory);
       return { message: '任务已加入队列', queueId };
     }),
 
@@ -147,7 +149,7 @@ export const crawlRouter = router({
       await db.update(crawlJobs).set({
         status: 'pending', progress: 0, successCount: 0, failCount: 0,
         duplicateCount: 0, errorMessage: null, startedAt: null, completedAt: null,
-      }).where(eq(crawlJobs.id, input.id));
+      } as Partial<InsertCrawlJob>).where(eq(crawlJobs.id, input.id));
       const queueId = await enqueueJob(input.id);
       return { message: '任务已重启', queueId };
     }),
@@ -178,7 +180,7 @@ export const crawlRouter = router({
           if (action === 'start') { await enqueueJob(id); }
           else if (action === 'pause') { await pauseJob(id); }
           else if (action === 'restart') {
-            await db.update(crawlJobs).set({ status: 'pending', progress: 0 }).where(eq(crawlJobs.id, id));
+            await db.update(crawlJobs).set({ status: 'pending', progress: 0 } as Partial<InsertCrawlJob>).where(eq(crawlJobs.id, id));
             await enqueueJob(id);
           } else if (action === 'delete') {
             unregisterJobSchedule(id);
@@ -367,11 +369,11 @@ export const crawlRouter = router({
       expireAt: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      await (db.insert(crawlProxies) as any).values({
+      await db.insert(crawlProxies).values({
         ...input,
         expireAt: input.expireAt ? new Date(input.expireAt) : null,
         status: 'active',
-      });
+      } as InsertCrawlProxy);
       return { message: '代理已添加' };
     }),
 
@@ -392,11 +394,11 @@ export const crawlRouter = router({
         const port = parseInt(portStr);
         if (!host || isNaN(port)) continue;
         try {
-          await (db.insert(crawlProxies) as any).values({
+          await db.insert(crawlProxies).values({
             host, port, protocol: input.protocol,
             username: username || null, password: password || null,
             provider: input.provider || null, status: 'active',
-          });
+          } as InsertCrawlProxy);
           imported++;
         } catch (e) { /* 重复跳过 */ }
       }
@@ -411,7 +413,7 @@ export const crawlRouter = router({
         .where(eq(crawlProxies.id, input.id)).limit(1);
       if (!proxy) throw new Error('代理不存在');
 
-      await db.update(crawlProxies).set({ status: 'testing' })
+      await db.update(crawlProxies).set({ status: 'testing' } as Partial<InsertCrawlProxy>)
         .where(eq(crawlProxies.id, input.id));
 
       const startTime = Date.now();
@@ -422,7 +424,7 @@ export const crawlRouter = router({
           : `${proxy.protocol}://${proxy.host}:${proxy.port}`;
 
         await axios.get('https://httpbin.org/ip', {
-          proxy: { host: proxy.host, port: proxy.port, protocol: proxy.protocol },
+          proxy: { host: proxy.host, port: proxy.port, protocol: proxy.protocol ?? undefined },
           timeout: 8000,
         });
 
@@ -432,7 +434,7 @@ export const crawlRouter = router({
           avgResponseMs: responseMs,
           successCount: (proxy.successCount ?? 0) + 1,
           lastTestedAt: new Date(),
-        }).where(eq(crawlProxies.id, input.id));
+        } as Partial<InsertCrawlProxy>).where(eq(crawlProxies.id, input.id));
 
         return { success: true, responseMs, message: `代理可用，响应时间 ${responseMs}ms` };
       } catch (e: any) {
@@ -440,7 +442,7 @@ export const crawlRouter = router({
           status: 'inactive',
           failCount: (proxy.failCount ?? 0) + 1,
           lastTestedAt: new Date(),
-        }).where(eq(crawlProxies.id, input.id));
+        } as Partial<InsertCrawlProxy>).where(eq(crawlProxies.id, input.id));
         return { success: false, message: `代理不可用: ${e.message}` };
       }
     }),
@@ -472,9 +474,9 @@ export const crawlRouter = router({
     .input(z.object({ id: z.number().optional() })) // 不传 id 则标记全部已读
     .mutation(async ({ input }) => {
       if (input.id) {
-        await db.update(crawlAlerts).set({ isRead: true }).where(eq(crawlAlerts.id, input.id));
+        await db.update(crawlAlerts).set({ isRead: true } as Partial<InsertCrawlAlert>).where(eq(crawlAlerts.id, input.id));
       } else {
-        await db.update(crawlAlerts).set({ isRead: true });
+        await db.update(crawlAlerts).set({ isRead: true } as Partial<InsertCrawlAlert>);
       }
       return { message: '已标记为已读' };
     }),
@@ -493,7 +495,7 @@ export const crawlRouter = router({
     .input(z.record(z.string()))
     .mutation(async ({ input }) => {
       for (const [key, value] of Object.entries(input)) {
-        await db.update(crawlConfig).set({ value }).where(eq(crawlConfig.key, key));
+        await db.update(crawlConfig).set({ value } as Partial<InsertCrawlConfig>).where(eq(crawlConfig.key, key));
       }
       return { message: '配置已保存' };
     }),

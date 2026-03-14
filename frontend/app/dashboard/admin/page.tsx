@@ -39,7 +39,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <WelcomeCard userName={user?.name ?? "管理员"} role="运营管理" quickActions={[
+      <WelcomeCard userName={user?.displayName ?? "管理员"} role="运营管理" quickActions={[
         { label: "用户管理", href: "/dashboard/admin/users/appraisers" },
         { label: "系统设置", href: "/dashboard/admin/settings" },
       ]} />

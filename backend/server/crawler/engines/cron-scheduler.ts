@@ -2,14 +2,14 @@
  * 定时采集调度器
  * 基于 node-cron 实现，支持每个任务独立的 cron 表达式
  */
-import cron from 'node-cron';
+import cron, { type ScheduledTask } from 'node-cron';
 import { db } from '../../lib/db';
 import { crawlJobs, crawlAlerts, crawlScheduleHistory } from '../../lib/schema';
 import { eq, and } from 'drizzle-orm';
 import { enqueueJob } from './job-queue';
 
 // 活跃的定时任务 Map<jobId, ScheduledTask>
-const scheduledTasks = new Map<number, cron.ScheduledTask>();
+const scheduledTasks = new Map<number, ScheduledTask>();
 
 /**
  * 为指定 crawlJob 注册定时调度

@@ -31,7 +31,7 @@ export default function CustomerDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <WelcomeCard userName={user?.name ?? "用户"} role="个人客户" quickActions={[
+      <WelcomeCard userName={user?.displayName ?? "用户"} role="个人客户" quickActions={[
         { label: "申请评估", href: "/dashboard/customer/apply" },
         { label: "查看我的申请", href: "/dashboard/customer/applications" },
       ]} />

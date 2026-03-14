@@ -169,7 +169,7 @@ const CITY_BASE_PRICES: Record<string, {
   }
 }
 
-const DEFAULT_CITY = { residential: 12000, commercial: 18000, office: 15000, industrial: 5000, trend: 1.0, districts: { '其他': 1.0 } }
+const DEFAULT_CITY: { residential: number; commercial: number; office: number; industrial: number; trend: number; districts: Record<string, number> } = { residential: 12000, commercial: 18000, office: 15000, industrial: 5000, trend: 1.0, districts: { '其他': 1.0 } }
 
 // ============================================================
 // 调整系数表
@@ -260,7 +260,7 @@ function getTimeAdjustment(transactionDate: string, trendRate: number): number {
 
 export function comparativeApproach(input: PropertyInput, cityData: typeof DEFAULT_CITY): MethodResult {
   const districtCoef = getDistrictCoefficient(input.city, input.district)
-  const basePrice = cityData[input.propertyType] || cityData.residential
+  const basePrice = (cityData as any)[input.propertyType] || cityData.residential
 
   // 如果有可比案例，使用真实案例
   if (input.comparables && input.comparables.length >= 2) {
@@ -348,7 +348,7 @@ export function incomeApproach(input: PropertyInput, cityData: typeof DEFAULT_CI
   // 收益法适用于商业、办公、工业及出租型住宅
   if (!input.monthlyRent || input.monthlyRent <= 0) {
     // 根据市场数据估算租金
-    const basePrice = cityData[input.propertyType] || cityData.residential
+    const basePrice = (cityData as any)[input.propertyType] || cityData.residential
     const districtCoef = getDistrictCoefficient(input.city, input.district)
     // 租售比：住宅约1.5-2%，商业约4-6%，办公约3-5%
     const rentalYield = input.propertyType === 'residential' ? 0.018
@@ -471,7 +471,7 @@ export function costApproach(input: PropertyInput, cityData: typeof DEFAULT_CITY
 export function calculateValuation(input: PropertyInput): ValuationResult {
   const cityData = CITY_BASE_PRICES[input.city] || DEFAULT_CITY
   const districtCoef = getDistrictCoefficient(input.city, input.district)
-  const cityAvgPrice = cityData[input.propertyType] || cityData.residential
+  const cityAvgPrice = (cityData as any)[input.propertyType] || cityData.residential
   const districtAvgPrice = Math.round(cityAvgPrice * districtCoef)
 
   // 执行三种估价方法

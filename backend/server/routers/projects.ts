@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../lib/trpc";
-import { projects, bids, users, organizations } from "../lib/schema";
+import { projects, bids, users, organizations, type InsertProject, type InsertBid } from "../lib/schema";
 import { eq, and, desc, like, count, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
@@ -195,7 +195,7 @@ export const projectsRouter = router({
         assignedOrgId: ctx.user.role === "appraiser" && ctx.user.orgId ? ctx.user.orgId : null,
         assignedUserId: ctx.user.role === "appraiser" ? ctx.user.id : null,
         status: ctx.user.role === "appraiser" ? "active" : "bidding",
-      });
+      } as InsertProject);
 
       return { id: (result as any).insertId, success: true };
     }),
@@ -206,7 +206,7 @@ export const projectsRouter = router({
     .mutation(async ({ input, ctx }) => {
       await ctx.db
         .update(projects)
-        .set({ status: input.status, updatedAt: new Date() })
+        .set({ status: input.status, updatedAt: new Date() } as Partial<InsertProject>)
         .where(eq(projects.id, input.id));
       return { success: true };
     }),
@@ -237,7 +237,7 @@ export const bidsRouter = router({
         days: input.days ?? input.estimatedDays ?? 30,
         message: input.message || null,
         status: "pending",
-      });
+      } as InsertBid);
 
       return { id: (result as any).insertId, success: true };
     }),
@@ -294,7 +294,7 @@ export const bidsRouter = router({
 
       await ctx.db
         .update(bids)
-        .set({ status: "accepted" })
+        .set({ status: "accepted" } as Partial<InsertBid>)
         .where(eq(bids.id, input.bidId));
 
       await ctx.db
@@ -304,7 +304,7 @@ export const bidsRouter = router({
           assignedOrgId: bid.orgId,
           assignedUserId: bid.userId,
           updatedAt: new Date(),
-        })
+        } as Partial<InsertProject>)
         .where(eq(projects.id, bid.projectId));
 
       return { success: true };
@@ -316,13 +316,13 @@ export const bidsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const [bid] = await ctx.db.select().from(bids).where(eq(bids.id, input.bidId)).limit(1);
       if (!bid) throw new TRPCError({ code: "NOT_FOUND" });
-      await ctx.db.update(bids).set({ status: "awarded" }).where(eq(bids.id, input.bidId));
+      await ctx.db.update(bids).set({ status: "awarded" } as Partial<InsertBid>).where(eq(bids.id, input.bidId));
       await ctx.db.update(projects).set({
         status: "active",
         assignedOrgId: bid.orgId,
         assignedUserId: bid.userId,
         updatedAt: new Date(),
-      }).where(eq(projects.id, bid.projectId));
+      } as Partial<InsertProject>).where(eq(projects.id, bid.projectId));
       return { success: true };
     }),
 
