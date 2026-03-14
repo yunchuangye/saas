@@ -12,7 +12,7 @@ export const trpc = createTRPCReact<AppRouter>();
 // 后端API地址 - 通过环境变量配置
 export const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
-  "https://3000-ibo2d5kpvacseuc7gba68-939d5c10.sg1.manus.computer";
+  "http://localhost:8721";
 
 export function createTRPCClient() {
   return trpc.createClient({

@@ -1,3 +1,6 @@
+import * as dotenv from "dotenv";
+import * as path from "path";
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 import express from "express";
 import jwt from 'jsonwebtoken';
 import cors from "cors";
@@ -13,7 +16,7 @@ import { startCrawlWorker } from './crawler/engines/job-queue';
 import { initCronScheduler } from './crawler/engines/cron-scheduler';
 
 const app = express();
-const PORT = parseInt(process.env.PORT || "3001");
+const PORT = parseInt(process.env.PORT || "8721");
 
 // 中间件
 app.use(express.json({ limit: "10mb" }));

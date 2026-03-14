@@ -503,7 +503,7 @@ function ValuationReport({ result, form, cityName, selectedEstate, selectedBuild
 
   const handleViewReport = () => {
     if (result.id) {
-      window.open(`http://localhost:3001/api/valuation-report/${result.id}`, '_blank')
+      window.open(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8721'}/api/valuation-report/${result.id}`, '_blank')
     }
   }
 

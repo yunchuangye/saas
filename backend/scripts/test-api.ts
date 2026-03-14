@@ -3,7 +3,7 @@
  * 测试所有 tRPC 路由接口
  */
 
-const BASE_URL = "http://localhost:3001/api/trpc";
+const BASE_URL = "http://localhost:8721/api/trpc";
 let token = "";
 let adminToken = "";
 let cookie = "";

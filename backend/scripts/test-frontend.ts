@@ -3,7 +3,7 @@
  * 通过 HTTP 请求检测所有页面是否能正常返回 200
  */
 
-const BASE = "http://localhost:3000";
+const BASE = "http://localhost:8720";
 
 const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
 const red = (s: string) => `\x1b[31m${s}\x1b[0m`;

@@ -5,7 +5,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const id = params.id
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001"
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8721"
 
   try {
     // 转发 cookie（session）
