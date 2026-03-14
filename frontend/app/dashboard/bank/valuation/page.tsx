@@ -144,7 +144,8 @@ export default function ValuationPage() {
 
   const calculateMutation = trpc.autoValuation.calculate.useMutation({
     onSuccess: (data) => {
-      setResult(data)
+      // 将当前表单的 buildingArea 注入 result，方便计算低高值单价
+      setResult({ ...data, buildingArea: Number(form.buildingArea) })
       setRecordId(data.id)
       setStep(3)
     },
@@ -483,18 +484,18 @@ export default function ValuationPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-4 rounded-xl bg-white border shadow-sm">
                   <p className="text-xs text-muted-foreground mb-1">估价低值</p>
-                  <p className="text-xl font-bold text-orange-600">{formatMoney(result.valueLow)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{formatNum(result.unitPriceLow)} 元/㎡</p>
+                  <p className="text-xl font-bold text-orange-600">{formatMoney(result.valuationMin)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{formatNum(Math.round(result.valuationMin / (result.buildingArea || 1)))} 元/㎡</p>
                 </div>
                 <div className="text-center p-4 rounded-xl bg-primary text-primary-foreground shadow-md">
                   <p className="text-xs opacity-80 mb-1">估价中值（推荐）</p>
-                  <p className="text-2xl font-bold">{formatMoney(result.valueMid)}</p>
-                  <p className="text-xs opacity-80 mt-1">{formatNum(result.unitPriceMid)} 元/㎡</p>
+                  <p className="text-2xl font-bold">{formatMoney(result.finalValue)}</p>
+                  <p className="text-xs opacity-80 mt-1">{formatNum(result.unitPrice)} 元/㎡</p>
                 </div>
                 <div className="text-center p-4 rounded-xl bg-white border shadow-sm">
                   <p className="text-xs text-muted-foreground mb-1">估价高值</p>
-                  <p className="text-xl font-bold text-green-600">{formatMoney(result.valueHigh)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{formatNum(result.unitPriceHigh)} 元/㎡</p>
+                  <p className="text-xl font-bold text-green-600">{formatMoney(result.valuationMax)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{formatNum(Math.round(result.valuationMax / (result.buildingArea || 1)))} 元/㎡</p>
                 </div>
               </div>
 
@@ -517,11 +518,21 @@ export default function ValuationPage() {
               {/* 估价方法 */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm text-muted-foreground">采用方法：</span>
-                {result.methods?.map((m: any) => (
-                  <Badge key={m.name} variant="secondary" className="text-xs">
-                    {m.name} × {m.weight}
-                  </Badge>
-                ))}
+                {result.weights ? (
+                  <>
+                    {result.weights.comparative > 0 && (
+                      <Badge variant="secondary" className="text-xs">比较法 × {Math.round(result.weights.comparative * 100)}%</Badge>
+                    )}
+                    {result.weights.income > 0 && (
+                      <Badge variant="secondary" className="text-xs">收益法 × {Math.round(result.weights.income * 100)}%</Badge>
+                    )}
+                    {result.weights.cost > 0 && (
+                      <Badge variant="secondary" className="text-xs">成本法 × {Math.round(result.weights.cost * 100)}%</Badge>
+                    )}
+                  </>
+                ) : result.method ? (
+                  <Badge variant="secondary" className="text-xs">{result.method}</Badge>
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -536,37 +547,63 @@ export default function ValuationPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {result.llmAnalysis.summary && (
+                {/* llmAnalysis 可能是字符串或对象，展示时均兼容 */}
+                {typeof result.llmAnalysis === 'string' ? (
                   <div className="rounded-lg bg-blue-50 border border-blue-100 p-4">
-                    <p className="text-sm font-medium text-blue-800 mb-2">综合估价意见</p>
-                    <p className="text-sm text-blue-700 leading-relaxed">{result.llmAnalysis.summary}</p>
+                    <p className="text-sm font-medium text-blue-800 mb-2">AI 分析意见</p>
+                    <p className="text-sm text-blue-700 leading-relaxed whitespace-pre-wrap">{result.llmAnalysis}</p>
                   </div>
-                )}
-                {result.llmAnalysis.marketAnalysis && (
-                  <div>
-                    <p className="text-sm font-medium mb-2">市场分析</p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{result.llmAnalysis.marketAnalysis}</p>
-                  </div>
-                )}
-                {result.llmAnalysis.riskFactors && result.llmAnalysis.riskFactors.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium mb-2 text-yellow-700 flex items-center gap-1">
-                      <AlertCircle className="h-3.5 w-3.5" />风险提示
-                    </p>
-                    <ul className="space-y-1">
-                      {result.llmAnalysis.riskFactors.map((r: string, i: number) => (
-                        <li key={i} className="text-sm text-yellow-700 flex items-start gap-2">
-                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-yellow-500 flex-shrink-0" />{r}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {result.llmAnalysis.recommendation && (
-                  <div className="rounded-lg bg-green-50 border border-green-100 p-4">
-                    <p className="text-sm font-medium text-green-800 mb-2">估价师建议</p>
-                    <p className="text-sm text-green-700 leading-relaxed">{result.llmAnalysis.recommendation}</p>
-                  </div>
+                ) : (
+                  <>
+                    {result.llmAnalysis.summary && (
+                      <div className="rounded-lg bg-blue-50 border border-blue-100 p-4">
+                        <p className="text-sm font-medium text-blue-800 mb-2">综合估价意见</p>
+                        <p className="text-sm text-blue-700 leading-relaxed">{result.llmAnalysis.summary}</p>
+                      </div>
+                    )}
+                    {result.llmAnalysis.analysis && (
+                      <div className="rounded-lg bg-blue-50 border border-blue-100 p-4">
+                        <p className="text-sm font-medium text-blue-800 mb-2">AI 分析意见</p>
+                        <p className="text-sm text-blue-700 leading-relaxed whitespace-pre-wrap">{result.llmAnalysis.analysis}</p>
+                      </div>
+                    )}
+                    {result.llmAnalysis.marketAnalysis && (
+                      <div>
+                        <p className="text-sm font-medium mb-2">市场分析</p>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{result.llmAnalysis.marketAnalysis}</p>
+                      </div>
+                    )}
+                    {result.llmAnalysis.riskFactors && result.llmAnalysis.riskFactors.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium mb-2 text-yellow-700 flex items-center gap-1">
+                          <AlertCircle className="h-3.5 w-3.5" />风险提示
+                        </p>
+                        <ul className="space-y-1">
+                          {result.llmAnalysis.riskFactors.map((r: string, i: number) => (
+                            <li key={i} className="text-sm text-yellow-700 flex items-start gap-2">
+                              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-yellow-500 flex-shrink-0" />{r}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {result.llmAnalysis.keyFactors && result.llmAnalysis.keyFactors.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium mb-2 text-blue-700">关键影响因素</p>
+                        <div className="flex flex-wrap gap-2">
+                          {result.llmAnalysis.keyFactors.map((f: string, i: number) => (
+                            <Badge key={i} variant="secondary" className="text-xs">{f}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {result.llmAnalysis.recommendation && (
+                      <div className="rounded-lg bg-green-50 border border-green-100 p-4">
+                        <p className="text-sm font-medium text-green-800 mb-2">估价师建议</p>
+                        <p className="text-sm text-green-700 leading-relaxed">{result.llmAnalysis.recommendation}</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
