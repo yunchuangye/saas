@@ -1,47 +1,42 @@
 # 数据库备份说明
 
-## 最新完整备份（2026-03-15）
+## 最新备份（清理后）
 
-文件：`gujia_full_20260315.gz.partaa` + `gujia_full_20260315.gz.partab`
+| 文件 | 大小 | 日期 | 说明 |
+|------|------|------|------|
+| `gujia_clean_20260315.sql.gz` | ~58MB | 2026-03-15 | 去重清理后的完整数据库备份 |
 
-压缩前大小：**931 MB**（MySQL 8.0 完整备份，含所有表结构和数据）
+## 数据统计（清理后）
 
-### 还原方法
+| 表 | 记录数 | 说明 |
+|----|--------|------|
+| estates（楼盘） | 4,494 | 含深圳 4,484 个楼盘 |
+| buildings（楼栋） | 34,324 | 含深圳 34,312 个楼栋 |
+| units（房屋） | 2,174,274 | 含深圳 217 万套房屋 |
+| cities（城市） | 见 cities_districts.sql | |
+| districts（区域） | 见 cities_districts.sql | |
+
+## 导入方法
 
 ```bash
-# 第一步：合并分卷文件
-cat gujia_full_20260315.gz.part* > gujia_full_20260315.sql.gz
+# 1. 创建数据库和用户（首次）
+sudo mysql -e "
+CREATE DATABASE IF NOT EXISTS gujia CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'gujia'@'localhost' IDENTIFIED BY 'gujia_dev_2026';
+GRANT ALL PRIVILEGES ON gujia.* TO 'gujia'@'localhost';
+FLUSH PRIVILEGES;
+"
 
-# 第二步：解压
-gunzip gujia_full_20260315.sql.gz
-
-# 第三步：导入 MySQL
-mysql -u root -p gujia < gujia_full_20260315.sql
+# 2. 导入数据
+gunzip -c gujia_clean_20260315.sql.gz | mysql -u gujia -pgujia_dev_2026 gujia
 ```
 
-## 数据内容
+## 去重说明
 
-| 表名 | 数据量 | 说明 |
-|------|--------|------|
-| estates | 4,479 条 | 深圳全10区楼盘 |
-| buildings | 34,338 条 | 深圳楼栋 |
-| units | 2,336,349 条 | 深圳物业单元 |
-| cities | 45 条 | 全国主要城市 |
-| districts | 505 条 | 城市下辖区县 |
-| users/organizations 等 | 若干 | 业务基础数据 |
+原始数据库（gujia_full_20260315.sql.gz）因多次批量导入存在大量重复数据：
+- 删除孤立 units（estate_id 不存在）：3,185,754 条
+- 删除孤立 buildings（estate_id 不存在）：118,104 条
+- 删除有效 units 内部重复（同楼栋同房号）：162,093 条
+- 删除重复 buildings（同楼盘同名）：26 条
 
-## 各区数据统计
-
-| 区名 | 楼盘数 | 楼栋数 | 单元数 |
-|------|--------|--------|--------|
-| 福田区 | 1,058 | 5,514 | 478,156 |
-| 罗湖区 | 870 | 5,079 | 358,084 |
-| 南山区 | 850 | 6,772 | 424,905 |
-| 龙岗区 | 618 | 6,879 | 472,684 |
-| 宝安区 | 546 | 4,752 | 307,368 |
-| 龙华区 | 223 | 2,847 | 154,607 |
-| 盐田区 | 213 | 1,413 | 61,830 |
-| 坪山区 | 44 | 491 | 38,317 |
-| 大鹏新区 | 30 | 277 | 9,625 |
-| 光明区 | 27 | 314 | 30,773 |
-| **合计** | **4,479** | **34,338** | **2,336,349** |
+去重脚本：`dedup_units.py` / `dedup_step3.py`
