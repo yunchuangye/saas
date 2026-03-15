@@ -13,6 +13,7 @@ import { pdfReportRouter } from './pdf-report';
 import { propertySearchRouter } from './property-search';
 import { crawlRouter } from './crawl';
 import { salesRouter } from './sales';
+import { szfdcRouter } from './szfdc';
 
 export const appRouter = router({
   auth: authRouter,
@@ -34,6 +35,7 @@ export const appRouter = router({
   propertySearch: propertySearchRouter,
   crawl: crawlRouter,
   sales: salesRouter,
+  szfdc: szfdcRouter,
 });
 
 export type AppRouter = typeof appRouter;
