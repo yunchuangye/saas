@@ -24,6 +24,9 @@ import {
   Calculator,
   Database,
   Megaphone,
+  Sparkles,
+  GitCompare,
+  ShieldAlert,
   type LucideIcon,
 } from "lucide-react"
 
@@ -303,6 +306,19 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
         { title: "房屋管理", href: "/dashboard/admin/directory/units", icon: DoorOpen },
         { title: "案例管理", href: "/dashboard/admin/directory/cases", icon: Database },
         { title: "数据采集", href: "/dashboard/admin/crawler", icon: Bot },
+        {
+          title: "OpenClaw AI",
+          href: "/dashboard/admin/directory/cases",
+          icon: Bot,
+          children: [
+            { title: "AI 智能采集", href: "/dashboard/admin/directory/cases/ai-collect", icon: Database },
+            { title: "AI 数据清洗", href: "/dashboard/admin/directory/cases/ai-clean", icon: Sparkles },
+            { title: "AI 价格预测", href: "/dashboard/admin/directory/cases/ai-predict", icon: TrendingUp },
+            { title: "AI 案例匹配", href: "/dashboard/admin/directory/cases/ai-match", icon: GitCompare },
+            { title: "AI 异常检测", href: "/dashboard/admin/directory/cases/ai-anomaly", icon: ShieldAlert },
+            { title: "AI 批量估值", href: "/dashboard/admin/directory/cases/ai-batch", icon: Calculator },
+          ],
+        },
       ],
     },
     {
