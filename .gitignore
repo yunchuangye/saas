@@ -37,3 +37,6 @@ coverage/
 # Local dev logs and pid files
 logs/
 *.pid
+
+# 数据库大文件（使用分卷压缩文件代替）
+database/gujia_full_*.sql
