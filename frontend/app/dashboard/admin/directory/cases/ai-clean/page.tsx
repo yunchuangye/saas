@@ -3,179 +3,237 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Switch } from "@/components/ui/switch"
-import { Sparkles, Play, CheckCircle2, AlertTriangle, RefreshCw, Clock, Trash2, Wrench } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Sparkles, ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Loader2, ShieldCheck } from "lucide-react"
+import { trpc } from "@/lib/trpc"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
-const CLEAN_RULES = [
-  { id: "dup", label: "重复数据检测", desc: "检测并删除重复案例记录", color: "text-orange-500" },
-  { id: "missing", label: "缺失字段补充", desc: "自动补充缺失的地址、面积等字段", color: "text-blue-500" },
-  { id: "price", label: "价格异常过滤", desc: "过滤价格过高或过低的异常数据", color: "text-red-500" },
-  { id: "conflict", label: "数据冲突解决", desc: "处理同一房源的矛盾信息", color: "text-purple-500" },
-  { id: "format", label: "格式标准化", desc: "统一日期、地址、面积单位格式", color: "text-cyan-500" },
-]
+export default function AiCleanPage() {
+  const router = useRouter()
+  const [cityId, setCityId] = useState<string>("")
+  const [activeTab, setActiveTab] = useState<"overview" | "duplicates" | "anomalies">("overview")
+  const [markingId, setMarkingId] = useState<number | null>(null)
 
-type Issue = { id: number; type: string; field: string; original: string; fixed: string; status: "fixed" | "removed" | "pending" }
-type LogEntry = { time: string; level: "info" | "success" | "error" | "warn"; msg: string }
+  const { data: config } = trpc.aiFeatures.getCollectConfig.useQuery()
+  const cityIdNum = cityId ? Number(cityId) : undefined
 
-export default function AICleanPage() {
-  const [running, setRunning] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [enabledRules, setEnabledRules] = useState<string[]>(["dup", "missing", "price", "conflict", "format"])
-  const [logs, setLogs] = useState<LogEntry[]>([])
-  const [stats, setStats] = useState({ scanned: 0, fixed: 0, removed: 0, pending: 0 })
-  const [issues, setIssues] = useState<Issue[]>([])
+  const { data: quality, isLoading: qualityLoading, refetch: refetchQuality } = trpc.aiFeatures.scanDataQuality.useQuery({ cityId: cityIdNum })
+  const { data: duplicates, isLoading: dupLoading } = trpc.aiFeatures.getDuplicateCases.useQuery(
+    { cityId: cityIdNum, limit: 50 }, { enabled: activeTab === "duplicates" }
+  )
+  const { data: anomalies, isLoading: anomalyLoading, refetch: refetchAnomalies } = trpc.aiFeatures.getAnomalyCases.useQuery(
+    { cityId: cityIdNum, limit: 50 }, { enabled: activeTab === "anomalies" }
+  )
 
-  const addLog = (level: LogEntry["level"], msg: string) => {
-    const time = new Date().toLocaleTimeString("zh-CN", { hour12: false })
-    setLogs(prev => [{ time, level, msg }, ...prev].slice(0, 100))
-  }
+  const markMutation = trpc.aiFeatures.markAnomaly.useMutation({
+    onSuccess: () => { toast.success("标记成功"); refetchAnomalies(); refetchQuality(); setMarkingId(null) },
+    onError: (e) => { toast.error(e.message); setMarkingId(null) },
+  })
 
-  const handleStart = () => {
-    setRunning(true); setProgress(0); setLogs([]); setStats({ scanned: 0, fixed: 0, removed: 0, pending: 0 }); setIssues([])
-    addLog("info", `开始数据清洗，已启用规则：${enabledRules.map(r => CLEAN_RULES.find(c => c.id === r)?.label).join("、")}`)
-    let p = 0, scanned = 0, fixed = 0, removed = 0, pending = 0, issueId = 0
-    const issueTypes = [
-      { type: "重复数据", field: "案例 ID", orig: "#2341 / #2342", fix: "删除 #2342", status: "removed" as const },
-      { type: "缺失字段", field: "物业地址", orig: "NULL", fix: "深圳市福田区未知路", status: "fixed" as const },
-      { type: "价格异常", field: "成交单价", orig: "98,000 元/㎡", fix: "标记待复核", status: "pending" as const },
-      { type: "格式错误", field: "成交日期", orig: "2024/3/5", fix: "2024-03-05", status: "fixed" as const },
-      { type: "数据冲突", field: "建筑面积", orig: "120㎡ vs 95㎡", fix: "保留官方数据 120㎡", status: "fixed" as const },
-    ]
-    const interval = setInterval(() => {
-      p += Math.random() * 6 + 2
-      if (p >= 100) p = 100
-      const bScan = Math.floor(Math.random() * 50) + 20
-      const bFix = Math.floor(Math.random() * 5)
-      const bRem = Math.floor(Math.random() * 2)
-      const bPend = Math.random() > 0.85 ? 1 : 0
-      scanned += bScan; fixed += bFix; removed += bRem; pending += bPend
-      setProgress(Math.floor(p))
-      setStats({ scanned, fixed, removed, pending })
-      if (bFix > 0 || bRem > 0 || bPend > 0) {
-        const issue = issueTypes[Math.floor(Math.random() * issueTypes.length)]
-        issueId++
-        setIssues(prev => [...prev, { id: issueId, type: issue.type, field: issue.field, original: issue.orig, fixed: issue.fix, status: issue.status }].slice(-100))
-        if (issue.status === "removed") addLog("warn", `删除重复记录：${issue.orig}`)
-        else if (issue.status === "fixed") addLog("success", `修复字段 [${issue.field}]：${issue.orig} → ${issue.fix}`)
-        else addLog("warn", `异常标记：${issue.field} = ${issue.orig}，待人工复核`)
-      } else {
-        addLog("info", `扫描 ${bScan} 条记录，未发现问题`)
-      }
-      if (p >= 100) { clearInterval(interval); setRunning(false); addLog("info", `清洗完成！扫描 ${scanned} 条，修复 ${fixed} 条，删除 ${removed} 条，待复核 ${pending} 条`) }
-    }, 700)
-  }
+  const batchMarkMutation = trpc.aiFeatures.batchMarkAnomalies.useMutation({
+    onSuccess: (d) => {
+      if (d.dryRun) toast.info(`预检：将标记 ${d.count} 条异常案例（均价 ${d.avgPrice?.toLocaleString()} 元/㎡）`)
+      else { toast.success(`已标记 ${d.count} 条异常案例`); refetchQuality(); refetchAnomalies() }
+    },
+    onError: (e) => toast.error(e.message),
+  })
+
+  const issues = quality?.issues
+  const issueCards = issues ? [
+    { label: "缺失面积", count: issues.missingArea, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "缺失单价", count: issues.missingPrice, color: "text-orange-600", bg: "bg-orange-50" },
+    { label: "缺失日期", count: issues.missingDate, color: "text-yellow-600", bg: "bg-yellow-50" },
+    { label: "缺失地址", count: issues.missingAddress, color: "text-red-500", bg: "bg-red-50" },
+    { label: "重复案例组", count: issues.duplicateGroups, color: "text-violet-600", bg: "bg-violet-50" },
+    { label: "价格异常", count: issues.anomalyPrice, color: "text-rose-600", bg: "bg-rose-50" },
+  ] : []
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-white"><Sparkles className="h-5 w-5" /></div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">AI 数据清洗</h1>
-            <p className="text-muted-foreground text-sm">智能检测并处理重复、缺失、异常、冲突数据</p>
-          </div>
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowLeft className="h-4 w-4" /></Button>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Sparkles className="h-6 w-6 text-emerald-600" />AI 数据清洗
+          </h1>
+          <p className="text-muted-foreground text-sm">检测并处理重复数据、缺失字段、价格异常等数据质量问题</p>
         </div>
-        {running ? (
-          <Button variant="destructive" onClick={() => { setRunning(false); addLog("warn", "清洗任务已停止") }}><RefreshCw className="h-4 w-4 mr-2 animate-spin" />停止</Button>
-        ) : (
-          <Button onClick={handleStart} className="bg-emerald-600 hover:bg-emerald-700"><Play className="h-4 w-4 mr-2" />开始清洗</Button>
-        )}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm font-medium flex items-center gap-2"><Wrench className="h-4 w-4 text-emerald-600" />清洗规则</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              {CLEAN_RULES.map(rule => (
-                <div key={rule.id} className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${rule.color}`}>{rule.label}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{rule.desc}</p>
-                  </div>
-                  <Switch checked={enabledRules.includes(rule.id)} disabled={running}
-                    onCheckedChange={v => setEnabledRules(prev => v ? [...prev, rule.id] : prev.filter(r => r !== rule.id))} />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "扫描总量", value: stats.scanned, icon: RefreshCw, color: "text-blue-600" },
-              { label: "已修复", value: stats.fixed, icon: CheckCircle2, color: "text-emerald-600" },
-              { label: "已删除", value: stats.removed, icon: Trash2, color: "text-orange-500" },
-              { label: "待复核", value: stats.pending, icon: AlertTriangle, color: "text-yellow-500" }
-            ].map(item => (
-              <Card key={item.label} className="p-3">
-                <div className="flex items-center gap-2"><item.icon className={`h-4 w-4 ${item.color}`} /><span className="text-xs text-muted-foreground">{item.label}</span></div>
-                <p className="text-2xl font-bold mt-1">{item.value.toLocaleString()}</p>
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <Select value={cityId} onValueChange={setCityId}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="全部城市" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">全部城市</SelectItem>
+            {config?.cities.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" onClick={() => refetchQuality()}>
+          <RefreshCw className="h-4 w-4 mr-1" />重新扫描
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => batchMarkMutation.mutate({ cityId: cityIdNum, dryRun: true })} disabled={batchMarkMutation.isPending}>
+          <ShieldCheck className="h-4 w-4 mr-1" />预检异常
+        </Button>
+        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          onClick={() => batchMarkMutation.mutate({ cityId: cityIdNum, dryRun: false })} disabled={batchMarkMutation.isPending}>
+          {batchMarkMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+          批量标记异常
+        </Button>
+      </div>
+
+      {qualityLoading ? (
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
+      ) : (
+        <>
+          <div className="flex items-center gap-4 text-sm">
+            <span>总案例：<strong>{quality?.total?.toLocaleString()}</strong></span>
+            <span>数据清洁度：<strong className={(quality?.cleanRate ?? 0) >= 80 ? "text-green-600" : "text-amber-600"}>{quality?.cleanRate}%</strong></span>
+            {quality?.priceStats && <span className="text-xs text-muted-foreground">均价 {quality.priceStats.avg?.toLocaleString()} ± {quality.priceStats.std?.toLocaleString()} 元/㎡</span>}
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            {issueCards.map(card => (
+              <Card key={card.label} className={card.bg + " border-0"}>
+                <CardContent className="pt-3 pb-3 text-center">
+                  <p className={"text-2xl font-bold " + card.color}>{card.count}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{card.label}</p>
+                </CardContent>
               </Card>
             ))}
           </div>
-        </div>
-        <div className="lg:col-span-2 space-y-4">
-          {(running || progress > 0) && (
-            <Card><CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium flex items-center gap-2">
-                  {running ? <><RefreshCw className="h-4 w-4 animate-spin text-emerald-600" />清洗进行中...</> : <><CheckCircle2 className="h-4 w-4 text-emerald-600" />清洗完成</>}
-                </span>
-                <span className="text-sm font-bold">{progress}%</span>
-              </div>
-              <Progress value={progress} className="h-2" />
-            </CardContent></Card>
-          )}
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><Clock className="h-4 w-4 text-emerald-600" />实时日志<Badge variant="secondary" className="ml-auto text-xs">{logs.length} 条</Badge></CardTitle></CardHeader>
-            <CardContent>
-              <div className="h-44 overflow-y-auto rounded-md bg-muted/30 p-3 font-mono text-xs space-y-1">
-                {logs.length === 0 ? <p className="text-muted-foreground text-center py-8">等待清洗任务启动...</p> : logs.map((log, i) => (
-                  <div key={i} className="flex gap-2">
-                    <span className="text-muted-foreground shrink-0">{log.time}</span>
-                    <span className={log.level === "success" ? "text-green-600" : log.level === "error" ? "text-red-500" : log.level === "warn" ? "text-yellow-600" : "text-foreground"}>{log.msg}</span>
+        </>
+      )}
+
+      <div className="flex gap-2 border-b">
+        {[
+          { key: "overview", label: "质量概览" },
+          { key: "duplicates", label: "重复案例" + (issues?.duplicateGroups ? ` (${issues.duplicateGroups})` : "") },
+          { key: "anomalies", label: "价格异常" + (issues?.anomalyPrice ? ` (${issues.anomalyPrice})` : "") },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key as any)}
+            className={"px-4 py-2 text-sm font-medium border-b-2 transition-colors " + (activeTab === tab.key ? "border-emerald-600 text-emerald-600" : "border-transparent text-muted-foreground hover:text-foreground")}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "overview" && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">数据质量分析报告</CardTitle></CardHeader>
+          <CardContent>
+            {qualityLoading ? <Skeleton className="h-40" /> : (
+              <div className="space-y-2">
+                {issueCards.map(card => (
+                  <div key={card.label} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <span className="text-sm">{card.label}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-muted rounded-full h-2">
+                        <div className={"h-2 rounded-full " + (card.count > 0 ? "bg-amber-400" : "bg-green-400")}
+                          style={{ width: quality?.total ? Math.min(100, (card.count / quality.total) * 100) + "%" : "0%" }} />
+                      </div>
+                      <span className={"text-sm font-medium w-12 text-right " + card.color}>{card.count}</span>
+                      <Badge variant={card.count > 0 ? "destructive" : "secondary"} className="text-xs w-14 justify-center">
+                        {card.count > 0 ? "需处理" : "正常"}
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-emerald-600" />问题记录</CardTitle></CardHeader>
-            <CardContent>
-              {issues.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground"><CheckCircle2 className="h-10 w-10 mb-3 opacity-20" /><p className="text-sm">暂无检测到问题</p></div>
-              ) : (
-                <div className="overflow-auto max-h-64">
-                  <Table>
-                    <TableHeader><TableRow>
-                      <TableHead className="text-xs">问题类型</TableHead>
-                      <TableHead className="text-xs">字段</TableHead>
-                      <TableHead className="text-xs">原始值</TableHead>
-                      <TableHead className="text-xs">处理结果</TableHead>
-                      <TableHead className="text-xs">状态</TableHead>
-                    </TableRow></TableHeader>
-                    <TableBody>
-                      {issues.map(issue => (
-                        <TableRow key={issue.id}>
-                          <TableCell className="text-xs font-medium">{issue.type}</TableCell>
-                          <TableCell className="text-xs">{issue.field}</TableCell>
-                          <TableCell className="text-xs text-red-500 max-w-[100px] truncate">{issue.original}</TableCell>
-                          <TableCell className="text-xs text-green-600 max-w-[120px] truncate">{issue.fixed}</TableCell>
-                          <TableCell>
-                            <Badge variant={issue.status === "fixed" ? "default" : issue.status === "removed" ? "destructive" : "secondary"} className="text-xs">
-                              {issue.status === "fixed" ? "已修复" : issue.status === "removed" ? "已删除" : "待复核"}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === "duplicates" && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">重复案例列表（同地址+面积+日期）</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead><TableHead>地址</TableHead><TableHead>面积(㎡)</TableHead>
+                  <TableHead>单价(元/㎡)</TableHead><TableHead>成交日期</TableHead><TableHead>来源</TableHead><TableHead>重复数</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dupLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell></TableRow>)
+                ) : !(duplicates as any[])?.length ? (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                    <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />无重复案例
+                  </TableCell></TableRow>
+                ) : (
+                  (duplicates as any[]).map((c: any) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="text-xs text-muted-foreground">{c.id}</TableCell>
+                      <TableCell className="text-sm max-w-[200px] truncate">{c.address || "—"}</TableCell>
+                      <TableCell>{Number(c.area).toFixed(1)}</TableCell>
+                      <TableCell>{Number(c.unit_price).toLocaleString()}</TableCell>
+                      <TableCell className="text-xs">{c.transaction_date ? new Date(c.transaction_date).toLocaleDateString("zh-CN") : "—"}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs">{c.source || "—"}</Badge></TableCell>
+                      <TableCell><Badge variant="destructive" className="text-xs">{c.duplicate_count} 条</Badge></TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === "anomalies" && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">价格异常案例（超出均价 ±2.5 倍标准差）</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>地址</TableHead><TableHead>面积(㎡)</TableHead><TableHead>单价(元/㎡)</TableHead>
+                  <TableHead>异常类型</TableHead><TableHead>偏差</TableHead><TableHead>状态</TableHead><TableHead>操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {anomalyLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell></TableRow>)
+                ) : !anomalies?.length ? (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                    <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />无价格异常案例
+                  </TableCell></TableRow>
+                ) : (
+                  anomalies.map((c: any) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="text-sm max-w-[200px] truncate">{c.address || "—"}</TableCell>
+                      <TableCell>{Number(c.area).toFixed(1)}</TableCell>
+                      <TableCell className="font-medium">{Number(c.unitPrice).toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge variant={c.anomalyType === "价格过高" ? "destructive" : "secondary"} className="text-xs">
+                          <AlertTriangle className="h-3 w-3 mr-1" />{c.anomalyType}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className={"text-sm font-medium " + (c.deviation > 0 ? "text-red-600" : "text-blue-600")}>
+                        {c.deviation > 0 ? "+" : ""}{c.deviation}%
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={c.isAnomaly ? "destructive" : "outline"} className="text-xs">
+                          {c.isAnomaly ? "已标记" : "未标记"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="outline" className="h-7 text-xs" disabled={markingId === c.id}
+                          onClick={() => { setMarkingId(c.id); markMutation.mutate({ caseId: c.id, isAnomaly: !c.isAnomaly, reason: c.isAnomaly ? undefined : c.anomalyType + "：偏差 " + c.deviation + "%" }) }}>
+                          {markingId === c.id ? <Loader2 className="h-3 w-3 animate-spin" /> : c.isAnomaly ? "取消标记" : "标记异常"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
