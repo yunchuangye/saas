@@ -182,6 +182,7 @@ export const estates = mysqlTable("estates", {
   name: varchar("name", { length: 200 }).notNull(),
   pinyin: varchar("pinyin", { length: 200 }),  // 拼音首字母，如 WKJY
   cityId: int("city_id").notNull(),
+  districtId: int("district_id"),  // 所属地区
   address: varchar("address", { length: 500 }),
   developer: varchar("developer", { length: 200 }),
   buildYear: int("build_year"),

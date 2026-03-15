@@ -18,8 +18,10 @@ export default function UnitsPage() {
   const { toast } = useToast()
   const [search, setSearch] = useState("")
   const [cityId, setCityId] = useState<number | undefined>(undefined)
+  const [districtId, setDistrictId] = useState<number | undefined>(undefined)
   const [estateId, setEstateId] = useState<number | undefined>(undefined)
   const [buildingId, setBuildingId] = useState<number | undefined>(undefined)
+  const [estateSearch, setEstateSearch] = useState("")
   const [page, setPage] = useState(1)
   const [editUnit, setEditUnit] = useState<any>(null)
   const [createOpen, setCreateOpen] = useState(false)
@@ -29,11 +31,27 @@ export default function UnitsPage() {
   const { data: citiesData } = trpc.directory.cities.list.useQuery({ pageSize: 100 })
   const cities = citiesData?.items ?? []
 
-  const { data: estatesData } = trpc.directory.listEstates.useQuery({ pageSize: 200, cityId: cityId || undefined })
+  // 地区列表（选中城市后加载）
+  const { data: districtsData } = trpc.directory.listDistricts.useQuery(
+    { cityId: cityId! },
+    { enabled: !!cityId, staleTime: 60000 }
+  )
+  const districts = districtsData?.items ?? []
+
+  // 楼盘列表（支持拼音首字母搜索）
+  const { data: estatesData } = trpc.directory.listEstates.useQuery({
+    pageSize: 200,
+    cityId: cityId || undefined,
+    districtId: districtId || undefined,
+    search: estateSearch || undefined,
+  })
   const estateOptions = estatesData?.items ?? []
 
   const { data: buildingsData } = trpc.directory.listBuildings.useQuery({
-    pageSize: 500, cityId: cityId || undefined, estateId: estateId || undefined,
+    pageSize: 500,
+    cityId: cityId || undefined,
+    districtId: districtId || undefined,
+    estateId: estateId || undefined,
   })
   const buildingOptions = buildingsData?.items ?? []
 
@@ -41,6 +59,7 @@ export default function UnitsPage() {
     page, pageSize: 20,
     search: search || undefined,
     cityId: cityId || undefined,
+    districtId: districtId || undefined,
     estateId: estateId || undefined,
     buildingId: buildingId || undefined,
   })
@@ -61,6 +80,7 @@ export default function UnitsPage() {
   })
 
   const selectedCityName = cities.find((c: any) => c.id === cityId)?.name
+  const selectedDistrictName = districts.find((d: any) => d.id === districtId)?.name
   const selectedEstateName = estateOptions.find((e: any) => e.id === estateId)?.name
   const selectedBuildingName = buildingOptions.find((b: any) => b.id === buildingId)?.name
 
@@ -80,6 +100,7 @@ export default function UnitsPage() {
         <div className="flex items-center gap-1 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
           <MapPin className="h-3 w-3" />
           {selectedCityName && <span>{selectedCityName}</span>}
+          {selectedDistrictName && <><ChevronRight className="h-3 w-3" /><span>{selectedDistrictName}</span></>}
           {selectedEstateName && <><ChevronRight className="h-3 w-3" /><span>{selectedEstateName}</span></>}
           {selectedBuildingName && <><ChevronRight className="h-3 w-3" /><span>{selectedBuildingName}</span></>}
           <span className="ml-2 font-medium text-foreground">共 {total} 套房屋</span>
@@ -89,40 +110,74 @@ export default function UnitsPage() {
       <Card>
         <CardHeader>
           <div className="flex flex-wrap gap-3 items-center">
+            {/* 城市 */}
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
-              <Select value={cityId ? String(cityId) : "all"} onValueChange={v => { setCityId(v === "all" ? undefined : Number(v)); setEstateId(undefined); setBuildingId(undefined); setPage(1) }}>
-                <SelectTrigger className="w-32"><SelectValue placeholder="城市" /></SelectTrigger>
+              <Select value={cityId ? String(cityId) : "all"} onValueChange={v => { setCityId(v === "all" ? undefined : Number(v)); setDistrictId(undefined); setEstateId(undefined); setBuildingId(undefined); setPage(1) }}>
+                <SelectTrigger className="w-28"><SelectValue placeholder="城市" /></SelectTrigger>
                 <SelectContent className="max-h-64 overflow-y-auto">
                   <SelectItem value="all">全部城市</SelectItem>
                   {cities.map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <Select value={estateId ? String(estateId) : "all"} onValueChange={v => { setEstateId(v === "all" ? undefined : Number(v)); setBuildingId(undefined); setPage(1) }}>
-              <SelectTrigger className="w-44"><SelectValue placeholder="选择楼盘" /></SelectTrigger>
-              <SelectContent className="max-h-64 overflow-y-auto">
-                <SelectItem value="all">全部楼盘</SelectItem>
-                {estateOptions.map((e: any) => <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={buildingId ? String(buildingId) : "all"} onValueChange={v => { setBuildingId(v === "all" ? undefined : Number(v)); setPage(1) }}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="选择楼栋" /></SelectTrigger>
-              <SelectContent className="max-h-64 overflow-y-auto">
-                <SelectItem value="all">全部楼栋</SelectItem>
-                {buildingOptions.map((b: any) => (
-                  <SelectItem key={b.id} value={String(b.id)}>
-                    {b.name}{b.estateName ? " (" + b.estateName + ")" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="relative flex-1 min-w-36 max-w-xs">
+            {/* 地区（选中城市后显示） */}
+            {cityId && (
+              <>
+                <span className="text-muted-foreground text-sm">›</span>
+                <Select value={districtId ? String(districtId) : "all"} onValueChange={v => { setDistrictId(v === "all" ? undefined : Number(v)); setEstateId(undefined); setBuildingId(undefined); setPage(1) }}>
+                  <SelectTrigger className="w-28"><SelectValue placeholder="地区" /></SelectTrigger>
+                  <SelectContent className="max-h-64 overflow-y-auto">
+                    <SelectItem value="all">全部地区</SelectItem>
+                    {districts.map((d: any) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+            {/* 楼盘搜索 + 选择（选中城市后显示） */}
+            {cityId && (
+              <>
+                <span className="text-muted-foreground text-sm">›</span>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="搜楼盘名/拼音"
+                    className="pl-8 w-36 h-9 text-sm"
+                    value={estateSearch}
+                    onChange={e => { setEstateSearch(e.target.value); setEstateId(undefined); setBuildingId(undefined) }}
+                  />
+                </div>
+                <Select value={estateId ? String(estateId) : "all"} onValueChange={v => { setEstateId(v === "all" ? undefined : Number(v)); setBuildingId(undefined); setPage(1) }}>
+                  <SelectTrigger className="w-40"><SelectValue placeholder="选择楼盘" /></SelectTrigger>
+                  <SelectContent className="max-h-64 overflow-y-auto">
+                    <SelectItem value="all">全部楼盘</SelectItem>
+                    {estateOptions.map((e: any) => <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+            {/* 楼栋（选中楼盘后显示） */}
+            {estateId && (
+              <>
+                <span className="text-muted-foreground text-sm">›</span>
+                <Select value={buildingId ? String(buildingId) : "all"} onValueChange={v => { setBuildingId(v === "all" ? undefined : Number(v)); setPage(1) }}>
+                  <SelectTrigger className="w-36"><SelectValue placeholder="选择楼栋" /></SelectTrigger>
+                  <SelectContent className="max-h-64 overflow-y-auto">
+                    <SelectItem value="all">全部楼栋</SelectItem>
+                    {buildingOptions.map((b: any) => (
+                      <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+            {/* 房号搜索 */}
+            <div className="relative flex-1 min-w-28 max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="搜索房号..." className="pl-9" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
             </div>
-            {(cityId || estateId || buildingId || search) && (
-              <Button variant="ghost" size="sm" onClick={() => { setCityId(undefined); setEstateId(undefined); setBuildingId(undefined); setSearch(""); setPage(1) }}>
+            {(cityId || districtId || estateId || buildingId || search) && (
+              <Button variant="ghost" size="sm" onClick={() => { setCityId(undefined); setDistrictId(undefined); setEstateId(undefined); setBuildingId(undefined); setEstateSearch(""); setSearch(""); setPage(1) }}>
                 <X className="mr-1 h-3 w-3" />清除
               </Button>
             )}

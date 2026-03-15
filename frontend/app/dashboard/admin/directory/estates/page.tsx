@@ -18,25 +18,34 @@ export default function EstatesPage() {
   const { toast } = useToast()
   const [search, setSearch] = useState("")
   const [cityId, setCityId] = useState<number | undefined>(undefined)
+  const [districtId, setDistrictId] = useState<number | undefined>(undefined)
   const [page, setPage] = useState(1)
   const [editEstate, setEditEstate] = useState<any>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [deleteEstate, setDeleteEstate] = useState<any>(null)
-  const [form, setForm] = useState({ name: "", address: "", cityId: "", developer: "", propertyType: "" })
+  const [form, setForm] = useState({ name: "", address: "", cityId: "", districtId: "", developer: "", propertyType: "" })
 
   const { data: citiesData } = trpc.directory.cities.list.useQuery({ pageSize: 100 })
   const cities = citiesData?.items ?? []
+
+  // 根据选中城市加载地区列表
+  const { data: districtsData } = trpc.directory.listDistricts.useQuery(
+    { cityId: cityId! },
+    { enabled: !!cityId, staleTime: 60000 }
+  )
+  const districts = districtsData?.items ?? []
 
   const { data, isLoading, refetch } = trpc.directory.listEstates.useQuery({
     page, pageSize: 20,
     search: search || undefined,
     cityId: cityId || undefined,
+    districtId: districtId || undefined,
   })
   const estates = data?.items ?? []
   const total = data?.total ?? 0
 
   const createMutation = trpc.directory.estates.create.useMutation({
-    onSuccess: () => { toast({ title: "楼盘已添加" }); setCreateOpen(false); setForm({ name: "", address: "", cityId: "", developer: "", propertyType: "" }); refetch() },
+    onSuccess: () => { toast({ title: "楼盘已添加" }); setCreateOpen(false); setForm({ name: "", address: "", cityId: "", districtId: "", developer: "", propertyType: "" }); refetch() },
     onError: (err) => toast({ title: "添加失败", description: err.message, variant: "destructive" }),
   })
   const updateMutation = trpc.directory.estates.update.useMutation({
@@ -49,6 +58,7 @@ export default function EstatesPage() {
   })
 
   const selectedCityName = cities.find((c: any) => c.id === cityId)?.name
+  const selectedDistrictName = districts.find((d: any) => d.id === districtId)?.name
 
   return (
     <div className="space-y-6">
@@ -57,7 +67,7 @@ export default function EstatesPage() {
           <h1 className="text-2xl font-bold tracking-tight">楼盘管理</h1>
           <p className="text-muted-foreground">管理系统中的楼盘数据</p>
         </div>
-        <Button onClick={() => { setForm({ name: "", address: "", cityId: cityId ? String(cityId) : "", developer: "", propertyType: "" }); setCreateOpen(true) }}>
+        <Button onClick={() => { setForm({ name: "", address: "", cityId: cityId ? String(cityId) : "", districtId: districtId ? String(districtId) : "", developer: "", propertyType: "" }); setCreateOpen(true) }}>
           <Plus className="mr-2 h-4 w-4" />新增楼盘
         </Button>
       </div>
@@ -65,10 +75,11 @@ export default function EstatesPage() {
       <Card>
         <CardHeader>
           <div className="flex flex-wrap gap-3 items-center">
+            {/* 城市筛选 */}
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
-              <Select value={cityId ? String(cityId) : "all"} onValueChange={v => { setCityId(v === "all" ? undefined : Number(v)); setPage(1) }}>
-                <SelectTrigger className="w-40">
+              <Select value={cityId ? String(cityId) : "all"} onValueChange={v => { setCityId(v === "all" ? undefined : Number(v)); setDistrictId(undefined); setPage(1) }}>
+                <SelectTrigger className="w-36">
                   <SelectValue placeholder="选择城市" />
                 </SelectTrigger>
                 <SelectContent className="max-h-64 overflow-y-auto">
@@ -79,12 +90,30 @@ export default function EstatesPage() {
                 </SelectContent>
               </Select>
             </div>
+            {/* 地区筛选（选中城市后显示） */}
+            {cityId && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-sm">›</span>
+                <Select value={districtId ? String(districtId) : "all"} onValueChange={v => { setDistrictId(v === "all" ? undefined : Number(v)); setPage(1) }}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue placeholder="选择地区" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64 overflow-y-auto">
+                    <SelectItem value="all">全部地区</SelectItem>
+                    {districts.map((d: any) => (
+                      <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {/* 搜索框：支持楼盘名称 + 拼音首字母 */}
             <div className="relative flex-1 min-w-48 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="搜索楼盘名称..." className="pl-9" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
+              <Input placeholder="搜索楼盘名称或拼音首字母（如 WKJY）..." className="pl-9" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
             </div>
-            {(cityId || search) && (
-              <Button variant="ghost" size="sm" onClick={() => { setCityId(undefined); setSearch(""); setPage(1) }}>
+            {(cityId || districtId || search) && (
+              <Button variant="ghost" size="sm" onClick={() => { setCityId(undefined); setDistrictId(undefined); setSearch(""); setPage(1) }}>
                 <X className="mr-1 h-3 w-3" />清除筛选
               </Button>
             )}
@@ -104,6 +133,7 @@ export default function EstatesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>楼盘名称</TableHead>
+                    <TableHead>拼音首字母</TableHead>
                     <TableHead>城市</TableHead>
                     <TableHead>地址</TableHead>
                     <TableHead>物业类型</TableHead>
@@ -119,6 +149,9 @@ export default function EstatesPage() {
                     return (
                       <TableRow key={e.id}>
                         <TableCell className="font-medium">{e.name}</TableCell>
+                        <TableCell>
+                          {e.pinyin ? <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{e.pinyin}</span> : <span className="text-muted-foreground text-xs">-</span>}
+                        </TableCell>
                         <TableCell>
                           {city ? <Badge variant="outline" className="text-xs">{city.name}</Badge> : <span className="text-muted-foreground text-xs">-</span>}
                         </TableCell>
@@ -143,7 +176,10 @@ export default function EstatesPage() {
                 </TableBody>
               </Table>
               <div className="flex items-center justify-between pt-4">
-                <p className="text-sm text-muted-foreground">{cityId ? `${selectedCityName} · ` : ""}共 {total} 条楼盘</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedCityName && <span>{selectedCityName}{selectedDistrictName ? ` › ${selectedDistrictName}` : ""} · </span>}
+                  共 {total.toLocaleString()} 条楼盘
+                </p>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>上一页</Button>
                   <span className="flex items-center text-sm text-muted-foreground px-2">第 {page} 页</span>

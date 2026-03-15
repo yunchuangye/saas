@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "../lib/trpc";
-import { cities, estates, buildings, units, cases, type InsertCity, type InsertEstate, type InsertBuilding } from "../lib/schema";
+import { cities, districts, estates, buildings, units, cases, type InsertCity, type InsertEstate, type InsertBuilding } from "../lib/schema";
 import { eq, and, desc, like, count, sql, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { pinyin } from "pinyin-pro";
@@ -430,13 +430,30 @@ export const directoryRouter = router({
       const items = await ctx.db.select().from(cities).where(and(...conditions)).limit(100);
       return { items, total: items.length };
     }),
-  listEstates: protectedProcedure
-    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), search: z.string().optional(), cityId: z.number().optional() }).optional())
+  // 根据城市获取地区列表
+  listDistricts: protectedProcedure
+    .input(z.object({ cityId: z.number().optional() }))
     .query(async ({ input, ctx }) => {
-      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20; const search = input?.search; const cityId = input?.cityId;
+      const { cityId } = input;
+      let conditions: any[] = [eq(districts.isActive, true)];
+      if (cityId) conditions.push(eq(districts.cityId, cityId));
+      const items = await ctx.db
+        .select({ id: districts.id, name: districts.name, cityId: districts.cityId, code: districts.code, type: districts.type })
+        .from(districts)
+        .where(and(...conditions))
+        .orderBy(districts.id)
+        .limit(200);
+      return { items, total: items.length };
+    }),
+  listEstates: protectedProcedure
+    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), search: z.string().optional(), cityId: z.number().optional(), districtId: z.number().optional() }).optional())
+    .query(async ({ input, ctx }) => {
+      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20;
+      const search = input?.search; const cityId = input?.cityId; const districtId = input?.districtId;
       const offset = (page - 1) * pageSize;
       let conditions: any[] = [eq(estates.isActive, true)];
       if (cityId) conditions.push(eq(estates.cityId, cityId));
+      if (districtId) conditions.push(eq(estates.districtId as any, districtId));
       if (search) {
         const searchUpper = search.toUpperCase();
         conditions.push(or(like(estates.name, `%${search}%`), like(estates.pinyin as any, `%${searchUpper}%`)) as any);
@@ -499,16 +516,20 @@ export const directoryRouter = router({
       pageSize: z.number().default(20),
       search: z.string().optional(),
       cityId: z.number().optional(),
+      districtId: z.number().optional(),
       estateId: z.number().optional(),
     }).optional())
     .query(async ({ input, ctx }) => {
       const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20;
-      const search = input?.search; const cityId = input?.cityId; const estateId = input?.estateId;
+      const search = input?.search; const cityId = input?.cityId;
+      const districtId = input?.districtId; const estateId = input?.estateId;
       const offset = (page - 1) * pageSize;
       let conditions: any[] = [];
       if (search) conditions.push(like(buildings.name, `%${search}%`));
       if (estateId) conditions.push(eq(buildings.estateId, estateId));
-      if (cityId && !estateId) {
+      else if (districtId) {
+        conditions.push(sql`estate_id IN (SELECT id FROM estates WHERE district_id = ${districtId})`);
+      } else if (cityId) {
         // 城市筛选用纯 SQL 子查询，利用 idx_estate_id 索引避免全表扫描
         conditions.push(sql`estate_id IN (SELECT id FROM estates WHERE city_id = ${cityId})`);
       }
@@ -556,20 +577,23 @@ export const directoryRouter = router({
       pageSize: z.number().default(20),
       search: z.string().optional(),
       cityId: z.number().optional(),
+      districtId: z.number().optional(),
       estateId: z.number().optional(),
       buildingId: z.number().optional(),
     }).optional())
     .query(async ({ input, ctx }) => {
       const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20;
       const search = input?.search; const cityId = input?.cityId;
-      const estateId = input?.estateId; const buildingId = input?.buildingId;
+      const districtId = input?.districtId; const estateId = input?.estateId; const buildingId = input?.buildingId;
       const offset = (page - 1) * pageSize;
-      // 构建高效筛选条件：城市用子查询避免全表扫描
+      // 构建高效筛选条件：城市/地区用子查询避免全表扫描
       let conditions: any[] = [];
       if (search) conditions.push(like(units.unitNumber, `%${search}%`));
       if (buildingId) conditions.push(eq(units.buildingId, buildingId));
-      if (estateId) conditions.push(eq(units.estateId, estateId));
-      if (cityId && !estateId && !buildingId) {
+      else if (estateId) conditions.push(eq(units.estateId, estateId));
+      else if (districtId) {
+        conditions.push(sql`estate_id IN (SELECT id FROM estates WHERE district_id = ${districtId})`);
+      } else if (cityId) {
         // 仅按城市筛选时，用纯 SQL 子查询（利用 idx_estate_id 索引）
         conditions.push(sql`estate_id IN (SELECT id FROM estates WHERE city_id = ${cityId})`);
       }
