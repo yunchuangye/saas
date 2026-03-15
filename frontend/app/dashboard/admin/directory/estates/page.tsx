@@ -162,7 +162,7 @@ export default function EstatesPage() {
                         <TableCell className="text-sm">{new Date(e.createdAt).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => { setEditEstate(e); setForm({ name: e.name, address: e.address ?? "", cityId: String(e.cityId ?? ""), developer: e.developer ?? "", propertyType: e.propertyType ?? "" }) }}>
+                            <Button variant="ghost" size="sm" onClick={() => { setEditEstate(e); setForm({ name: e.name, address: e.address ?? "", cityId: String(e.cityId ?? ""), districtId: "", developer: e.developer ?? "", propertyType: e.propertyType ?? "" }) }}>
                               <Pencil className="h-3 w-3" />
                             </Button>
                             <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteEstate(e)}>

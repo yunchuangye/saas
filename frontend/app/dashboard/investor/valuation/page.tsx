@@ -416,7 +416,7 @@ export default function ValuationPage() {
                       value={selectedBuilding ? String(selectedBuilding.id) : ""}
                       onValueChange={v => {
                         const b = buildingsData?.find((b: any) => String(b.id) === v)
-                        if (b) { setSelectedBuilding(b); setSelectedUnit(null); if (b.floors) set("totalFloors", String(b.floors)) }
+                        if (b) { setSelectedBuilding({ ...b, floors: b.floors ?? undefined }); setSelectedUnit(null); if (b.floors) set("totalFloors", String(b.floors)) }
                       }}
                     >
                       <SelectTrigger>
@@ -437,7 +437,7 @@ export default function ValuationPage() {
                       value={selectedUnit ? String(selectedUnit.id) : ""}
                       onValueChange={v => {
                         const u = unitsData?.find((u: any) => String(u.id) === v)
-                        if (u) handleSelectUnit(u)
+                        if (u) handleSelectUnit({ ...u, floor: u.floor ?? undefined, area: u.area ?? undefined, rooms: u.rooms ?? undefined, orientation: u.orientation ?? undefined })
                       }}
                     >
                       <SelectTrigger>

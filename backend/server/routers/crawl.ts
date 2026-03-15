@@ -21,7 +21,7 @@ import {
 // ─── 输入验证 Schema ───────────────────────────────────────────
 const CreateJobSchema = z.object({
   name: z.string().min(1, '任务名称不能为空'),
-  source: z.enum(['lianjia', 'beike', 'anjuke', 'fang58', 'custom']),
+  source: z.enum(['lianjia', 'beike', 'anjuke', 'fang', 'leyoujia', 'szfdc', 'custom']),
   dataType: z.enum(['sold_cases', 'listing', 'estate_info']),
   cityId: z.number().optional(),
   cityName: z.string().optional(),
@@ -526,5 +526,94 @@ export const crawlRouter = router({
     .mutation(async ({ input }) => {
       await registerJobSchedule(input.jobId);
       return { message: '定时调度已刷新' };
+    }),
+
+  // ─── 两大类采集配置 ──────────────────────────────────────────────
+
+  /** 获取楼盘基础信息采集配置（可用数据源、城市、字段说明） */
+  getEstateInfoConfig: protectedProcedure
+    .query(async () => {
+      const cityList = await db.select({ id: cities.id, name: cities.name, province: cities.province })
+        .from(cities).where(eq(cities.isActive, true)).orderBy(cities.name);
+      return {
+        sources: [
+          { value: 'szfdc',    label: '深圳住建局', desc: '官方预售许可数据，楼盘/楼栋/房屋三级结构，数据权威', recommended: true, dataType: 'estate_info' },
+          { value: 'fang',     label: '房天下',     desc: '全国楼盘基础信息，覆盖广，含开发商/均价/容积率等', recommended: true, dataType: 'estate_info' },
+          { value: 'lianjia',  label: '链家',       desc: '链家楼盘信息，含户型/物业/建成年份等', recommended: false, dataType: 'estate_info' },
+          { value: 'anjuke',   label: '安居客',     desc: '安居客楼盘信息，含地图坐标/评分/配套设施', recommended: false, dataType: 'estate_info' },
+        ],
+        fields: [
+          { key: 'name',        label: '楼盘名称',   required: true },
+          { key: 'address',     label: '详细地址',   required: true },
+          { key: 'district',    label: '所属区域',   required: true },
+          { key: 'developer',   label: '开发商',     required: false },
+          { key: 'avgPrice',    label: '参考均价',   required: false },
+          { key: 'buildYear',   label: '建成年份',   required: false },
+          { key: 'plotRatio',   label: '容积率',     required: false },
+          { key: 'greenRate',   label: '绿化率',     required: false },
+          { key: 'totalUnits',  label: '总套数',     required: false },
+          { key: 'propertyType', label: '物业类型',  required: false },
+        ],
+        cities: cityList,
+        dedupeRule: '以楼盘名称为去重标准，同城市同名楼盘不重复入库',
+      };
+    }),
+
+  /** 获取案例交易报盘采集配置（可用数据源、城市、字段说明） */
+  getCaseListingConfig: protectedProcedure
+    .query(async () => {
+      const cityList = await db.select({ id: cities.id, name: cities.name, province: cities.province })
+        .from(cities).where(eq(cities.isActive, true)).orderBy(cities.name);
+      return {
+        sources: [
+          { value: 'lianjia',  label: '链家',   desc: '链家成交案例，数据真实，含成交价/成交周期/挂牌价', recommended: true, dataType: 'sold_cases' },
+          { value: 'beike',    label: '贝壳',   desc: '贝壳成交数据，覆盖更广，含装修/楼层/朝向等', recommended: true, dataType: 'sold_cases' },
+          { value: 'anjuke',   label: '安居客', desc: '安居客在售报盘，含挂牌价/带看量/关注度', recommended: true, dataType: 'listing' },
+          { value: 'leyoujia', label: '乐有家', desc: '深圳本地平台，深圳数据质量高，含核验价', recommended: true, dataType: 'listing' },
+          { value: 'fang',     label: '房天下', desc: '房天下二手房报盘，全国覆盖广', recommended: false, dataType: 'listing' },
+        ],
+        dataTypes: [
+          { value: 'sold_cases', label: '成交案例', desc: '已成交的真实交易记录，用于估价模型训练' },
+          { value: 'listing',    label: '在售报盘', desc: '当前在售房源，用于市场行情分析' },
+        ],
+        fields: [
+          { key: 'title',       label: '房源标题',   required: true },
+          { key: 'community',   label: '小区名称',   required: true },
+          { key: 'area',        label: '建筑面积',   required: true },
+          { key: 'totalPrice',  label: '总价（万）', required: true },
+          { key: 'unitPrice',   label: '单价（元/㎡）', required: true },
+          { key: 'floor',       label: '楼层',       required: false },
+          { key: 'rooms',       label: '户型',       required: false },
+          { key: 'orientation', label: '朝向',       required: false },
+          { key: 'decoration',  label: '装修',       required: false },
+          { key: 'buildYear',   label: '建成年份',   required: false },
+          { key: 'dealDate',    label: '成交日期',   required: false },
+          { key: 'dealCycle',   label: '成交周期',   required: false },
+          { key: 'listingPrice', label: '挂牌价',    required: false },
+        ],
+        cities: cityList,
+        dedupeRule: '以来源平台+房源ID为主键去重，无ID时以小区名+面积+成交日期组合去重',
+      };
+    }),
+
+  /** 按类型统计采集任务 */
+  getJobStatsByType: protectedProcedure
+    .query(async () => {
+      const estateJobs = await db.select({ count: count() }).from(crawlJobs)
+        .where(eq(crawlJobs.dataType, 'estate_info'));
+      const listingJobs = await db.select({ count: count() }).from(crawlJobs)
+        .where(eq(crawlJobs.dataType, 'listing'));
+      const soldJobs = await db.select({ count: count() }).from(crawlJobs)
+        .where(eq(crawlJobs.dataType, 'sold_cases'));
+      const runningJobs = await db.select({ count: count() }).from(crawlJobs)
+        .where(eq(crawlJobs.status, 'running'));
+      const totalCases = await db.select({ count: count() }).from(cases);
+      return {
+        estateInfoJobs: estateJobs[0]?.count ?? 0,
+        listingJobs: listingJobs[0]?.count ?? 0,
+        soldCasesJobs: soldJobs[0]?.count ?? 0,
+        runningJobs: runningJobs[0]?.count ?? 0,
+        totalCases: totalCases[0]?.count ?? 0,
+      };
     }),
 });

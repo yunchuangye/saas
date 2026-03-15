@@ -117,59 +117,99 @@ export function parseLianjiaList(html: string, cityName: string, sourceUrl: stri
   return results;
 }
 
-/** 解析安居客二手房列表页 */
+/** 解析安居客移动端二手房列表页 (m.anjuke.com)
+ * 页面为 Nuxt.js SSR 渲染，每页 60 条房源
+ * 关键类名: cell-wrap / content-title / content-price / content-desc / house-avg-price
+ */
 export function parseAnjukeList(html: string, cityName: string, sourceUrl: string): ParsedCase[] {
   const results: ParsedCase[] = [];
 
-  // 安居客列表项匹配
-  const itemPattern = /<div[^>]*class="[^"]*property[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/g;
-  let match;
+  // 找到所有 cell-wrap 条目的位置
+  const positions: number[] = [];
+  const cellPattern = /class="cell-wrap/g;
+  let pos: RegExpExecArray | null;
+  while ((pos = cellPattern.exec(html)) !== null) {
+    positions.push(pos.index);
+  }
 
-  while ((match = itemPattern.exec(html)) !== null) {
+  for (let i = 0; i < positions.length; i++) {
+    const start = positions[i];
+    const end = i + 1 < positions.length ? positions[i + 1] : start + 6000;
+    const item = html.slice(start, end);
+
     try {
-      const item = match[1];
+      // 提取房源 ID
+      const idMatch = item.match(/\/sale\/(S\d+)\//);
+      const sourceId = idMatch ? idMatch[1] : '';
 
-      const titleMatch = item.match(/<span[^>]*class="[^"]*property-content-title[^"]*"[^>]*>([^<]+)<\/span>/);
-      const title = titleMatch ? titleMatch[1].trim() : '';
+      // 从 alt 属性提取小区名（格式："小区名户型面积价格二手房图片")
+      const altMatch = item.match(/alt="([^"]+?)二手房图片"/);
+      const altText = altMatch ? altMatch[1] : '';
+      const communityMatch = altText.match(/^(.+?)(?:\d室\d厅|\d+㎡|\d+万)/);
+      const community = (communityMatch ? communityMatch[1] : altText).trim();
 
-      const priceMatch = item.match(/<span[^>]*class="[^"]*property-price-total[^"]*"[^>]*>([\d.]+)<\/span>/);
-      const totalPrice = priceMatch ? Math.round(parseFloat(priceMatch[1]) * 10000) : 0;
+      // 标题（房源描述）
+      const titleMatch = item.match(/class="content-title"[^>]*>([\s\S]*?)<\/span>/);
+      const title = titleMatch ? titleMatch[1].trim() : community;
 
-      const unitPriceMatch = item.match(/<span[^>]*class="[^"]*property-price-average[^"]*"[^>]*>([\d,]+)<\/span>/);
-      const unitPrice = unitPriceMatch ? parseInt(unitPriceMatch[1].replace(/,/g, '')) : 0;
-
-      const areaMatch = item.match(/([\d.]+)\s*㎡/);
-      const area = areaMatch ? parseFloat(areaMatch[1]) : 0;
-
+      // 户型
       const roomsMatch = item.match(/(\d室\d厅)/);
       const rooms = roomsMatch ? roomsMatch[1] : '';
 
-      if (title && totalPrice > 0) {
-        results.push({
-          source: 'anjuke',
-          sourceId: Math.random().toString(36).slice(2),
-          title,
-          address: title,
-          community: title,
-          totalPrice,
-          unitPrice,
-          area,
-          rooms,
-          floor: 0,
-          totalFloor: 0,
-          orientation: '',
-          decoration: '',
-          buildYear: 0,
-          dealDate: new Date().toISOString().slice(0, 10),
-          listingPrice: totalPrice,
-          dealCycle: 0,
-          cityName,
-          districtName: '',
-          sourceUrl,
-        });
+      // 面积
+      const areaMatch = item.match(/([\d.]+)\s*㎡/);
+      const area = areaMatch ? parseFloat(areaMatch[1]) : 0;
+
+      // 朝向
+      const orientMatch = item.match(/content-desc"[^>]*>\s*(东|南|西|北|东南|东北|西南|西北|南北)\s*</);
+      const orientation = orientMatch ? orientMatch[1] : '';
+
+      // 区域（取 desc-wrap-community 中最后两个 content-desc）
+      const descSection = item.match(/class="desc-wrap-community"[^>]*>([\s\S]*?)<\/div>/);
+      let districtName = '';
+      if (descSection) {
+        const descs = [...descSection[1].matchAll(/content-desc"[^>]*>\s*([^\s<]{2,6})\s*</g)];
+        if (descs.length >= 2) districtName = descs[descs.length - 2][1];
       }
+
+      // 总价（万）
+      const priceMatch = item.match(/class="content-price"[^>]*>([\d.]+)<\/span>/);
+      const totalPriceWan = priceMatch ? parseFloat(priceMatch[1]) : 0;
+      const totalPrice = Math.round(totalPriceWan * 10000);
+
+      // 单价
+      const unitPriceMatch = item.match(/([\d,]+)元\/㎡/);
+      const unitPrice = unitPriceMatch
+        ? parseInt(unitPriceMatch[1].replace(/,/g, ''))
+        : (area > 0 ? Math.round(totalPrice / area) : 0);
+
+      // 过滤无效数据
+      if (!community || totalPrice <= 0 || area <= 0) continue;
+
+      results.push({
+        source: 'anjuke',
+        sourceId: sourceId || `anjuke_${Date.now()}_${i}`,
+        title: title || community,
+        address: `${districtName ? districtName + ' ' : ''}${community}`,
+        community,
+        totalPrice,
+        unitPrice,
+        area,
+        rooms,
+        floor: 0,
+        totalFloor: 0,
+        orientation,
+        decoration: '',
+        buildYear: 0,
+        dealDate: new Date().toISOString().slice(0, 10),
+        listingPrice: totalPrice,
+        dealCycle: 0,
+        cityName,
+        districtName,
+        sourceUrl,
+      });
     } catch (e) {
-      // 跳过
+      // 跳过解析失败的条目
     }
   }
 

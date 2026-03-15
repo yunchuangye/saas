@@ -101,8 +101,8 @@ export default function AiPredictPage() {
               <CardContent>
                 {predictMutation.isPending ? (
                   <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
-                ) : result?.error ? (
-                  <p className="text-muted-foreground text-sm">{result.error}</p>
+                ) : (result as any)?.error ? (
+                  <p className="text-muted-foreground text-sm">{(result as any).error}</p>
                 ) : result ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-3 gap-4">

@@ -934,7 +934,7 @@ export const aiFeaturesRouter = router({
         updatedAt: matrix.updatedAt,
         areaRanges: Object.entries(matrix.areaRangePrices).map(([range, data]) => ({
           range,
-          label: AREA_RANGE_LABELS[range as any] || range,
+          label: (AREA_RANGE_LABELS as Record<string, string>)[range] || range,
           avgPrice: data!.avgPrice,
           minPrice: data!.minPrice,
           maxPrice: data!.maxPrice,

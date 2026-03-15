@@ -442,7 +442,7 @@ export default function ValuationPage() {
                       value={selectedUnit ? String(selectedUnit.id) : ""}
                       onValueChange={v => {
                         const u = unitsData?.find((u: any) => String(u.id) === v)
-                        if (u) handleSelectUnit(u)
+                        if (u) handleSelectUnit({ ...u, floor: u.floor ?? undefined, area: u.area ?? undefined, rooms: u.rooms ?? undefined, orientation: u.orientation ?? undefined })
                       }}
                     >
                       <SelectTrigger>

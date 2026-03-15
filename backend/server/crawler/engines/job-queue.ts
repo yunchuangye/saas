@@ -81,12 +81,14 @@ export function startCrawlWorker(concurrency = 3): Worker {
 
 /** 将任务加入队列 */
 export async function enqueueJob(jobId: number, priority = 0): Promise<string> {
+  // 使用时间戳后缀避免 BullMQ jobId 重复导致任务不执行
+  const uniqueJobId = `crawl-job-${jobId}-${Date.now()}`;
   const job = await crawlQueue.add(
     `crawl-${jobId}`,
     { jobId },
     {
       priority,
-      jobId: `crawl-job-${jobId}`,
+      jobId: uniqueJobId,
     }
   );
   console.log(`[Queue] 任务 #${jobId} 已加入队列，队列 ID: ${job.id}`);
