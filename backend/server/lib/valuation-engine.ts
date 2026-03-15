@@ -1,12 +1,102 @@
 /**
- * 房地产智能估价引擎
+ * 房地产智能估价引擎 v2.0
  * 依据《房地产估价规范》GB/T 50291-2015
  * 实现三大评估方法：市场比较法、收益法、成本法
+ *
+ * v2.0 优化：
+ * - 引入面积段（AreaRange）精细化分类
+ * - 市场比较法采用三级降级策略：
+ *   Level 1：同楼盘 + 同面积段真实成交案例（最高精度）
+ *   Level 2：同楼盘对应面积段统计均价（楼盘价格矩阵）
+ *   Level 3：同楼盘整体均价 + 面积段非线性调整系数
+ *   Fallback：城市/区域基准价格（兜底）
+ * - 新增面积段非线性溢价/折价调整系数（基于217万套真实数据统计）
+ * - 楼盘价格矩阵由外部服务注入，支持实时刷新
  */
 
 // ============================================================
 // 类型定义
 // ============================================================
+
+/**
+ * 面积段枚举
+ * 基于市场惯例与数据分布划分为 6 档
+ */
+export type AreaRange = 'S' | 'M1' | 'M2' | 'L1' | 'L2' | 'XL'
+
+export const AREA_RANGE_LABELS: Record<AreaRange, string> = {
+  S:  '50㎡以下（极小户型/单身公寓）',
+  M1: '50-70㎡（刚需两房）',
+  M2: '70-90㎡（标准三房）',
+  L1: '90-120㎡（改善三/四房）',
+  L2: '120-150㎡（舒适大平层）',
+  XL: '150㎡以上（豪宅/别墅）',
+}
+
+/**
+ * 获取面积段
+ */
+export function getAreaRange(area: number): AreaRange {
+  if (area < 50)  return 'S'
+  if (area < 70)  return 'M1'
+  if (area < 90)  return 'M2'
+  if (area < 120) return 'L1'
+  if (area < 150) return 'L2'
+  return 'XL'
+}
+
+/**
+ * 楼盘价格矩阵（由外部服务注入，支持热更新）
+ * key: estateId
+ */
+export interface EstatePriceMatrix {
+  estateId: number
+  estateName: string
+  overallAvgPrice: number          // 楼盘整体均价（元/㎡）
+  overallSampleCount: number       // 样本总量
+  areaRangePrices: Partial<Record<AreaRange, {
+    avgPrice: number               // 面积段均价（元/㎡）
+    minPrice: number
+    maxPrice: number
+    sampleCount: number            // 样本量
+    stdDev: number                 // 标准差
+    lastUpdated: string            // 最近更新时间
+  }>>
+  updatedAt: string
+}
+
+// 全局楼盘价格矩阵缓存（由 estate-price-matrix-service 维护）
+const _estatePriceMatrixCache = new Map<number, EstatePriceMatrix>()
+
+/**
+ * 注入/更新楼盘价格矩阵（供外部服务调用）
+ */
+export function injectEstatePriceMatrix(matrix: EstatePriceMatrix): void {
+  _estatePriceMatrixCache.set(matrix.estateId, matrix)
+}
+
+/**
+ * 批量注入楼盘价格矩阵
+ */
+export function injectEstatePriceMatrixBatch(matrices: EstatePriceMatrix[]): void {
+  for (const m of matrices) {
+    _estatePriceMatrixCache.set(m.estateId, m)
+  }
+}
+
+/**
+ * 获取楼盘价格矩阵
+ */
+export function getEstatePriceMatrix(estateId: number): EstatePriceMatrix | undefined {
+  return _estatePriceMatrixCache.get(estateId)
+}
+
+/**
+ * 清空楼盘价格矩阵缓存（用于测试或强制刷新）
+ */
+export function clearEstatePriceMatrixCache(): void {
+  _estatePriceMatrixCache.clear()
+}
 
 export interface PropertyInput {
   // 基本信息
@@ -24,6 +114,9 @@ export interface PropertyInput {
   hasElevator: boolean
   hasParking: boolean
   purpose: 'mortgage' | 'transaction' | 'tax' | 'insurance' | 'litigation'
+
+  // 楼盘信息（v2.0 新增，用于三级降级策略）
+  estateId?: number          // 楼盘 ID（有则优先使用楼盘价格矩阵）
 
   // 比较法参数
   comparables?: ComparableProperty[]
@@ -74,7 +167,7 @@ export interface ValuationResult {
   // 调整系数明细
   adjustments: AdjustmentDetail[]
 
-  // 市场行情参考
+  // 市场行情参考（v2.0 增强）
   marketData: MarketData
 
   // 估价说明
@@ -98,11 +191,15 @@ export interface AdjustmentDetail {
 }
 
 export interface MarketData {
-  cityAvgPrice: number       // 城市均价（元/㎡）
-  districtAvgPrice: number   // 区域均价（元/㎡）
-  priceIndex: number         // 价格指数（相对城市均价）
+  cityAvgPrice: number            // 城市均价（元/㎡）
+  districtAvgPrice: number        // 区域均价（元/㎡）
+  estateAvgPrice?: number         // 楼盘整体均价（元/㎡，v2.0 新增）
+  estateAreaRangeAvgPrice?: number // 楼盘面积段均价（元/㎡，v2.0 新增）
+  areaRange?: string              // 面积段描述（v2.0 新增）
+  comparativePriceSource?: string // 比较法基准价格来源（v2.0 新增）
+  priceIndex: number              // 价格指数（相对城市均价）
   marketTrend: 'rising' | 'stable' | 'declining'
-  trendRate: number          // 年涨跌幅（%）
+  trendRate: number               // 年涨跌幅（%）
 }
 
 // ============================================================
@@ -169,18 +266,51 @@ const CITY_BASE_PRICES: Record<string, {
   }
 }
 
-const DEFAULT_CITY: { residential: number; commercial: number; office: number; industrial: number; trend: number; districts: Record<string, number> } = { residential: 12000, commercial: 18000, office: 15000, industrial: 5000, trend: 1.0, districts: { '其他': 1.0 } }
+const DEFAULT_CITY: {
+  residential: number; commercial: number; office: number; industrial: number
+  trend: number; districts: Record<string, number>
+} = { residential: 12000, commercial: 18000, office: 15000, industrial: 5000, trend: 1.0, districts: { '其他': 1.0 } }
 
 // ============================================================
 // 调整系数表
 // ============================================================
 
+/**
+ * 面积段非线性溢价/折价系数
+ * 基于数据库 217 万套真实房源数据统计（相对于 L1 段 90-120㎡ 基准）
+ *
+ * 数据依据（units 表统计）：
+ *   S  (<50㎡)   均价 ~11,746  → 相对 L1(11,265) 溢价 +4.3%
+ *   M1 (50-70㎡) 均价 ~11,638  → 相对 L1 溢价 +3.3%
+ *   M2 (70-90㎡) 均价 ~10,851  → 相对 L1 折价 -3.7%
+ *   L1 (90-120㎡)均价 ~11,265  → 基准 1.00
+ *   L2 (120-150㎡)均价~13,168  → 相对 L1 溢价 +16.9%
+ *   XL (≥150㎡)  均价 ~18,000+ → 相对 L1 溢价 +60%+
+ *
+ * 注：此系数仅在无楼盘面积段均价时作为补充调整使用；
+ *     若已有楼盘面积段均价，则不再叠加此系数（避免双重调整）。
+ */
+function getAreaRangeCoefficient(area: number): number {
+  const range = getAreaRange(area)
+  const coefficients: Record<AreaRange, number> = {
+    S:  1.043,   // 极小户型：总价低、学区属性，单价溢价 4.3%
+    M1: 1.033,   // 刚需两房：流动性强，单价溢价 3.3%
+    M2: 0.963,   // 标准三房：供应量最大，单价微折价 3.7%
+    L1: 1.000,   // 改善三/四房：基准
+    L2: 1.169,   // 大平层：稀缺性溢价 16.9%
+    XL: 1.600,   // 豪宅/别墅：顶豪溢价（≥150㎡ 均价约为基准 1.6 倍）
+  }
+  return coefficients[range]
+}
+
 // 楼层系数（住宅）
-function getFloorCoefficient(floor: number, totalFloors: number, hasElevator: boolean, propertyType: string): number {
+function getFloorCoefficient(
+  floor: number, totalFloors: number,
+  hasElevator: boolean, propertyType: string
+): number {
   if (propertyType !== 'residential') return 1.0
   const ratio = floor / totalFloors
   if (!hasElevator) {
-    // 无电梯：1-2层最优，高层折价
     if (floor === 1) return 0.95
     if (floor === 2) return 1.02
     if (floor === 3) return 1.05
@@ -189,21 +319,20 @@ function getFloorCoefficient(floor: number, totalFloors: number, hasElevator: bo
     if (floor === 6) return 0.85
     return 0.80
   } else {
-    // 有电梯：中高层溢价
     if (ratio <= 0.15) return 0.92  // 底层
     if (ratio <= 0.30) return 0.97
     if (ratio <= 0.50) return 1.00
     if (ratio <= 0.70) return 1.05
     if (ratio <= 0.85) return 1.08
     if (ratio <= 0.95) return 1.06
-    return 1.02  // 顶层（采光好但隔热差）
+    return 1.02  // 顶层
   }
 }
 
 // 朝向系数
 function getOrientationCoefficient(orientation: string): number {
   const map: Record<string, number> = {
-    'south_north': 1.05,  // 南北通透
+    'south_north': 1.05,
     'south': 1.03,
     'east': 0.98,
     'west': 0.96,
@@ -227,12 +356,9 @@ function getDecorationCoefficient(decoration: string): number {
 
 // 楼龄折旧系数（基于成新率）
 function getAgeCoefficient(buildingAge: number, propertyType: string): number {
-  // 房屋经济寿命：住宅50年，商业40年，工业30年
   const economicLife = propertyType === 'industrial' ? 30 : propertyType === 'commercial' ? 40 : 50
   const depreciationRate = buildingAge / economicLife
-  // 成新率 = 1 - 折旧率（采用直线折旧法，最低成新率20%）
-  const intactRate = Math.max(0.20, 1 - depreciationRate * 0.85)
-  return intactRate
+  return Math.max(0.20, 1 - depreciationRate * 0.85)
 }
 
 // 停车位系数
@@ -255,14 +381,27 @@ function getTimeAdjustment(transactionDate: string, trendRate: number): number {
 }
 
 // ============================================================
-// 方法一：市场比较法
+// 方法一：市场比较法（v2.0 三级降级策略）
 // ============================================================
 
-export function comparativeApproach(input: PropertyInput, cityData: typeof DEFAULT_CITY): MethodResult {
+/**
+ * 市场比较法
+ *
+ * 三级降级策略（住宅物业）：
+ *   Level 1：传入 comparables（同楼盘/同面积段真实成交案例）→ 加权调整均价
+ *   Level 2：楼盘价格矩阵命中对应面积段均价 → 直接作为基准 + 物理系数调整
+ *   Level 3：楼盘价格矩阵命中整体均价 → 整体均价 × 面积段系数 + 物理系数调整
+ *   Fallback：城市/区域基准价格 × 面积段系数 + 物理系数调整
+ */
+export function comparativeApproach(
+  input: PropertyInput,
+  cityData: typeof DEFAULT_CITY
+): MethodResult {
   const districtCoef = getDistrictCoefficient(input.city, input.district)
-  const basePrice = (cityData as any)[input.propertyType] || cityData.residential
+  const cityBasePrice = (cityData as any)[input.propertyType] || cityData.residential
+  const areaRange = getAreaRange(input.buildingArea)
 
-  // 如果有可比案例，使用真实案例
+  // ── Level 1：有可比案例（同楼盘/同面积段真实成交） ──────────────────
   if (input.comparables && input.comparables.length >= 2) {
     const adjustedPrices: number[] = []
 
@@ -272,7 +411,7 @@ export function comparativeApproach(input: PropertyInput, cityData: typeof DEFAU
       // 时间调整
       price *= getTimeAdjustment(comp.transactionDate, cityData.trend)
 
-      // 楼龄差异调整（每年±0.8%）
+      // 楼龄差异调整（每年 ±0.8%）
       const ageDiff = comp.buildingAge - input.buildingAge
       price *= (1 + ageDiff * 0.008)
 
@@ -300,42 +439,105 @@ export function comparativeApproach(input: PropertyInput, cityData: typeof DEFAU
     const weightedPrice = adjustedPrices.reduce((sum, p, i) => sum + p * weights[i] / totalWeight, 0)
 
     return {
-      method: '市场比较法',
+      method: '市场比较法（Level 1：真实成交案例）',
       value: Math.round(weightedPrice * input.buildingArea),
       unitPrice: Math.round(weightedPrice),
       details: {
+        priceSource: 'Level 1 - 同楼盘/同面积段真实成交案例',
         comparableCount: input.comparables.length,
+        areaRange: AREA_RANGE_LABELS[areaRange],
         avgComparablePrice: Math.round(adjustedPrices.reduce((a, b) => a + b, 0) / adjustedPrices.length),
         adjustedUnitPrice: Math.round(weightedPrice),
         timeAdjustmentApplied: '是',
-        physicalAdjustmentApplied: '是'
+        physicalAdjustmentApplied: '是',
       }
     }
   }
 
-  // 无可比案例时，使用城市基准价格模型
-  let unitPrice = basePrice * districtCoef
+  // ── 物理调整系数（Level 2/3/Fallback 共用） ──────────────────────────
+  const floorCoef       = getFloorCoefficient(input.floor, input.totalFloors, input.hasElevator, input.propertyType)
+  const orientationCoef = getOrientationCoefficient(input.orientation)
+  const decorationCoef  = getDecorationCoefficient(input.decoration)
+  const ageCoef         = getAgeCoefficient(input.buildingAge, input.propertyType)
+  const parkingCoef     = getParkingCoefficient(input.hasParking)
+  const elevatorCoef    = getElevatorCoefficient(input.hasElevator, input.totalFloors)
 
-  // 应用各项调整系数
-  unitPrice *= getFloorCoefficient(input.floor, input.totalFloors, input.hasElevator, input.propertyType)
-  unitPrice *= getOrientationCoefficient(input.orientation)
-  unitPrice *= getDecorationCoefficient(input.decoration)
-  unitPrice *= getAgeCoefficient(input.buildingAge, input.propertyType)
-  unitPrice *= getParkingCoefficient(input.hasParking)
-  unitPrice *= getElevatorCoefficient(input.hasElevator, input.totalFloors)
+  const physicalCoef = floorCoef * orientationCoef * decorationCoef * ageCoef * parkingCoef * elevatorCoef
+
+  // ── Level 2：楼盘价格矩阵命中对应面积段均价 ──────────────────────────
+  if (input.estateId) {
+    const matrix = _estatePriceMatrixCache.get(input.estateId)
+    if (matrix) {
+      const areaRangeData = matrix.areaRangePrices[areaRange]
+
+      if (areaRangeData && areaRangeData.sampleCount >= 3) {
+        // 样本量充足，直接使用楼盘面积段均价作为基准
+        // 此基准已内含面积段溢价，无需再叠加 getAreaRangeCoefficient
+        const unitPrice = Math.round(areaRangeData.avgPrice * physicalCoef)
+
+        return {
+          method: '市场比较法（Level 2：楼盘面积段均价）',
+          value: Math.round(unitPrice * input.buildingArea),
+          unitPrice,
+          details: {
+            priceSource: `Level 2 - 楼盘「${matrix.estateName}」${AREA_RANGE_LABELS[areaRange]}均价`,
+            estateId: input.estateId,
+            estateName: matrix.estateName,
+            areaRange: AREA_RANGE_LABELS[areaRange],
+            areaRangeAvgPrice: areaRangeData.avgPrice,
+            areaRangeSampleCount: areaRangeData.sampleCount,
+            areaRangeStdDev: Math.round(areaRangeData.stdDev),
+            physicalCoefficient: Math.round(physicalCoef * 1000) / 1000,
+            adjustedUnitPrice: unitPrice,
+          }
+        }
+      }
+
+      // ── Level 3：楼盘整体均价 + 面积段非线性系数 ──────────────────────
+      if (matrix.overallAvgPrice > 0 && matrix.overallSampleCount >= 5) {
+        const areaCoef = getAreaRangeCoefficient(input.buildingArea)
+        const unitPrice = Math.round(matrix.overallAvgPrice * areaCoef * physicalCoef)
+
+        return {
+          method: '市场比较法（Level 3：楼盘均价+面积段系数）',
+          value: Math.round(unitPrice * input.buildingArea),
+          unitPrice,
+          details: {
+            priceSource: `Level 3 - 楼盘「${matrix.estateName}」整体均价 × 面积段系数`,
+            estateId: input.estateId,
+            estateName: matrix.estateName,
+            estateOverallAvgPrice: matrix.overallAvgPrice,
+            estateOverallSampleCount: matrix.overallSampleCount,
+            areaRange: AREA_RANGE_LABELS[areaRange],
+            areaRangeCoefficient: areaCoef,
+            physicalCoefficient: Math.round(physicalCoef * 1000) / 1000,
+            adjustedUnitPrice: unitPrice,
+          }
+        }
+      }
+    }
+  }
+
+  // ── Fallback：城市/区域基准价格 + 面积段非线性系数 ───────────────────
+  const areaCoef   = getAreaRangeCoefficient(input.buildingArea)
+  const unitPrice  = Math.round(cityBasePrice * districtCoef * areaCoef * physicalCoef)
 
   return {
-    method: '市场比较法',
+    method: '市场比较法（Fallback：城市区域基准）',
     value: Math.round(unitPrice * input.buildingArea),
-    unitPrice: Math.round(unitPrice),
+    unitPrice,
     details: {
-      cityBasePrice: basePrice,
+      priceSource: 'Fallback - 城市/区域基准价格',
+      cityBasePrice,
       districtCoefficient: districtCoef,
-      floorCoefficient: getFloorCoefficient(input.floor, input.totalFloors, input.hasElevator, input.propertyType),
-      orientationCoefficient: getOrientationCoefficient(input.orientation),
-      decorationCoefficient: getDecorationCoefficient(input.decoration),
-      ageCoefficient: getAgeCoefficient(input.buildingAge, input.propertyType),
-      adjustedUnitPrice: Math.round(unitPrice)
+      areaRange: AREA_RANGE_LABELS[areaRange],
+      areaRangeCoefficient: areaCoef,
+      floorCoefficient: floorCoef,
+      orientationCoefficient: orientationCoef,
+      decorationCoefficient: decorationCoef,
+      ageCoefficient: ageCoef,
+      physicalCoefficient: Math.round(physicalCoef * 1000) / 1000,
+      adjustedUnitPrice: unitPrice,
     }
   }
 }
@@ -345,40 +547,41 @@ export function comparativeApproach(input: PropertyInput, cityData: typeof DEFAU
 // ============================================================
 
 export function incomeApproach(input: PropertyInput, cityData: typeof DEFAULT_CITY): MethodResult | null {
-  // 收益法适用于商业、办公、工业及出租型住宅
   if (!input.monthlyRent || input.monthlyRent <= 0) {
-    // 根据市场数据估算租金
     const basePrice = (cityData as any)[input.propertyType] || cityData.residential
     const districtCoef = getDistrictCoefficient(input.city, input.district)
-    // 租售比：住宅约1.5-2%，商业约4-6%，办公约3-5%
     const rentalYield = input.propertyType === 'residential' ? 0.018
       : input.propertyType === 'commercial' ? 0.05
       : input.propertyType === 'office' ? 0.04
       : 0.06
-    input.monthlyRent = Math.round(basePrice * districtCoef * input.buildingArea * rentalYield / 12)
+    // v2.0：若有楼盘面积段均价，以其作为租金估算基准（更准确）
+    let rentBasePrice = basePrice * districtCoef
+    if (input.estateId) {
+      const matrix = _estatePriceMatrixCache.get(input.estateId)
+      if (matrix) {
+        const areaRange = getAreaRange(input.buildingArea)
+        const areaRangeData = matrix.areaRangePrices[areaRange]
+        if (areaRangeData && areaRangeData.sampleCount >= 3) {
+          rentBasePrice = areaRangeData.avgPrice
+        } else if (matrix.overallAvgPrice > 0) {
+          rentBasePrice = matrix.overallAvgPrice * getAreaRangeCoefficient(input.buildingArea)
+        }
+      }
+    }
+    input.monthlyRent = Math.round(rentBasePrice * input.buildingArea * rentalYield / 12)
   }
 
   const vacancyRate = (input.vacancyRate || 5) / 100
   const opExpenseRate = (input.operatingExpenseRate || 20) / 100
-
-  // 年毛收入
   const grossAnnualIncome = input.monthlyRent * 12
-
-  // 有效毛收入（扣除空置损失）
   const effectiveGrossIncome = grossAnnualIncome * (1 - vacancyRate)
-
-  // 净营业收入（NOI）
   const noi = effectiveGrossIncome * (1 - opExpenseRate)
 
-  // 资本化率（综合还原利率）
-  // 基准：10年期国债收益率约2.5% + 风险溢价
   const riskPremium = input.propertyType === 'residential' ? 2.5
     : input.propertyType === 'commercial' ? 3.5
     : input.propertyType === 'office' ? 3.0
     : 4.0
   const capRate = (input.capRate || (2.5 + riskPremium)) / 100
-
-  // 直接资本化：V = NOI / R
   const value = noi / capRate
 
   return {
@@ -388,7 +591,7 @@ export function incomeApproach(input: PropertyInput, cityData: typeof DEFAULT_CI
     details: {
       monthlyRent: input.monthlyRent,
       grossAnnualIncome: Math.round(grossAnnualIncome),
-      vacancyRate: `${((vacancyRate) * 100).toFixed(1)}%`,
+      vacancyRate: `${(vacancyRate * 100).toFixed(1)}%`,
       effectiveGrossIncome: Math.round(effectiveGrossIncome),
       operatingExpenseRate: `${(opExpenseRate * 100).toFixed(1)}%`,
       netOperatingIncome: Math.round(noi),
@@ -405,11 +608,18 @@ export function incomeApproach(input: PropertyInput, cityData: typeof DEFAULT_CI
 export function costApproach(input: PropertyInput, cityData: typeof DEFAULT_CITY): MethodResult {
   const districtCoef = getDistrictCoefficient(input.city, input.district)
 
-  // 土地价格（元/㎡建筑面积）
-  const landUnitPrice = input.landPrice || (cityData.residential * districtCoef * 0.35)
+  // v2.0：地价基准优先使用楼盘面积段均价推算（更贴近实际地价）
+  let landBasePrice = cityData.residential * districtCoef
+  if (input.estateId) {
+    const matrix = _estatePriceMatrixCache.get(input.estateId)
+    if (matrix && matrix.overallAvgPrice > 0) {
+      landBasePrice = matrix.overallAvgPrice
+    }
+  }
+
+  const landUnitPrice = input.landPrice || (landBasePrice * 0.35)
   const landValue = landUnitPrice * input.buildingArea
 
-  // 建安费用（元/㎡）- 按物业类型和装修标准
   const baseCost: Record<string, number> = {
     residential: 3500, commercial: 4500, office: 4200, industrial: 2800, land: 0
   }
@@ -419,30 +629,16 @@ export function costApproach(input: PropertyInput, cityData: typeof DEFAULT_CITY
   const constructionCostPerSqm = input.constructionCost
     || (baseCost[input.propertyType] || 3500) + (decorationCost[input.decoration] || 1200)
 
-  // 建安费用总额
   const constructionCost = constructionCostPerSqm * input.buildingArea
-
-  // 开发费用（勘察设计、管理费等，约建安费的8%）
   const developmentCost = constructionCost * 0.08
-
-  // 投资利息（建设期平均2年，贷款利率4.35%）
   const interestCost = (constructionCost + developmentCost) * 0.0435 * 1.5
-
-  // 开发利润（约建安费的10%）
   const profitCost = constructionCost * 0.10
-
-  // 重置成本（全新状态）
   const replacementCost = constructionCost + developmentCost + interestCost + profitCost
 
-  // 折旧（物质折旧 + 功能折旧 + 经济折旧）
   const physicalDepreciation = replacementCost * (1 - getAgeCoefficient(input.buildingAge, input.propertyType))
-  const functionalDepreciation = input.buildingAge > 20 ? replacementCost * 0.03 : 0  // 功能过时折旧
-  const economicDepreciation = replacementCost * 0.01  // 外部经济折旧
-
-  // 建筑物现值
+  const functionalDepreciation = input.buildingAge > 20 ? replacementCost * 0.03 : 0
+  const economicDepreciation = replacementCost * 0.01
   const buildingValue = replacementCost - physicalDepreciation - functionalDepreciation - economicDepreciation
-
-  // 房地产总价值 = 土地价值 + 建筑物现值
   const totalValue = landValue + buildingValue
 
   return {
@@ -452,7 +648,7 @@ export function costApproach(input: PropertyInput, cityData: typeof DEFAULT_CITY
     details: {
       landUnitPrice: Math.round(landUnitPrice),
       landValue: Math.round(landValue),
-      constructionCostPerSqm: constructionCostPerSqm,
+      constructionCostPerSqm,
       constructionCost: Math.round(constructionCost),
       developmentCost: Math.round(developmentCost),
       replacementCost: Math.round(replacementCost),
@@ -474,13 +670,35 @@ export function calculateValuation(input: PropertyInput): ValuationResult {
   const cityAvgPrice = (cityData as any)[input.propertyType] || cityData.residential
   const districtAvgPrice = Math.round(cityAvgPrice * districtCoef)
 
+  // 获取楼盘价格矩阵信息（用于 marketData 展示）
+  let estateAvgPrice: number | undefined
+  let estateAreaRangeAvgPrice: number | undefined
+  let comparativePriceSource: string = 'Fallback - 城市区域基准'
+  const areaRange = getAreaRange(input.buildingArea)
+
+  if (input.estateId) {
+    const matrix = _estatePriceMatrixCache.get(input.estateId)
+    if (matrix) {
+      estateAvgPrice = matrix.overallAvgPrice
+      const areaRangeData = matrix.areaRangePrices[areaRange]
+      if (areaRangeData && areaRangeData.sampleCount >= 3) {
+        estateAreaRangeAvgPrice = areaRangeData.avgPrice
+        comparativePriceSource = `Level 2 - 楼盘「${matrix.estateName}」${AREA_RANGE_LABELS[areaRange]}均价`
+      } else if (matrix.overallAvgPrice > 0) {
+        comparativePriceSource = `Level 3 - 楼盘「${matrix.estateName}」整体均价 × 面积段系数`
+      }
+    }
+  }
+  if (input.comparables && input.comparables.length >= 2) {
+    comparativePriceSource = 'Level 1 - 同楼盘/同面积段真实成交案例'
+  }
+
   // 执行三种估价方法
   const comparativeResult = comparativeApproach(input, cityData)
   const incomeResult = incomeApproach(input, cityData)
   const costResult = costApproach(input, cityData)
 
   // 根据物业类型确定权重
-  // 住宅：比较法为主；商业/办公：收益法为主；工业：成本法为主
   let weights = { comparative: 0.6, income: 0.25, cost: 0.15 }
   if (input.propertyType === 'commercial') {
     weights = { comparative: 0.30, income: 0.50, cost: 0.20 }
@@ -492,6 +710,14 @@ export function calculateValuation(input: PropertyInput): ValuationResult {
     weights = { comparative: 0.40, income: 0.30, cost: 0.30 }
   }
 
+  // v2.0：当比较法使用了高精度楼盘数据（Level 1/2），提升比较法权重
+  if (
+    input.propertyType === 'residential' &&
+    (comparativePriceSource.startsWith('Level 1') || comparativePriceSource.startsWith('Level 2'))
+  ) {
+    weights = { comparative: 0.70, income: 0.20, cost: 0.10 }
+  }
+
   // 加权平均
   const finalUnitPrice = Math.round(
     comparativeResult.unitPrice * weights.comparative +
@@ -500,19 +726,35 @@ export function calculateValuation(input: PropertyInput): ValuationResult {
   )
   const finalValue = Math.round(finalUnitPrice * input.buildingArea)
 
-  // 置信度（三法结果差异越小，置信度越高）
+  // 置信度（三法结果差异越小，置信度越高；Level 1/2 额外加成）
   const prices = [comparativeResult.unitPrice, incomeResult?.unitPrice || 0, costResult.unitPrice].filter(p => p > 0)
   const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length
   const maxDeviation = Math.max(...prices.map(p => Math.abs(p - avgPrice) / avgPrice))
-  const confidenceLevel: 'high' | 'medium' | 'low' = maxDeviation < 0.10 ? 'high' : maxDeviation < 0.20 ? 'medium' : 'low'
+  let confidenceLevel: 'high' | 'medium' | 'low' = maxDeviation < 0.10 ? 'high' : maxDeviation < 0.20 ? 'medium' : 'low'
 
-  // 调整系数明细
+  // Level 1/2 数据质量高，降低置信度门槛
+  if (
+    comparativePriceSource.startsWith('Level 1') ||
+    comparativePriceSource.startsWith('Level 2')
+  ) {
+    if (confidenceLevel === 'medium' && maxDeviation < 0.25) confidenceLevel = 'high'
+    if (confidenceLevel === 'low' && maxDeviation < 0.35) confidenceLevel = 'medium'
+  }
+
+  // 调整系数明细（v2.0 新增面积段系数展示）
+  const areaCoef = getAreaRangeCoefficient(input.buildingArea)
   const adjustments: AdjustmentDetail[] = [
     {
       factor: '区位系数',
       description: `${input.district}区域相对城市均价调整`,
       coefficient: districtCoef,
       impact: Math.round((districtCoef - 1) * cityAvgPrice * input.buildingArea)
+    },
+    {
+      factor: '面积段系数',
+      description: `${AREA_RANGE_LABELS[areaRange]}，相对标准三房（90-120㎡）的溢价/折价`,
+      coefficient: areaCoef,
+      impact: Math.round((areaCoef - 1) * (estateAreaRangeAvgPrice || estateAvgPrice || districtAvgPrice) * input.buildingArea)
     },
     {
       factor: '楼层系数',
@@ -542,7 +784,7 @@ export function calculateValuation(input: PropertyInput): ValuationResult {
 
   // 估价说明
   const methodDescriptions: Record<string, string> = {
-    residential: '本次评估采用市场比较法为主要方法，收益法和成本法作为验证方法。住宅类物业市场交易活跃，可比案例充分，比较法结果可靠性高。',
+    residential: '本次评估采用市场比较法为主要方法（v2.0 三级降级策略），收益法和成本法作为验证。住宅类物业优先使用同楼盘、同面积段的真实成交案例或楼盘价格矩阵作为基准，确保估价结果贴近真实市场。',
     commercial: '本次评估采用收益法为主要方法，市场比较法和成本法作为验证。商业物业价值主要体现在其盈利能力，收益法更能反映物业的内在价值。',
     office: '本次评估采用收益法为主要方法，市场比较法和成本法作为验证。办公物业价值与租金收益密切相关，收益法结果更具参考价值。',
     industrial: '本次评估采用成本法为主要方法，市场比较法和收益法作为验证。工业物业特殊性较强，成本法能更准确反映其重置价值。',
@@ -562,6 +804,10 @@ export function calculateValuation(input: PropertyInput): ValuationResult {
     marketData: {
       cityAvgPrice,
       districtAvgPrice,
+      estateAvgPrice,
+      estateAreaRangeAvgPrice,
+      areaRange: AREA_RANGE_LABELS[areaRange],
+      comparativePriceSource,
       priceIndex: Math.round(districtCoef * 100) / 100,
       marketTrend: cityData.trend > 2 ? 'rising' : cityData.trend > 0 ? 'stable' : 'declining',
       trendRate: cityData.trend
@@ -572,12 +818,14 @@ export function calculateValuation(input: PropertyInput): ValuationResult {
       '物业不存在重大质量缺陷或法律纠纷',
       '土地使用权在剩余年限内可正常使用',
       '周边基础设施和配套设施保持现状',
-      '宏观经济政策和房地产调控政策保持稳定'
+      '宏观经济政策和房地产调控政策保持稳定',
+      'v2.0：楼盘价格矩阵基于数据库历史成交及挂牌数据统计，每日自动更新'
     ],
     limitations: [
       '本估价结果仅供参考，不构成交易建议',
       '实际成交价格可能因市场波动、谈判因素等与估价结果存在差异',
-      '如物业存在重大变化，本估价结果将失效'
+      '如物业存在重大变化，本估价结果将失效',
+      '楼盘价格矩阵样本量不足时（<3条），自动降级至城市/区域基准，精度相应降低'
     ]
   }
 }

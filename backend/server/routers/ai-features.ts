@@ -9,7 +9,21 @@ import { cases, estates, buildings, units, cities, crawlJobs, crawlLogs } from '
 import {
   eq, desc, and, gte, lte, sql, isNotNull, isNull, like, or, count, ne, inArray
 } from 'drizzle-orm'
-import { calculateValuation, type PropertyInput } from '../lib/valuation-engine'
+import {
+  calculateValuation,
+  comparativeApproach,
+  incomeApproach,
+  costApproach,
+  getAreaRange,
+  AREA_RANGE_LABELS,
+  type PropertyInput,
+} from '../lib/valuation-engine'
+import {
+  getOrBuildEstatePriceMatrix,
+  refreshEstatePriceMatrix,
+  refreshAllEstatePriceMatrices,
+  getEstatePriceMatrixSummary,
+} from '../lib/estate-price-matrix-service'
 import OpenAI from 'openai'
 
 // ============================================================
@@ -396,10 +410,11 @@ export const aiFeaturesRouter = router({
       return { history: rawData, predictions: predictedMonths }
     }),
 
-  /** 单套房屋价格预测（调用估价引擎） */
+  /** 单套房屋价格预测（v2.0 三级降级策略 + 完整估价引擎） */
   predictSinglePrice: protectedProcedure
     .input(z.object({
       cityId: z.number(),
+      estateId: z.number().optional(),     // v2.0：传入楼盘ID可触发 Level 2/3
       propertyType: z.string().default('住宅'),
       area: z.number(),
       floor: z.number(),
@@ -408,55 +423,93 @@ export const aiFeaturesRouter = router({
       decoration: z.string().default('medium'),
       orientation: z.string().default('south'),
       hasElevator: z.boolean().default(true),
+      hasParking: z.boolean().default(false),
       address: z.string().default(''),
+      district: z.string().default('其他'),
     }))
     .mutation(async ({ input }) => {
-      // 从数据库查找相似案例
+      // 获取城市名称
+      const [cityRow] = await db.select({ name: cities.name })
+        .from(cities).where(eq(cities.id, input.cityId)).limit(1)
+      const cityName = cityRow?.name || '深圳'
+
+      // v2.0：若传入 estateId，预先加载楼盘价格矩阵（触发 Level 2/3）
+      if (input.estateId) {
+        await getOrBuildEstatePriceMatrix(input.estateId)
+      }
+
+      // 从数据库查找同面积段的相似案例（Level 1 候选）
+      const areaRange = getAreaRange(input.area)
+      // 面积段边界扩展 ±20% 以确保有足够样本
       const areaMin = input.area * 0.7
       const areaMax = input.area * 1.3
-      const comparableCases = await db.select().from(cases)
-        .where(and(
-          eq(cases.cityId, input.cityId),
-          eq(cases.isAnomaly, false),
-          isNotNull(cases.unitPrice),
-          gte(cases.area, areaMin.toString()),
-          lte(cases.area, areaMax.toString()),
-        ))
+      const conditions: any[] = [
+        eq(cases.cityId, input.cityId),
+        eq(cases.isAnomaly, false),
+        isNotNull(cases.unitPrice),
+        gte(cases.area, areaMin.toString()),
+        lte(cases.area, areaMax.toString()),
+      ]
+      if (input.estateId) conditions.push(eq(cases.estateId, input.estateId))
+
+      let comparableCases = await db.select().from(cases)
+        .where(and(...conditions))
         .orderBy(desc(cases.transactionDate))
         .limit(20)
 
-      if (comparableCases.length === 0) {
-        return { error: '数据库中暂无足够的相似案例，无法预测', comparableCount: 0 }
+      // 若同楼盘案例不足，扩大到全城市同面积段
+      if (comparableCases.length < 3 && input.estateId) {
+        comparableCases = await db.select().from(cases)
+          .where(and(
+            eq(cases.cityId, input.cityId),
+            eq(cases.isAnomaly, false),
+            isNotNull(cases.unitPrice),
+            gte(cases.area, areaMin.toString()),
+            lte(cases.area, areaMax.toString()),
+          ))
+          .orderBy(desc(cases.transactionDate))
+          .limit(20)
       }
 
-      // 计算加权均价
-      const scored = comparableCases.map(c => ({
-        ...c,
-        similarity: calcSimilarity(input, c),
-      })).sort((a, b) => b.similarity - a.similarity).slice(0, 6)
+      // 构建 PropertyInput 调用完整估价引擎
+      const propInput: PropertyInput = {
+        propertyType: 'residential',
+        city: cityName,
+        district: input.district,
+        address: input.address,
+        buildingAge: input.buildingAge,
+        totalFloors: input.totalFloors,
+        floor: input.floor,
+        buildingArea: input.area,
+        orientation: (input.orientation as any) || 'south',
+        decoration: (input.decoration as any) || 'medium',
+        hasElevator: input.hasElevator,
+        hasParking: input.hasParking,
+        purpose: 'transaction',
+        estateId: input.estateId,
+        comparables: comparableCases.length >= 2 ? comparableCases.map(c => ({
+          address: c.address || '',
+          transactionPrice: Number(c.unitPrice),
+          transactionDate: c.transactionDate instanceof Date
+            ? c.transactionDate.toISOString().split('T')[0]
+            : String(c.transactionDate || new Date().toISOString().split('T')[0]),
+          buildingArea: Number(c.area) || input.area,
+          buildingAge: input.buildingAge,
+          floor: c.floor || input.floor,
+          totalFloors: c.totalFloors || input.totalFloors,
+          decoration: c.decoration || 'medium',
+          hasElevator: input.hasElevator,
+          hasParking: input.hasParking,
+        })) : undefined,
+      }
 
-      const totalWeight = scored.reduce((s, c) => s + c.similarity, 0)
-      const weightedPrice = scored.reduce((s, c) => s + Number(c.unitPrice) * c.similarity, 0) / (totalWeight || 1)
-
-      // 调整系数（楼层、装修、楼龄）
-      let adjustFactor = 1.0
-      const floorRatio = input.totalFloors > 0 ? input.floor / input.totalFloors : 0.5
-      if (floorRatio > 0.7) adjustFactor *= 1.05
-      else if (floorRatio < 0.2) adjustFactor *= 0.95
-      if (input.decoration === 'fine' || input.decoration === 'luxury') adjustFactor *= 1.08
-      else if (input.decoration === 'rough') adjustFactor *= 0.92
-      if (input.buildingAge > 20) adjustFactor *= 0.90
-      else if (input.buildingAge < 5) adjustFactor *= 1.05
-      if (input.hasElevator && input.totalFloors > 6) adjustFactor *= 1.03
-
-      const predictedUnitPrice = Math.round(weightedPrice * adjustFactor)
-      const totalPrice = Math.round(predictedUnitPrice * input.area)
-      const confidence = Math.min(95, 60 + scored.length * 5)
+      const result = calculateValuation(propInput)
 
       // 获取价格趋势（最近6个月）
       const trendData = await db.select({
         month: sql<string>`DATE_FORMAT(transaction_date, '%Y-%m')`,
         avgPrice: sql<number>`ROUND(AVG(unit_price), 0)`,
+        sampleCount: sql<number>`COUNT(*)`,
       }).from(cases)
         .where(and(
           eq(cases.cityId, input.cityId),
@@ -467,27 +520,42 @@ export const aiFeaturesRouter = router({
         .groupBy(sql`DATE_FORMAT(transaction_date, '%Y-%m')`)
         .orderBy(sql`DATE_FORMAT(transaction_date, '%Y-%m')`)
 
+      // 楼盘价格矩阵摘要（若有）
+      const matrixSummary = input.estateId
+        ? await getEstatePriceMatrixSummary([input.estateId])
+        : []
+
       return {
-        predictedUnitPrice,
-        totalPrice,
-        confidence,
-        adjustFactor: Math.round(adjustFactor * 100) / 100,
-        comparableCount: scored.length,
-        comparableCases: scored.map(c => ({
+        predictedUnitPrice: result.unitPrice,
+        totalPrice: result.finalValue,
+        confidence: result.confidenceLevel === 'high' ? 90 : result.confidenceLevel === 'medium' ? 75 : 60,
+        confidenceLevel: result.confidenceLevel,
+        priceSource: result.marketData.comparativePriceSource,
+        areaRange: AREA_RANGE_LABELS[areaRange],
+        comparableCount: comparableCases.length,
+        comparableCases: comparableCases.slice(0, 6).map(c => ({
           id: c.id,
           address: c.address,
           area: Number(c.area),
           unitPrice: Number(c.unitPrice),
           transactionDate: c.transactionDate,
-          similarity: Math.round(c.similarity * 100),
+          similarity: Math.round(calcSimilarity(input, c) * 100),
         })),
         priceTrend: trendData,
-        factors: [
-          { name: '楼层系数', value: floorRatio > 0.7 ? '+5%' : floorRatio < 0.2 ? '-5%' : '0%', impact: floorRatio > 0.7 ? 'positive' : floorRatio < 0.2 ? 'negative' : 'neutral' },
-          { name: '装修系数', value: input.decoration === 'fine' || input.decoration === 'luxury' ? '+8%' : input.decoration === 'rough' ? '-8%' : '0%', impact: input.decoration === 'fine' || input.decoration === 'luxury' ? 'positive' : input.decoration === 'rough' ? 'negative' : 'neutral' },
-          { name: '楼龄系数', value: input.buildingAge > 20 ? '-10%' : input.buildingAge < 5 ? '+5%' : '0%', impact: input.buildingAge > 20 ? 'negative' : input.buildingAge < 5 ? 'positive' : 'neutral' },
-          { name: '电梯系数', value: input.hasElevator && input.totalFloors > 6 ? '+3%' : '0%', impact: input.hasElevator && input.totalFloors > 6 ? 'positive' : 'neutral' },
-        ],
+        marketData: result.marketData,
+        adjustments: result.adjustments,
+        comparativeResult: result.comparativeResult,
+        incomeResult: result.incomeResult,
+        costResult: result.costResult,
+        weights: result.weights,
+        matrixSummary: matrixSummary[0] || null,
+        factors: result.adjustments.map(a => ({
+          name: a.factor,
+          value: `${a.coefficient >= 1 ? '+' : ''}${((a.coefficient - 1) * 100).toFixed(1)}%`,
+          impact: a.coefficient > 1 ? 'positive' : a.coefficient < 1 ? 'negative' : 'neutral',
+          coefficient: a.coefficient,
+          impact_amount: a.impact,
+        })),
       }
     }),
 
@@ -713,7 +781,7 @@ export const aiFeaturesRouter = router({
       }))
     }),
 
-  /** 单个案例估值（供批量调用） */
+  /** 单个案例估值（v2.0 对接三级降级策略引擎） */
   valuateSingleCase: protectedProcedure
     .input(z.object({
       caseId: z.number(),
@@ -727,43 +795,108 @@ export const aiFeaturesRouter = router({
       const floor = c.floor || 10
       const totalFloors = c.totalFloors || 20
 
-      // 查找相似案例
+      // 获取城市名称
+      const [cityRow] = c.cityId
+        ? await db.select({ name: cities.name }).from(cities).where(eq(cities.id, c.cityId)).limit(1)
+        : [{ name: '深圳' }]
+      const cityName = cityRow?.name || '深圳'
+
+      // v2.0：若案例有关联楼盘，预加载楼盘价格矩阵
+      if (c.estateId) {
+        await getOrBuildEstatePriceMatrix(c.estateId)
+      }
+
+      // 查找同楼盘同面积段的相似案例（Level 1 候选）
       const areaMin = area * 0.7
       const areaMax = area * 1.3
-      const comparables = await db.select().from(cases)
-        .where(and(
-          eq(cases.cityId, c.cityId!),
-          eq(cases.isAnomaly, false),
-          isNotNull(cases.unitPrice),
-          ne(cases.id, input.caseId),
-          gte(cases.area, areaMin.toString()),
-          lte(cases.area, areaMax.toString()),
-        ))
+      const conditions: any[] = [
+        eq(cases.cityId, c.cityId!),
+        eq(cases.isAnomaly, false),
+        isNotNull(cases.unitPrice),
+        ne(cases.id, input.caseId),
+        gte(cases.area, areaMin.toString()),
+        lte(cases.area, areaMax.toString()),
+      ]
+      if (c.estateId) conditions.push(eq(cases.estateId, c.estateId))
+
+      let comparables = await db.select().from(cases)
+        .where(and(...conditions))
         .orderBy(desc(cases.transactionDate))
         .limit(10)
 
-      if (comparables.length === 0) {
-        return { caseId: input.caseId, error: '无足够参考案例', status: 'failed' }
+      // 同楼盘案例不足，扩大到全城市
+      if (comparables.length < 2 && c.estateId) {
+        comparables = await db.select().from(cases)
+          .where(and(
+            eq(cases.cityId, c.cityId!),
+            eq(cases.isAnomaly, false),
+            isNotNull(cases.unitPrice),
+            ne(cases.id, input.caseId),
+            gte(cases.area, areaMin.toString()),
+            lte(cases.area, areaMax.toString()),
+          ))
+          .orderBy(desc(cases.transactionDate))
+          .limit(10)
       }
 
-      // 加权均价
-      const scored = comparables.map(comp => ({
-        ...comp,
-        similarity: calcSimilarity({ area, floor, totalFloors }, comp),
-      })).sort((a, b) => b.similarity - a.similarity).slice(0, 6)
+      // 构建 PropertyInput
+      const propInput: PropertyInput = {
+        propertyType: 'residential',
+        city: cityName,
+        district: '其他',
+        address: c.address || '',
+        buildingAge: 10,
+        totalFloors,
+        floor,
+        buildingArea: area,
+        orientation: 'south',
+        decoration: (c.decoration as any) || 'medium',
+        hasElevator: totalFloors > 6,
+        hasParking: false,
+        purpose: 'transaction',
+        estateId: c.estateId || undefined,
+        comparables: comparables.length >= 2 ? comparables.map(comp => ({
+          address: comp.address || '',
+          transactionPrice: Number(comp.unitPrice),
+          transactionDate: comp.transactionDate instanceof Date
+            ? comp.transactionDate.toISOString().split('T')[0]
+            : String(comp.transactionDate || new Date().toISOString().split('T')[0]),
+          buildingArea: Number(comp.area) || area,
+          buildingAge: 10,
+          floor: comp.floor || floor,
+          totalFloors: comp.totalFloors || totalFloors,
+          decoration: comp.decoration || 'medium',
+          hasElevator: totalFloors > 6,
+          hasParking: false,
+        })) : undefined,
+      }
 
-      const totalWeight = scored.reduce((s, c) => s + c.similarity, 0)
-      const weightedPrice = scored.reduce((s, c) => s + Number(c.unitPrice) * c.similarity, 0) / (totalWeight || 1)
+      // 根据 method 选择估价方法
+      let estimatedUnitPrice: number
+      let methodName: string
+      let confidence: number
 
-      // 方法调整
-      let methodFactor = 1.0
-      if (input.method === 'income') methodFactor = 0.95
-      else if (input.method === 'cost') methodFactor = 0.92
-      else if (input.method === 'ai') methodFactor = 1.02
+      if (input.method === 'market' || input.method === 'ai') {
+        const result = calculateValuation(propInput)
+        estimatedUnitPrice = result.unitPrice
+        methodName = result.comparativeResult?.method || '市场比较法'
+        confidence = result.confidenceLevel === 'high' ? 90 : result.confidenceLevel === 'medium' ? 75 : 60
+        if (input.method === 'ai') estimatedUnitPrice = Math.round(estimatedUnitPrice * 1.02)
+      } else if (input.method === 'income') {
+        const cityData = { residential: 72000, commercial: 90000, office: 80000, industrial: 20000, trend: 1.5, districts: { '其他': 1.0 } }
+        const incomeResult = incomeApproach(propInput, cityData)
+        estimatedUnitPrice = incomeResult?.unitPrice || 0
+        methodName = '收益法'
+        confidence = 65
+      } else {
+        const cityData = { residential: 72000, commercial: 90000, office: 80000, industrial: 20000, trend: 1.5, districts: { '其他': 1.0 } }
+        const costResult = costApproach(propInput, cityData)
+        estimatedUnitPrice = costResult.unitPrice
+        methodName = '成本法'
+        confidence = 60
+      }
 
-      const estimatedUnitPrice = Math.round(weightedPrice * methodFactor)
       const totalPrice = Math.round(estimatedUnitPrice * area)
-      const confidence = Math.min(95, 55 + scored.length * 6)
       const deviation = c.unitPrice ? Math.round(((estimatedUnitPrice - Number(c.unitPrice)) / Number(c.unitPrice)) * 100) : null
 
       return {
@@ -771,14 +904,80 @@ export const aiFeaturesRouter = router({
         address: c.address,
         area,
         method: input.method,
+        methodName,
         estimatedUnitPrice,
         totalPrice,
         actualUnitPrice: Number(c.unitPrice),
         deviation,
         confidence,
-        comparableCount: scored.length,
+        comparableCount: comparables.length,
+        priceSource: propInput.comparables ? 'Level 1 - 真实案例' : (c.estateId ? 'Level 2/3 - 楼盘价格矩阵' : 'Fallback - 城市基准'),
         status: 'done' as const,
       }
+    }),
+
+  // ──────────────────────────────────────────────────────────
+  // 7. 楼盘价格矩阵（v2.0 新增）
+  // ──────────────────────────────────────────────────────────
+
+  /** 获取单楼盘价格矩阵（各面积段均价） */
+  getEstatePriceMatrix: protectedProcedure
+    .input(z.object({ estateId: z.number() }))
+    .query(async ({ input }) => {
+      const matrix = await getOrBuildEstatePriceMatrix(input.estateId)
+      if (!matrix) return null
+      return {
+        estateId: matrix.estateId,
+        estateName: matrix.estateName,
+        overallAvgPrice: matrix.overallAvgPrice,
+        overallSampleCount: matrix.overallSampleCount,
+        updatedAt: matrix.updatedAt,
+        areaRanges: Object.entries(matrix.areaRangePrices).map(([range, data]) => ({
+          range,
+          label: AREA_RANGE_LABELS[range as any] || range,
+          avgPrice: data!.avgPrice,
+          minPrice: data!.minPrice,
+          maxPrice: data!.maxPrice,
+          sampleCount: data!.sampleCount,
+          stdDev: data!.stdDev,
+          lastUpdated: data!.lastUpdated,
+        })),
+      }
+    }),
+
+  /** 刷新单楼盘价格矩阵 */
+  refreshEstatePriceMatrix: adminProcedure
+    .input(z.object({ estateId: z.number() }))
+    .mutation(async ({ input }) => {
+      const matrix = await refreshEstatePriceMatrix(input.estateId)
+      if (!matrix) return { success: false, message: '楼盘无数据或不存在' }
+      return {
+        success: true,
+        estateId: matrix.estateId,
+        estateName: matrix.estateName,
+        overallAvgPrice: matrix.overallAvgPrice,
+        sampleCount: matrix.overallSampleCount,
+        areaRangeCount: Object.keys(matrix.areaRangePrices).length,
+        updatedAt: matrix.updatedAt,
+      }
+    }),
+
+  /** 全量刷新所有楼盘价格矩阵 */
+  refreshAllEstatePriceMatrices: adminProcedure
+    .mutation(async () => {
+      const result = await refreshAllEstatePriceMatrices({ limit: 5000 })
+      return {
+        success: true,
+        ...result,
+        message: `共刷新 ${result.refreshed} 个楼盘价格矩阵，跳过 ${result.skipped} 个，失败 ${result.errors} 个`,
+      }
+    }),
+
+  /** 批量获取楼盘价格矩阵摘要 */
+  getEstatePriceMatrixSummary: protectedProcedure
+    .input(z.object({ estateIds: z.array(z.number()).max(50) }))
+    .query(async ({ input }) => {
+      return getEstatePriceMatrixSummary(input.estateIds)
     }),
 
   /** 批量估值统计（已完成的估值汇总） */
