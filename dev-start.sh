@@ -19,6 +19,14 @@ log_error() { echo -e "${RED}[$(date '+%H:%M:%S')] ❌  $*${RESET}"; }
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$ROOT_DIR/logs"
 
+# ── 0. 加载环境变量 ──────────────────────────────────────────────
+if [ -f "$ROOT_DIR/.env" ]; then
+    set -a
+    source "$ROOT_DIR/.env"
+    set +a
+    log_info "已加载 .env 配置"
+fi
+
 # ── 1. 启动 MySQL ────────────────────────────────────────────────
 log_step "启动 MySQL..."
 sudo service mysql start 2>/dev/null || true
