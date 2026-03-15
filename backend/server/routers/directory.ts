@@ -143,18 +143,31 @@ const estatesRouter = router({
 
 const buildingsRouter = router({
   list: protectedProcedure
-    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), estateId: z.number().optional() }))
+    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), estateId: z.number().optional(), search: z.string().optional() }))
     .query(async ({ input, ctx }) => {
-      const { page, pageSize, estateId } = input;
+      const { page, pageSize, estateId, search } = input;
       const offset = (page - 1) * pageSize;
 
       let conditions: any[] = [];
       if (estateId) conditions.push(eq(buildings.estateId, estateId));
+      if (search) conditions.push(like(buildings.name, `%${search}%`));
 
       const items = await ctx.db
-        .select()
+        .select({
+          id: buildings.id,
+          estateId: buildings.estateId,
+          name: buildings.name,
+          floors: buildings.floors,
+          unitsPerFloor: buildings.unitsPerFloor,
+          buildYear: buildings.buildYear,
+          createdAt: buildings.createdAt,
+          estateName: estates.name,
+          estateAddress: estates.address,
+        })
         .from(buildings)
+        .leftJoin(estates, eq(buildings.estateId, estates.id))
         .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(buildings.createdAt))
         .limit(pageSize)
         .offset(offset);
 
@@ -487,7 +500,24 @@ export const directoryRouter = router({
       const offset = (page - 1) * pageSize;
       let conditions: any[] = [];
       if (search) conditions.push(like(buildings.name, `%${search}%`));
-      const items = await ctx.db.select().from(buildings).where(conditions.length > 0 ? and(...conditions) : undefined).orderBy(desc(buildings.createdAt)).limit(pageSize).offset(offset);
+      const items = await ctx.db
+        .select({
+          id: buildings.id,
+          estateId: buildings.estateId,
+          name: buildings.name,
+          floors: buildings.floors,
+          unitsPerFloor: buildings.unitsPerFloor,
+          buildYear: buildings.buildYear,
+          createdAt: buildings.createdAt,
+          estateName: estates.name,
+          estateAddress: estates.address,
+        })
+        .from(buildings)
+        .leftJoin(estates, eq(buildings.estateId, estates.id))
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(buildings.createdAt))
+        .limit(pageSize)
+        .offset(offset);
       const [totalResult] = await ctx.db.select({ count: count() }).from(buildings).where(conditions.length > 0 ? and(...conditions) : undefined);
       return { items, total: totalResult.count, page, pageSize };
     }),
