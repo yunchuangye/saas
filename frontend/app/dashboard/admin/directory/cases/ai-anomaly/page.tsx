@@ -20,7 +20,7 @@ const RISK_MAP: Record<string, { label: string; color: string; bg: string }> = {
 
 export default function AiAnomalyPage() {
   const router = useRouter()
-  const [cityId, setCityId] = useState("")
+  const [cityId, setCityId] = useState("all")
   const [checkPriceHigh, setCheckPriceHigh] = useState(true)
   const [checkPriceLow, setCheckPriceLow] = useState(true)
   const [checkArea, setCheckArea] = useState(true)
@@ -28,7 +28,7 @@ export default function AiAnomalyPage() {
   const [markingId, setMarkingId] = useState<number | null>(null)
 
   const { data: config } = trpc.aiFeatures.getCollectConfig.useQuery()
-  const cityIdNum = cityId ? Number(cityId) : undefined
+  const cityIdNum = cityId && cityId !== "all" ? Number(cityId) : undefined
 
   const { data: result, isLoading, refetch } = trpc.aiFeatures.detectAnomalies.useQuery({
     cityId: cityIdNum, checkPriceHigh, checkPriceLow, checkArea, checkDate, checkDuplicate: false, limit: 100
@@ -57,7 +57,7 @@ export default function AiAnomalyPage() {
         <Select value={cityId} onValueChange={setCityId}>
           <SelectTrigger className="w-40"><SelectValue placeholder="全部城市" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">全部城市</SelectItem>
+            <SelectItem value="all">全部城市</SelectItem>
             {config?.cities.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>

@@ -13,12 +13,12 @@ import { toast } from "sonner"
 
 export default function AiCleanPage() {
   const router = useRouter()
-  const [cityId, setCityId] = useState<string>("")
+  const [cityId, setCityId] = useState<string>("all")
   const [activeTab, setActiveTab] = useState<"overview" | "duplicates" | "anomalies">("overview")
   const [markingId, setMarkingId] = useState<number | null>(null)
 
   const { data: config } = trpc.aiFeatures.getCollectConfig.useQuery()
-  const cityIdNum = cityId ? Number(cityId) : undefined
+  const cityIdNum = cityId && cityId !== "all" ? Number(cityId) : undefined
 
   const { data: quality, isLoading: qualityLoading, refetch: refetchQuality } = trpc.aiFeatures.scanDataQuality.useQuery({ cityId: cityIdNum })
   const { data: duplicates, isLoading: dupLoading } = trpc.aiFeatures.getDuplicateCases.useQuery(
@@ -64,10 +64,10 @@ export default function AiCleanPage() {
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <Select value={cityId} onValueChange={setCityId}>
+        <Select value={cityId} onValueChange={v => setCityId(v)}>
           <SelectTrigger className="w-40"><SelectValue placeholder="全部城市" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">全部城市</SelectItem>
+            <SelectItem value="all">全部城市</SelectItem>
             {config?.cities.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
