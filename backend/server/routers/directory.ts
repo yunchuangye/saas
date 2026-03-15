@@ -494,12 +494,24 @@ export const directoryRouter = router({
       return items;
     }),
   listBuildings: protectedProcedure
-    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), search: z.string().optional() }).optional())
+    .input(z.object({
+      page: z.number().default(1),
+      pageSize: z.number().default(20),
+      search: z.string().optional(),
+      cityId: z.number().optional(),
+      estateId: z.number().optional(),
+    }).optional())
     .query(async ({ input, ctx }) => {
-      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20; const search = input?.search;
+      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20;
+      const search = input?.search; const cityId = input?.cityId; const estateId = input?.estateId;
       const offset = (page - 1) * pageSize;
       let conditions: any[] = [];
       if (search) conditions.push(like(buildings.name, `%${search}%`));
+      if (estateId) conditions.push(eq(buildings.estateId, estateId));
+      if (cityId && !estateId) {
+        // 城市筛选用纯 SQL 子查询，利用 idx_estate_id 索引避免全表扫描
+        conditions.push(sql`estate_id IN (SELECT id FROM estates WHERE city_id = ${cityId})`);
+      }
       // 子查询：统计每栋楼的实际单元数
       const unitCountSubquery = ctx.db
         .select({ buildingId: units.buildingId, unitCount: count().as('unit_count') })
@@ -514,29 +526,86 @@ export const directoryRouter = router({
           floors: buildings.floors,
           unitsPerFloor: buildings.unitsPerFloor,
           buildYear: buildings.buildYear,
+          propertyType: buildings.propertyType,
+          buildingType: buildings.buildingType,
+          avgPrice: buildings.avgPrice,
+          completionDate: buildings.completionDate,
+          totalUnits: buildings.totalUnits,
           createdAt: buildings.createdAt,
           estateName: estates.name,
           estateAddress: estates.address,
+          estateCityId: estates.cityId,
           unitCount: sql<number>`COALESCE(${unitCountSubquery.unitCount}, 0)`,
         })
         .from(buildings)
         .leftJoin(estates, eq(buildings.estateId, estates.id))
         .leftJoin(unitCountSubquery, eq(buildings.id, unitCountSubquery.buildingId))
         .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(desc(buildings.createdAt))
+        .orderBy(desc(buildings.id))
         .limit(pageSize)
         .offset(offset);
-      const [totalResult] = await ctx.db.select({ count: count() }).from(buildings).where(conditions.length > 0 ? and(...conditions) : undefined);
+      const [totalResult] = await ctx.db
+        .select({ count: count() })
+        .from(buildings)
+        .where(conditions.length > 0 ? and(...conditions) : undefined);
       return { items, total: totalResult.count, page, pageSize };
     }),
   listUnits: protectedProcedure
-    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20), search: z.string().optional() }).optional())
+    .input(z.object({
+      page: z.number().default(1),
+      pageSize: z.number().default(20),
+      search: z.string().optional(),
+      cityId: z.number().optional(),
+      estateId: z.number().optional(),
+      buildingId: z.number().optional(),
+    }).optional())
     .query(async ({ input, ctx }) => {
-      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20; const search = input?.search;
+      const page = input?.page ?? 1; const pageSize = input?.pageSize ?? 20;
+      const search = input?.search; const cityId = input?.cityId;
+      const estateId = input?.estateId; const buildingId = input?.buildingId;
       const offset = (page - 1) * pageSize;
+      // 构建高效筛选条件：城市用子查询避免全表扫描
       let conditions: any[] = [];
-      const items = await ctx.db.select().from(units).where(conditions.length > 0 ? and(...conditions) : undefined).orderBy(desc(units.createdAt)).limit(pageSize).offset(offset);
-      const [totalResult] = await ctx.db.select({ count: count() }).from(units);
+      if (search) conditions.push(like(units.unitNumber, `%${search}%`));
+      if (buildingId) conditions.push(eq(units.buildingId, buildingId));
+      if (estateId) conditions.push(eq(units.estateId, estateId));
+      if (cityId && !estateId && !buildingId) {
+        // 仅按城市筛选时，用纯 SQL 子查询（利用 idx_estate_id 索引）
+        conditions.push(sql`estate_id IN (SELECT id FROM estates WHERE city_id = ${cityId})`);
+      }
+      const items = await ctx.db
+        .select({
+          id: units.id,
+          buildingId: units.buildingId,
+          estateId: units.estateId,
+          unitNumber: units.unitNumber,
+          floor: units.floor,
+          area: units.area,
+          buildArea: units.buildArea,
+          rooms: units.rooms,
+          bathrooms: units.bathrooms,
+          orientation: units.orientation,
+          towards: units.towards,
+          landscape: units.landscape,
+          unitPrice: units.unitPrice,
+          totalPrice: units.totalPrice,
+          propertyType: units.propertyType,
+          propertyNo: units.propertyNo,
+          createdAt: units.createdAt,
+          buildingName: buildings.name,
+          estateName: estates.name,
+        })
+        .from(units)
+        .leftJoin(buildings, eq(units.buildingId, buildings.id))
+        .leftJoin(estates, eq(units.estateId, estates.id))
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(units.id))
+        .limit(pageSize)
+        .offset(offset);
+      const [totalResult] = await ctx.db
+        .select({ count: count() })
+        .from(units)
+        .where(conditions.length > 0 ? and(...conditions) : undefined);
       return { items, total: totalResult.count, page, pageSize };
     }),
   listCases: protectedProcedure

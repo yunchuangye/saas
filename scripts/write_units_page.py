@@ -1,4 +1,6 @@
-"use client"
+import os
+target = "/home/ubuntu/saas/frontend/app/dashboard/admin/directory/units/page.tsx"
+content = r'''"use client"
 import { useState } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -292,3 +294,7 @@ export default function UnitsPage() {
     </div>
   )
 }
+'''
+with open(target, 'w') as f:
+    f.write(content)
+print(f"Written {len(content)} bytes to {target}")
