@@ -500,6 +500,12 @@ export const directoryRouter = router({
       const offset = (page - 1) * pageSize;
       let conditions: any[] = [];
       if (search) conditions.push(like(buildings.name, `%${search}%`));
+      // 子查询：统计每栋楼的实际单元数
+      const unitCountSubquery = ctx.db
+        .select({ buildingId: units.buildingId, unitCount: count().as('unit_count') })
+        .from(units)
+        .groupBy(units.buildingId)
+        .as('unit_stats');
       const items = await ctx.db
         .select({
           id: buildings.id,
@@ -511,9 +517,11 @@ export const directoryRouter = router({
           createdAt: buildings.createdAt,
           estateName: estates.name,
           estateAddress: estates.address,
+          unitCount: sql<number>`COALESCE(${unitCountSubquery.unitCount}, 0)`,
         })
         .from(buildings)
         .leftJoin(estates, eq(buildings.estateId, estates.id))
+        .leftJoin(unitCountSubquery, eq(buildings.id, unitCountSubquery.buildingId))
         .where(conditions.length > 0 ? and(...conditions) : undefined)
         .orderBy(desc(buildings.createdAt))
         .limit(pageSize)
