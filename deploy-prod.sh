@@ -101,13 +101,37 @@ else
 fi
 
 if [ ! -f "$FRONTEND_DIR/.env.local" ]; then
-    echo "BACKEND_URL=http://localhost:8721" > "$FRONTEND_DIR/.env.local"
-    log_warn "已创建 frontend/.env.local（默认指向 localhost:8721）"
-    log_warn "如需使用域名，请修改: BACKEND_URL=https://api.gujia.app"
+    echo ""
+    echo -e "${RED}╔══════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${RED}║  未找到 frontend/.env.local！请先创建此文件！                             ║${RESET}"
+    echo -e "${RED}║  内容示例：                                                              ║${RESET}"
+    echo -e "${RED}║  NEXT_PUBLIC_BACKEND_URL=https://api.gujia.app               ║${RESET}"
+    echo -e "${RED}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo ""
+    read -p "请输入后端地址（直接回车使用默认 http://localhost:8721）: " INPUT_URL
+    BACKEND_URL_INPUT="${INPUT_URL:-http://localhost:8721}"
+    echo "NEXT_PUBLIC_BACKEND_URL=${BACKEND_URL_INPUT}" > "$FRONTEND_DIR/.env.local"
+    log_info "已创建 frontend/.env.local: NEXT_PUBLIC_BACKEND_URL=${BACKEND_URL_INPUT}"
 else
     log_info "frontend/.env.local 已存在"
-    BACKEND_URL_VAL=$(grep "^BACKEND_URL=" "$FRONTEND_DIR/.env.local" 2>/dev/null | cut -d= -f2 || echo "未设置")
-    log_info "当前 BACKEND_URL = $BACKEND_URL_VAL"
+    # 检查是否配置了 NEXT_PUBLIC_BACKEND_URL
+    CONFIGURED_URL=$(grep "^NEXT_PUBLIC_BACKEND_URL=" "$FRONTEND_DIR/.env.local" 2>/dev/null | cut -d= -f2- || echo "")
+    # 兼容旧的 BACKEND_URL 配置
+    OLD_BACKEND_URL=$(grep "^BACKEND_URL=" "$FRONTEND_DIR/.env.local" 2>/dev/null | cut -d= -f2- || echo "")
+
+    if [ -z "$CONFIGURED_URL" ] && [ -n "$OLD_BACKEND_URL" ]; then
+        log_warn "检测到旧配置 BACKEND_URL=$OLD_BACKEND_URL"
+        log_warn "自动转换为 NEXT_PUBLIC_BACKEND_URL（旧变量在生产环境不生效）"
+        echo "NEXT_PUBLIC_BACKEND_URL=${OLD_BACKEND_URL}" >> "$FRONTEND_DIR/.env.local"
+        CONFIGURED_URL="$OLD_BACKEND_URL"
+    fi
+
+    if [ -z "$CONFIGURED_URL" ]; then
+        log_warn "frontend/.env.local 中未设置 NEXT_PUBLIC_BACKEND_URL"
+        log_warn "将使用默认地址 http://localhost:8721（这在生产环境不正确！）"
+    else
+        log_info "NEXT_PUBLIC_BACKEND_URL = ${CONFIGURED_URL}"
+    fi
 fi
 
 # ── STEP 4: 安装后端依赖并编译 ──────────────────────────────────
@@ -170,8 +194,12 @@ echo -e "${BOLD}${GREEN}║                    🎉 部署完成！             
 echo -e "${BOLD}${GREEN}╠══════════════════════════════════════════════════════════════╣${RESET}"
 echo -e "${BOLD}${GREEN}║  查看服务状态:  pm2 status                                   ║${RESET}"
 echo -e "${BOLD}${GREEN}║  查看后端日志:  pm2 logs gujia-backend                       ║${RESET}"
-echo -e "${BOLD}${GREEN}║  查看前端日志:  pm2 logs gujia-frontend                      ║${RESET}"
+echo -e "${BOLD}${GREEN}║  查看前端日志:  pm2 logs gujia-frontend                       ║${RESET}"
 echo -e "${BOLD}${GREEN}║  重启所有服务:  pm2 restart all                              ║${RESET}"
 echo -e "${BOLD}${GREEN}║  停止所有服务:  pm2 stop all                                 ║${RESET}"
+echo -e "${BOLD}${GREEN}╠══════════════════════════════════════════════════════════════╣${RESET}"
+echo -e "${BOLD}${GREEN}║  ⚠️  修改后端地址时：                                          ║${RESET}"
+echo -e "${BOLD}${GREEN}║  1. 修改 frontend/.env.local 中的 NEXT_PUBLIC_BACKEND_URL    ║${RESET}"
+echo -e "${BOLD}${GREEN}║  2. 重新执行 ./deploy-prod.sh （必须重新 build！）              ║${RESET}"
 echo -e "${BOLD}${GREEN}╚══════════════════════════════════════════════════════════════╝${RESET}"
 echo ""

@@ -1,40 +1,28 @@
 /**
- * lib/config.ts — 运行时配置管理
+ * lib/config.ts — 后端地址配置
  *
- * 解决 NEXT_PUBLIC_BACKEND_URL 在 next build 时被静态编译进 JS bundle 的问题。
+ * 方案：使用 NEXT_PUBLIC_BACKEND_URL 环境变量（Next.js 官方推荐的客户端环境变量方案）
  *
- * 策略：
- *  - 服务端（API Route、Server Component）：直接读取 process.env，始终是实时值
- *  - 客户端（浏览器）：从 window.__BACKEND_URL__ 读取，该值由 app/layout.tsx 的
- *    Server Component 在 SSR 时内联注入到 HTML 中，完全同步，无需异步请求
+ * 配置方式（在服务器 frontend/.env.local 中设置）：
+ *   NEXT_PUBLIC_BACKEND_URL=https://api.gujia.app
  *
- * 注入方式（在 app/layout.tsx 中）：
- *   <script dangerouslySetInnerHTML={{ __html: `window.__BACKEND_URL__="${backendUrl}"` }} />
+ * 注意：修改此变量后需要重新执行 pnpm build，因为该值在 build 时编译进 JS bundle。
+ * 这是正确的行为——前端 JS 需要在编译时知道后端地址。
  */
 
-declare global {
-  interface Window {
-    __BACKEND_URL__?: string;
-  }
-}
-
-// ── 服务端使用 ────────────────────────────────────────────────────────────────
+// 服务端和客户端通用
 export function getServerBackendUrl(): string {
   return (
-    process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.BACKEND_URL ||
     "http://localhost:8721"
   );
 }
 
-// ── 客户端使用（同步，从 window.__BACKEND_URL__ 读取）────────────────────────
 export function getBackendUrlSync(): string {
-  if (typeof window === "undefined") {
-    return getServerBackendUrl();
-  }
   return (
-    window.__BACKEND_URL__ ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.BACKEND_URL ||
     "http://localhost:8721"
   );
 }
@@ -50,5 +38,5 @@ export async function getBackendUrl(): Promise<string> {
  * 清除缓存（兼容旧代码，实际无操作）
  */
 export function clearBackendUrlCache(): void {
-  // window.__BACKEND_URL__ 由服务端注入，客户端不需要清除
+  // 无操作，兼容旧代码
 }

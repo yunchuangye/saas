@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { trpc, createTRPCClient } from "@/lib/trpc";
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
@@ -17,9 +17,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
       })
   );
 
-  // 使用 useRef 存储 trpcClient，确保在 window.__BACKEND_URL__ 已注入后创建
-  // window.__BACKEND_URL__ 由 layout.tsx 的 SSR 内联 <script> 注入，
-  // 在客户端 JS 执行时已经可用（内联脚本先于模块脚本执行）
+  // tRPC 客户端：使用 NEXT_PUBLIC_BACKEND_URL 环境变量（build 时编译进 bundle）
   const [trpcClient] = useState(() => createTRPCClient());
 
   return (
