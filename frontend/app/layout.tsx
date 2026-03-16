@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { getServerBackendUrl } from '@/lib/config'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -55,8 +56,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const backendUrl = getServerBackendUrl()
+
   return (
     <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        {/* 服务端运行时注入后端地址，客户端从 window.__BACKEND_URL__ 同步读取，无需 build 时静态编译 */}
+        <script dangerouslySetInnerHTML={{ __html: `window.__BACKEND_URL__=${JSON.stringify(backendUrl)}` }} />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"

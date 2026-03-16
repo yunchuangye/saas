@@ -1,41 +1,32 @@
 /**
  * tRPC 客户端配置
- * 连接到 gujia.app 后端 API 服务
  *
- * 后端地址通过运行时 /api/config 接口获取，不在 build 时静态编译，
- * 修改 .env.local 中的 BACKEND_URL 后只需重启服务即可生效。
+ * 后端地址通过 window.__BACKEND_URL__ 运行时读取（由 layout.tsx SSR 注入），
+ * 不在 build 时静态编译，修改 .env.local 中的 BACKEND_URL 后只需重启服务即可生效。
+ *
+ * 注意：httpBatchLink 的 url 字段必须是字符串，不能是函数，
+ * 因此在 createTRPCClient() 调用时直接读取 getBackendUrlSync() 的返回值。
  */
 import { createTRPCReact } from "@trpc/react-query";
 import { httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "../../backend/server/routers";
-import { getBackendUrl, getBackendUrlSync } from "./config";
+import { getBackendUrlSync } from "./config";
 
 export const trpc = createTRPCReact<AppRouter>();
 
 /**
- * 获取后端地址（兼容同步/异步场景）
- * - 服务端：直接读取 process.env，无网络请求
- * - 客户端：优先使用内存缓存，缓存为空时降级到编译时默认值
- */
-export function getBackendBaseUrl(): string {
-  return getBackendUrlSync();
-}
-
-/**
  * 创建 tRPC 客户端
- * httpBatchLink 的 url 使用动态函数，每次请求时重新获取后端地址，
- * 确保配置变更后（重启服务）自动生效。
+ * 每次调用时读取当前 window.__BACKEND_URL__ 值作为字符串传入 url
  */
 export function createTRPCClient() {
+  // 在调用时（非 build 时）读取 window.__BACKEND_URL__，确保是运行时的真实值
+  const backendUrl = getBackendUrlSync();
+
   return trpc.createClient({
     links: [
       httpBatchLink({
-        // 使用异步函数动态获取 URL，客户端首次请求时会先调用 /api/config
-        url: async () => {
-          const backendUrl = await getBackendUrl();
-          return `${backendUrl}/api/trpc`;
-        },
+        url: `${backendUrl}/api/trpc`,
         transformer: superjson,
         fetch(url, options) {
           return fetch(url, {
@@ -48,5 +39,5 @@ export function createTRPCClient() {
   });
 }
 
-// 保留向后兼容的导出（部分页面可能直接引用 BACKEND_URL）
+// 向后兼容的导出
 export const BACKEND_URL = getBackendUrlSync();
