@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { trpc } from '@/lib/trpc'
+import { getBackendUrl } from '@/lib/config'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ScatterChart, Scatter, ResponsiveContainer, ReferenceLine, Area, AreaChart
@@ -503,7 +504,7 @@ function ValuationReport({ result, form, cityName, selectedEstate, selectedBuild
 
   const handleViewReport = () => {
     if (result.id) {
-      window.open(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8721'}/api/valuation-report/${result.id}`, '_blank')
+      getBackendUrl().then(url => window.open(`${url}/api/valuation-report/${result.id}`, '_blank'))
     }
   }
 

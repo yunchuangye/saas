@@ -1,5 +1,6 @@
-"use client"
+'use client'
 import { useState } from "react"
+import { getBackendUrl } from '@/lib/config'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -245,7 +246,7 @@ export default function ValuationPage() {
 
   const handleDownloadPDF = () => {
     if (!recordId) return
-    window.open(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8721'}/api/valuation-report/${recordId}`, '_blank')
+    getBackendUrl().then(url => window.open(`${url}/api/valuation-report/${recordId}`, '_blank'))
   }
 
   const handleReset = () => {

@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getServerBackendUrl } from "@/lib/config"
+
+export const dynamic = "force-dynamic" // 禁止缓存，确保每次读取最新 process.env
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8721"
+  const backendUrl = getServerBackendUrl()
 
   try {
     // 转发 cookie（session）
