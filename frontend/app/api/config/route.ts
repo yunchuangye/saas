@@ -13,7 +13,6 @@ export const dynamic = "force-dynamic"; // 禁止缓存，每次请求都从 pro
 
 export async function GET() {
   const backendUrl =
-    process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     "http://localhost:8721";
 
