@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "gujia-backend",
-      script: "npm",
+      script: "pnpm",
       args: "run start",
       cwd: "./backend",
       instances: 1,
@@ -11,6 +11,7 @@ module.exports = {
       max_memory_restart: "1G",
       env: {
         NODE_ENV: "production",
+        PORT: 8721
       },
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       error_file: "./logs/backend-error.log",
@@ -19,7 +20,7 @@ module.exports = {
     },
     {
       name: "gujia-frontend",
-      script: "npm",
+      script: "pnpm",
       args: "run start",
       cwd: "./frontend",
       instances: 1,

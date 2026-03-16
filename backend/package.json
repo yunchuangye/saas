@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "tsx watch server/index.ts",
+    "dev": "PORT=8721 tsx watch server/index.ts",
     "build": "tsc",
     "start": "node dist/server/index.js",
     "db:push": "drizzle-kit push"
