@@ -59,7 +59,8 @@ export const authRouter = router({
       ctx.res.cookie("token", token, {
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: "lax",
+        sameSite: "none",
+        secure: true,
       });
 
       return {
@@ -127,7 +128,8 @@ export const authRouter = router({
       ctx.res.cookie("token", token, {
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: "lax",
+        sameSite: "none",
+        secure: true,
       });
 
       return {
@@ -199,7 +201,11 @@ export const authRouter = router({
 
   // 登出
   logout: protectedProcedure.mutation(async ({ ctx }) => {
-    ctx.res.clearCookie("token");
+    ctx.res.clearCookie("token", {
+      httpOnly: true,
+      sameSite: "none",
+      secure: true,
+    });
     return { success: true };
   }),
 
