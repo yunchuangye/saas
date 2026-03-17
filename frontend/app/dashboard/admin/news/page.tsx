@@ -1,12 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
@@ -34,7 +35,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Newspaper, Plus, Search, MoreHorizontal, Pencil, Trash2, Pin, Eye, Globe, FileText, Archive } from "lucide-react"
+import {
+  Newspaper, Plus, Search, MoreHorizontal, Pencil, Trash2,
+  Pin, Eye, Globe, FileText, Archive, Calendar, Tag, BookOpen
+} from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
@@ -72,6 +76,9 @@ export default function NewsPage() {
   const [editItem, setEditItem] = useState<any>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
+  // 详情弹窗状态
+  const [viewItem, setViewItem] = useState<any>(null)
+  const [viewOpen, setViewOpen] = useState(false)
 
   const { data, isLoading, refetch } = trpc.news.list.useQuery({
     page,
@@ -133,6 +140,11 @@ export default function NewsPage() {
       isPinned: item.isPinned || false,
     })
     setDialogOpen(true)
+  }
+
+  const handleOpenView = (item: any) => {
+    setViewItem(item)
+    setViewOpen(true)
   }
 
   const handleSubmit = () => {
@@ -257,14 +269,20 @@ export default function NewsPage() {
                 </TableRow>
               ) : (
                 items.map((item) => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className="hover:bg-muted/50">
                     <TableCell>
-                      <div className="flex items-start gap-2">
+                      {/* 点击标题区域打开详情 */}
+                      <div
+                        className="flex items-start gap-2 cursor-pointer group"
+                        onClick={() => handleOpenView(item)}
+                      >
                         {item.isPinned && (
                           <Pin className="h-3.5 w-3.5 mt-0.5 shrink-0 text-orange-500" />
                         )}
                         <div>
-                          <p className="font-medium line-clamp-1">{item.title}</p>
+                          <p className="font-medium line-clamp-1 group-hover:text-primary group-hover:underline transition-colors">
+                            {item.title}
+                          </p>
                           {item.summary && (
                             <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{item.summary}</p>
                           )}
@@ -284,7 +302,7 @@ export default function NewsPage() {
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         <Eye className="h-3.5 w-3.5" />
-                        {item.viewCount}
+                        {item.viewCount ?? 0}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -298,6 +316,10 @@ export default function NewsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenView(item)}>
+                            <BookOpen className="mr-2 h-4 w-4" />
+                            查看详情
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleOpenEdit(item)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             编辑
@@ -340,7 +362,93 @@ export default function NewsPage() {
         )}
       </Card>
 
-      {/* 创建/编辑弹窗 */}
+      {/* ===== 详情查看弹窗 ===== */}
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {viewItem && (
+            <>
+              <DialogHeader>
+                <div className="flex items-start gap-3 pr-6">
+                  {viewItem.isPinned && (
+                    <Pin className="h-4 w-4 mt-1 shrink-0 text-orange-500" />
+                  )}
+                  <DialogTitle className="text-xl leading-tight">{viewItem.title}</DialogTitle>
+                </div>
+                {/* 元信息行 */}
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CATEGORY_MAP[viewItem.category ?? "industry"]?.color}`}>
+                    <Tag className="mr-1 h-3 w-3" />
+                    {CATEGORY_MAP[viewItem.category ?? "industry"]?.label}
+                  </span>
+                  <Badge variant={STATUS_MAP[viewItem.status ?? "draft"]?.variant}>
+                    {STATUS_MAP[viewItem.status ?? "draft"]?.label}
+                  </Badge>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Eye className="h-3.5 w-3.5" />
+                    {viewItem.viewCount ?? 0} 次浏览
+                  </span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {viewItem.createdAt ? format(new Date(viewItem.createdAt), "yyyy年MM月dd日 HH:mm", { locale: zhCN }) : "-"}
+                  </span>
+                </div>
+              </DialogHeader>
+
+              <Separator />
+
+              {/* 封面图片 */}
+              {viewItem.coverImage && (
+                <div className="rounded-lg overflow-hidden border">
+                  <img
+                    src={viewItem.coverImage}
+                    alt={viewItem.title}
+                    className="w-full max-h-64 object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                  />
+                </div>
+              )}
+
+              {/* 摘要 */}
+              {viewItem.summary && (
+                <div className="rounded-lg bg-muted/50 border-l-4 border-primary/40 px-4 py-3">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">摘要</p>
+                  <p className="text-sm leading-relaxed">{viewItem.summary}</p>
+                </div>
+              )}
+
+              {/* 正文内容 */}
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">正文内容</p>
+                {viewItem.content ? (
+                  <div className="rounded-lg border bg-card p-4 text-sm leading-relaxed whitespace-pre-wrap min-h-[100px]">
+                    {viewItem.content}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+                    暂无正文内容
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setViewOpen(false)}>关闭</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setViewOpen(false)
+                    handleOpenEdit(viewItem)
+                  }}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  编辑此新闻
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== 创建/编辑弹窗 ===== */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -360,9 +468,7 @@ export default function NewsPage() {
               <div className="space-y-1.5">
                 <Label>分类</Label>
                 <Select value={form.category} onValueChange={(v: any) => setForm({ ...form, category: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="industry">行业资讯</SelectItem>
                     <SelectItem value="policy">政策法规</SelectItem>
@@ -373,9 +479,7 @@ export default function NewsPage() {
               <div className="space-y-1.5">
                 <Label>状态</Label>
                 <Select value={form.status} onValueChange={(v: any) => setForm({ ...form, status: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="draft">草稿</SelectItem>
                     <SelectItem value="published">立即发布</SelectItem>
@@ -424,7 +528,7 @@ export default function NewsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 删除确认弹窗 */}
+      {/* ===== 删除确认弹窗 ===== */}
       <AlertDialog open={deleteId !== null} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

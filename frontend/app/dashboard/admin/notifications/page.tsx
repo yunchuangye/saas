@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
@@ -40,6 +41,9 @@ import {
   CheckCircle2,
   Bell,
   CheckCheck,
+  Calendar,
+  User,
+  BookOpen,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { useToast } from "@/hooks/use-toast"
@@ -47,11 +51,11 @@ import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
-const TYPE_MAP: Record<string, { label: string; icon: any; color: string }> = {
-  system: { label: "系统通知", icon: Bell, color: "text-gray-500" },
-  project: { label: "项目通知", icon: Info, color: "text-blue-500" },
-  report: { label: "报告通知", icon: CheckCircle2, color: "text-green-500" },
-  warning: { label: "预警通知", icon: AlertCircle, color: "text-yellow-500" },
+const TYPE_MAP: Record<string, { label: string; icon: any; color: string; bg: string }> = {
+  system: { label: "系统通知", icon: Bell, color: "text-gray-500", bg: "bg-gray-100 dark:bg-gray-800" },
+  project: { label: "项目通知", icon: Info, color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-900/30" },
+  report: { label: "报告通知", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-100 dark:bg-green-900/30" },
+  warning: { label: "预警通知", icon: AlertCircle, color: "text-yellow-500", bg: "bg-yellow-100 dark:bg-yellow-900/30" },
 }
 
 const emptyForm = {
@@ -71,6 +75,9 @@ export default function NotificationsPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
   const [userIdsInput, setUserIdsInput] = useState("")
+  // 详情弹窗状态
+  const [viewItem, setViewItem] = useState<any>(null)
+  const [viewOpen, setViewOpen] = useState(false)
 
   const { data, isLoading, refetch } = trpc.notifications.adminList.useQuery({
     page,
@@ -126,6 +133,11 @@ export default function NotificationsPage() {
       content: form.content || undefined,
       type: form.type,
     })
+  }
+
+  const handleOpenView = (item: any) => {
+    setViewItem(item)
+    setViewOpen(true)
   }
 
   const items = data?.items ?? []
@@ -212,7 +224,7 @@ export default function NotificationsPage() {
               <TableRow>
                 <TableHead className="w-[35%]">标题</TableHead>
                 <TableHead>类型</TableHead>
-                <TableHead>接收用户 ID</TableHead>
+                <TableHead>接收用户</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>发送时间</TableHead>
                 <TableHead className="text-right">操作</TableHead>
@@ -236,10 +248,16 @@ export default function NotificationsPage() {
                   const typeInfo = TYPE_MAP[item.type ?? "system"]
                   const TypeIcon = typeInfo?.icon ?? Bell
                   return (
-                    <TableRow key={item.id}>
+                    <TableRow key={item.id} className="hover:bg-muted/50">
                       <TableCell>
-                        <div>
-                          <p className="font-medium line-clamp-1">{item.title}</p>
+                        {/* 点击标题区域打开详情 */}
+                        <div
+                          className="cursor-pointer group"
+                          onClick={() => handleOpenView(item)}
+                        >
+                          <p className="font-medium line-clamp-1 group-hover:text-primary group-hover:underline transition-colors">
+                            {item.title}
+                          </p>
                           {item.content && (
                             <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{item.content}</p>
                           )}
@@ -263,14 +281,26 @@ export default function NotificationsPage() {
                         {item.createdAt ? format(new Date(item.createdAt), "MM-dd HH:mm", { locale: zhCN }) : "-"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteId(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="查看详情"
+                            onClick={() => handleOpenView(item)}
+                          >
+                            <BookOpen className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            title="删除"
+                            onClick={() => setDeleteId(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
@@ -290,7 +320,96 @@ export default function NotificationsPage() {
         )}
       </Card>
 
-      {/* 发送通知弹窗 */}
+      {/* ===== 通知详情弹窗 ===== */}
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <DialogContent className="max-w-lg">
+          {viewItem && (() => {
+            const typeInfo = TYPE_MAP[viewItem.type ?? "system"]
+            const TypeIcon = typeInfo?.icon ?? Bell
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-3">
+                    <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", typeInfo?.bg)}>
+                      <TypeIcon className={cn("h-5 w-5", typeInfo?.color)} />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-lg leading-tight">{viewItem.title}</DialogTitle>
+                      <p className={cn("text-xs font-medium mt-0.5", typeInfo?.color)}>{typeInfo?.label}</p>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <Separator />
+
+                {/* 通知内容 */}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">通知内容</p>
+                  {viewItem.content ? (
+                    <div className="rounded-lg border bg-card p-4 text-sm leading-relaxed whitespace-pre-wrap min-h-[80px]">
+                      {viewItem.content}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border bg-muted/30 p-4 text-center text-sm text-muted-foreground">
+                      暂无详细内容
+                    </div>
+                  )}
+                </div>
+
+                {/* 元信息 */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <User className="h-4 w-4 shrink-0" />
+                    <span>接收用户：用户 #{viewItem.userId}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <CheckCheck className="h-4 w-4 shrink-0" />
+                    <span>
+                      状态：
+                      <Badge variant={viewItem.isRead ? "secondary" : "default"} className="ml-1 text-xs">
+                        {viewItem.isRead ? "已读" : "未读"}
+                      </Badge>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground col-span-2">
+                    <Calendar className="h-4 w-4 shrink-0" />
+                    <span>
+                      发送时间：{viewItem.createdAt
+                        ? format(new Date(viewItem.createdAt), "yyyy年MM月dd日 HH:mm:ss", { locale: zhCN })
+                        : "-"}
+                    </span>
+                  </div>
+                  {viewItem.readAt && (
+                    <div className="flex items-center gap-2 text-muted-foreground col-span-2">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
+                      <span>
+                        阅读时间：{format(new Date(viewItem.readAt), "yyyy年MM月dd日 HH:mm:ss", { locale: zhCN })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setViewOpen(false)}>关闭</Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      setViewOpen(false)
+                      setDeleteId(viewItem.id)
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    删除此通知
+                  </Button>
+                </DialogFooter>
+              </>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== 发送通知弹窗 ===== */}
       <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -381,7 +500,7 @@ export default function NotificationsPage() {
               <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
                 <p className="text-xs text-muted-foreground font-medium">预览效果</p>
                 <div className="flex gap-2.5 pt-1">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                  <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", TYPE_MAP[form.type]?.bg)}>
                     {(() => {
                       const TypeIcon = TYPE_MAP[form.type]?.icon ?? Bell
                       return <TypeIcon className={cn("h-4 w-4", TYPE_MAP[form.type]?.color)} />
@@ -405,7 +524,7 @@ export default function NotificationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 删除确认弹窗 */}
+      {/* ===== 删除确认弹窗 ===== */}
       <AlertDialog open={deleteId !== null} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
