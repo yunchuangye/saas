@@ -1,0 +1,22 @@
+{
+  "name": "深圳新盘",
+  "delay": 1.5,
+  "urls": [
+    "https://fdc.zjj.sz.gov.cn/szfdccommon/#/publicInfo/main?params=ysxk&t=1773767215367&ot=1773767215367"
+  ],
+  "list_selector": "",
+  "wait_selector": "",
+  "pagination": {
+    "selector": "",
+    "max_pages": 10
+  },
+  "fields": [],
+  "db": {
+    "host": "localhost",
+    "port": "3306",
+    "database": "gujia",
+    "user": "gujia",
+    "password": "gujia123456"
+  },
+  "target_table": ""
+}

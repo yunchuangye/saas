@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>通用网页采集软件</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+  /* 顶栏 */
+  .topbar { background: #1e293b; border-bottom: 1px solid #334155; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar .logo { font-size: 18px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+  .topbar .logo span { font-size: 22px; }
+  .topbar-actions { display: flex; gap: 8px; }
+
+  /* 主布局 */
+  .layout { display: flex; height: calc(100vh - 56px); }
+  .sidebar { width: 280px; min-width: 280px; background: #1e293b; border-right: 1px solid #334155; overflow-y: auto; display: flex; flex-direction: column; }
+  .main { flex: 1; overflow-y: auto; padding: 20px; }
+
+  /* 侧边栏区块 */
+  .sidebar-section { border-bottom: 1px solid #334155; }
+  .sidebar-section-title { padding: 12px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; }
+  .sidebar-item { padding: 10px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #94a3b8; transition: all 0.15s; }
+  .sidebar-item:hover { background: #334155; color: #e2e8f0; }
+  .sidebar-item.active { background: #0f172a; color: #38bdf8; border-right: 2px solid #38bdf8; }
+  .sidebar-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+  /* 面板 */
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .panel-title { font-size: 20px; font-weight: 700; color: #f1f5f9; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+
+  /* 卡片 */
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 600; color: #94a3b8; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+
+  /* 表单 */
+  .form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .form-group { flex: 1; min-width: 160px; }
+  .form-group.full { flex: 0 0 100%; }
+  label { display: block; font-size: 12px; color: #64748b; margin-bottom: 5px; font-weight: 500; }
+  input, select, textarea { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: #e2e8f0; font-size: 13px; outline: none; transition: border-color 0.15s; }
+  input:focus, select:focus, textarea:focus { border-color: #38bdf8; }
+  input::placeholder, textarea::placeholder { color: #475569; }
+  select option { background: #1e293b; }
+  textarea { resize: vertical; min-height: 60px; font-family: monospace; }
+
+  /* 按钮 */
+  .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary { background: #0ea5e9; color: white; }
+  .btn-primary:hover { background: #38bdf8; }
+  .btn-success { background: #10b981; color: white; }
+  .btn-success:hover { background: #34d399; }
+  .btn-danger { background: #ef4444; color: white; }
+  .btn-danger:hover { background: #f87171; }
+  .btn-ghost { background: #334155; color: #94a3b8; }
+  .btn-ghost:hover { background: #475569; color: #e2e8f0; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* 字段配置表格 */
+  .fields-table { width: 100%; border-collapse: collapse; }
+  .fields-table th { text-align: left; font-size: 11px; color: #64748b; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid #334155; text-transform: uppercase; }
+  .fields-table td { padding: 6px 4px; vertical-align: middle; }
+  .fields-table tr:hover td { background: #0f172a33; }
+  .fields-table input, .fields-table select { padding: 5px 8px; font-size: 12px; }
+  .field-row { display: contents; }
+
+  /* 标签 */
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+  .badge-blue { background: #0ea5e920; color: #38bdf8; border: 1px solid #0ea5e940; }
+  .badge-green { background: #10b98120; color: #34d399; border: 1px solid #10b98140; }
+  .badge-yellow { background: #f59e0b20; color: #fbbf24; border: 1px solid #f59e0b40; }
+  .badge-red { background: #ef444420; color: #f87171; border: 1px solid #ef444440; }
+
+  /* 日志 */
+  .log-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; height: 220px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+  .log-info { color: #94a3b8; }
+  .log-warn { color: #fbbf24; }
+  .log-error { color: #f87171; }
+  .log-success { color: #34d399; }
+
+  /* 结果预览表格 */
+  .result-table-wrap { overflow-x: auto; }
+  .result-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .result-table th { background: #334155; color: #94a3b8; padding: 8px 12px; text-align: left; font-weight: 600; white-space: nowrap; }
+  .result-table td { padding: 7px 12px; border-bottom: 1px solid #1e293b; color: #cbd5e1; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .result-table tr:hover td { background: #334155; }
+
+  /* 进度条 */
+  .progress-bar { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; margin: 8px 0; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #0ea5e9, #38bdf8); border-radius: 3px; transition: width 0.3s; }
+
+  /* 状态指示 */
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .status-running { background: #38bdf8; animation: pulse 1s infinite; }
+  .status-done { background: #34d399; }
+  .status-failed { background: #f87171; }
+  .status-pending { background: #64748b; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* 分割线 */
+  .divider { border: none; border-top: 1px solid #334155; margin: 16px 0; }
+
+  /* 提示 */
+  .tip { font-size: 12px; color: #64748b; margin-top: 4px; }
+  .alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+  .alert-info { background: #0ea5e915; border: 1px solid #0ea5e930; color: #7dd3fc; }
+  .alert-success { background: #10b98115; border: 1px solid #10b98130; color: #6ee7b7; }
+  .alert-error { background: #ef444415; border: 1px solid #ef444430; color: #fca5a5; }
+
+  /* 配置列表 */
+  .config-item { padding: 12px 16px; border: 1px solid #334155; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: space-between; }
+  .config-item:hover { border-color: #38bdf8; background: #0f172a; }
+  .config-item-name { font-size: 14px; font-weight: 500; color: #e2e8f0; }
+  .config-item-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+  /* 数据库表字段展示 */
+  .db-field-tag { display: inline-block; background: #334155; color: #94a3b8; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace; margin: 2px; cursor: pointer; transition: all 0.15s; }
+  .db-field-tag:hover { background: #0ea5e9; color: white; }
+
+  /* 响应式 */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .form-row { flex-direction: column; }
+  }
+
+  .url-tag { display: inline-flex; align-items: center; gap: 6px; background: #334155; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: #94a3b8; margin: 3px; }
+  .url-tag .remove { cursor: pointer; color: #64748b; }
+  .url-tag .remove:hover { color: #f87171; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; background: #0f172a; padding: 4px; border-radius: 8px; }
+  .tab { padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #64748b; transition: all 0.15s; }
+  .tab.active { background: #334155; color: #e2e8f0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><span>🕷</span> 通用网页采集软件</div>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost btn-sm" onclick="showPanel('configs')">📁 配置管理</button>
+    <button class="btn btn-primary btn-sm" onclick="saveConfig()">💾 保存配置</button>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- 侧边栏 -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">配置</div>
+      <div class="sidebar-item active" onclick="showPanel('urls')" id="nav-urls">
+        <span class="icon">🌐</span> 采集目标
+      </div>
+      <div class="sidebar-item" onclick="showPanel('fields')" id="nav-fields">
+        <span class="icon">📋</span> 字段配置
+      </div>
+      <div class="sidebar-item" onclick="showPanel('db')" id="nav-db">
+        <span class="icon">🗄</span> 数据库设置
+      </div>
+      <div class="sidebar-item" onclick="showPanel('advanced')" id="nav-advanced">
+        <span class="icon">⚙️</span> 高级设置
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">运行</div>
+      <div class="sidebar-item" onclick="showPanel('run')" id="nav-run">
+        <span class="icon">▶️</span> 运行采集
+      </div>
+      <div class="sidebar-item" onclick="showPanel('results')" id="nav-results">
+        <span class="icon">📊</span> 采集结果
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">案例采集</div>
+      <div class="sidebar-item" onclick="showPanel('cases-config')" id="nav-cases-config">
+        <span class="icon">🏠</span> 案例采集配置
+      </div>
+      <div class="sidebar-item" onclick="showPanel('cases-data')" id="nav-cases-data">
+        <span class="icon">📊</span> 案例数据查看
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">其他</div>
+      <div class="sidebar-item" onclick="showPanel('configs')" id="nav-configs">
+        <span class="icon">📁</span> 配置管理
+      </div>
+      <div class="sidebar-item" onclick="showPanel('dbstruct')" id="nav-dbstruct">
+        <span class="icon">🏗</span> 数据库结构
+      </div>
+    </div>
+  </div>
+
+  <!-- 主内容区 -->
+  <div class="main">
+
+    <!-- 采集目标 -->
+    <div class="panel active" id="panel-urls">
+      <div class="panel-title">🌐 采集目标配置</div>
+      <div class="card">
+        <div class="card-title">📝 任务基本信息</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>任务名称</label>
+            <input type="text" id="cfg-name" placeholder="如：链家二手房采集" value="新采集任务">
+          </div>
+          <div class="form-group">
+            <label>采集延迟（秒）</label>
+            <input type="number" id="cfg-delay" value="1.5" min="0.5" max="10" step="0.5">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔗 目标 URL</div>
+        <div class="alert alert-info">
+          支持多个 URL，每行一个。列表页采集时只需填写第一页 URL，配合翻页设置自动翻页。
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label>添加 URL</label>
+            <input type="text" id="url-input" placeholder="https://example.com/list" onkeydown="if(event.key==='Enter') addUrl()">
+          </div>
+          <div class="form-group" style="flex:0 0 auto; display:flex; align-items:flex-end;">
+            <button class="btn btn-primary" onclick="addUrl()">+ 添加</button>
+          </div>
+        </div>
+        <div id="url-tags" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📄 采集模式</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>采集模式</label>
+            <select id="cfg-mode" onchange="updateModeUI()">
+              <option value="single">单页模式（每个URL提取一条数据）</option>
+              <option value="list">列表模式（每页提取多条数据）</option>
+            </select>
+          </div>
+        </div>
+        <div id="list-mode-options" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label>列表项 CSS 选择器</label>
+              <input type="text" id="cfg-list-selector" placeholder="如：.house-item, li.result">
+              <div class="tip">每个列表项的容器选择器，字段将在此容器内提取</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>下一页按钮选择器</label>
+              <input type="text" id="cfg-next-selector" placeholder="如：a.next-page, .pagination .next">
+            </div>
+            <div class="form-group">
+              <label>最大采集页数</label>
+              <input type="number" id="cfg-max-pages" value="10" min="1" max="1000">
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>等待元素出现（可选）</label>
+            <input type="text" id="cfg-wait-selector" placeholder="如：.content-loaded（等待此元素出现后再提取）">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔬 选择器测试</div>
+        <div class="form-row">
+          <div class="form-group" style="flex:2">
+            <label>测试 URL</label>
+            <input type="text" id="test-url" placeholder="输入要测试的页面 URL">
+          </div>
+          <div class="form-group" style="flex:2">
+            <label>CSS 选择器</label>
+            <input type="text" id="test-selector" placeholder="如：.price, h1.title">
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>提取属性</label>
+            <select id="test-attr">
+              <option value="text">文本内容</option>
+              <option value="href">链接(href)</option>
+              <option value="src">图片(src)</option>
+              <option value="data-value">data-value</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:0 0 auto; display:flex; align-items:flex-end;">
+            <button class="btn btn-primary" onclick="testSelector()" id="btn-test">🔍 测试</button>
+          </div>
+        </div>
+        <div id="test-result" style="display:none" class="card" style="margin-top:8px;background:#0f172a;">
+          <div id="test-result-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 字段配置 -->
+    <div class="panel" id="panel-fields">
+      <div class="panel-title">📋 字段提取配置</div>
+      <div class="alert alert-info">
+        配置要提取的字段：字段标签（显示名）→ CSS 选择器 → 提取属性 → 映射到数据库字段（可选）
+      </div>
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <div class="card-title" style="margin-bottom:0">字段列表</div>
+          <button class="btn btn-primary btn-sm" onclick="addField()">+ 添加字段</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="fields-table">
+            <thead>
+              <tr>
+                <th style="width:130px">字段标签</th>
+                <th style="width:200px">CSS 选择器</th>
+                <th style="width:100px">提取属性</th>
+                <th style="width:130px">正则提取（可选）</th>
+                <th style="width:150px">映射数据库字段</th>
+                <th style="width:60px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="fields-tbody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="addPresetFields('estate')">🏘 楼盘字段预设</button>
+          <button class="btn btn-ghost btn-sm" onclick="addPresetFields('building')">🏢 楼栋字段预设</button>
+          <button class="btn btn-ghost btn-sm" onclick="addPresetFields('unit')">🏠 房屋字段预设</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearFields()">🗑 清空</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据库设置 -->
+    <div class="panel" id="panel-db">
+      <div class="panel-title">🗄 数据库连接设置</div>
+      <div class="card">
+        <div class="card-title">连接信息</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>主机</label>
+            <input type="text" id="db-host" value="localhost">
+          </div>
+          <div class="form-group" style="flex:0 0 100px">
+            <label>端口</label>
+            <input type="number" id="db-port" value="3306">
+          </div>
+          <div class="form-group">
+            <label>数据库名</label>
+            <input type="text" id="db-name" value="gujia">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>用户名</label>
+            <input type="text" id="db-user" value="gujia">
+          </div>
+          <div class="form-group">
+            <label>密码</label>
+            <input type="password" id="db-pass" value="gujia123456">
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:4px;">
+          <button class="btn btn-primary" onclick="testDb()">🔌 测试连接</button>
+          <button class="btn btn-ghost" onclick="loadTables()">📋 加载表列表</button>
+          <span id="db-status"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">目标数据表</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>写入到表</label>
+            <select id="db-table" onchange="loadColumns()">
+              <option value="">-- 先测试连接并加载表 --</option>
+              <option value="estates">estates（楼盘）</option>
+              <option value="buildings">buildings（楼栋）</option>
+              <option value="units">units（房屋单元）</option>
+              <option value="cases">cases（交易案例 — 自动匹配楼盘）</option>
+            </select>
+          </div>
+        </div>
+        <div id="db-columns-area" style="display:none">
+          <div class="card-title" style="margin-top:8px;">可用字段（点击快速填入字段配置）</div>
+          <div id="db-columns-tags"></div>
+        </div>
+        <div id="db-cases-tip" style="display:none" class="alert alert-info" style="margin-top:8px">
+          ✨ 已选择案例表！入库时将自动通过 <strong>community</strong>（小区名）匹配 <strong>estates.name</strong>，填入 <strong>estate_id</strong>，无需手动配置。
+          <br>匹配策略：精确匹配 → 模精确匹配 → 反包含匹配。日志中会显示匹配结果。
+        </div>
+      </div>
+    </div>
+
+    <!-- 高级设置 -->
+    <div class="panel" id="panel-advanced">
+      <div class="panel-title">⚙️ 高级设置</div>
+      <div class="card">
+        <div class="card-title">请求设置</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>User-Agent</label>
+            <input type="text" id="adv-ua" placeholder="留空使用默认 UA" value="">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>代理地址（可选）</label>
+            <input type="text" id="adv-proxy" placeholder="http://127.0.0.1:7890">
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">数据处理</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>去重字段（逗号分隔）</label>
+            <input type="text" id="adv-dedup" placeholder="如：name,address（按这些字段去重）">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 运行采集 -->
+    <div class="panel" id="panel-run">
+      <div class="panel-title">▶️ 运行采集</div>
+      <div class="card">
+        <div class="card-title">任务控制</div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button class="btn btn-success" onclick="startTask()" id="btn-start" style="font-size:15px; padding:10px 24px;">
+            ▶ 开始采集
+          </button>
+          <button class="btn btn-danger" onclick="stopTask()" id="btn-stop" disabled style="font-size:15px; padding:10px 24px;">
+            ⏹ 停止
+          </button>
+          <div id="task-status-badge"></div>
+          <div id="task-count" style="font-size:14px; color:#94a3b8;"></div>
+        </div>
+        <div class="progress-bar" style="margin-top:16px;">
+          <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📝 实时日志</div>
+        <div class="log-box" id="log-box">
+          <div class="log-info">等待开始采集...</div>
+        </div>
+        <div style="margin-top:8px; display:flex; gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="clearLog()">清空日志</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 采集结果 -->
+    <div class="panel" id="panel-results">
+      <div class="panel-title">📊 采集结果</div>
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div>
+            共 <strong id="result-count" style="color:#38bdf8">0</strong> 条数据
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="downloadJson()">⬇ 下载 JSON</button>
+            <button class="btn btn-ghost btn-sm" onclick="downloadCsv()">⬇ 下载 CSV</button>
+          </div>
+        </div>
+        <div class="result-table-wrap">
+          <table class="result-table" id="result-table">
+            <thead id="result-thead"><tr><th>暂无数据</th></tr></thead>
+            <tbody id="result-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 配置管理 -->
+    <div class="panel" id="panel-configs">
+      <div class="panel-title">📁 配置管理</div>
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div class="card-title" style="margin-bottom:0">已保存的配置</div>
+          <button class="btn btn-ghost btn-sm" onclick="loadConfigList()">🔄 刷新</button>
+        </div>
+        <div id="config-list">
+          <div style="color:#64748b; font-size:13px;">加载中...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据库结构 -->
+    <div class="panel" id="panel-dbstruct">
+      <div class="panel-title">🏗 数据库表结构</div>
+      <div class="tabs">
+        <div class="tab active" onclick="switchDbTab('estates')">estates（楼盘）</div>
+        <div class="tab" onclick="switchDbTab('buildings')">buildings（楼栋）</div>
+        <div class="tab" onclick="switchDbTab('units')">units（房屋单元）</div>
+        <div class="tab" onclick="switchDbTab('cases')">cases（交易案例）</div>
+      </div>
+      <div id="dbstruct-content">
+        <div class="card">
+          <div class="result-table-wrap">
+            <table class="result-table" id="dbstruct-table">
+              <thead><tr><th>字段名</th><th>类型</th><th>可空</th><th>说明</th></tr></thead>
+              <tbody id="dbstruct-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 案例采集配置 -->
+    <div class="panel" id="panel-cases-config">
+      <div class="panel-title">🏠 案例采集配置</div>
+      <div class="alert alert-info">
+        专项采集交易案例数据，自动写入 <strong>cases</strong> 表。支持任意网站，内置链家、安居客、房天下等常用字段预设。数据自动清洗和去重。
+      </div>
+
+      <div class="card">
+        <div class="card-title">📝 任务基本信息</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>任务名称</label>
+            <input type="text" id="case-cfg-name" placeholder="如：链家二手房成交案例" value="案例采集任务">
+          </div>
+          <div class="form-group" style="flex:0 0 140px">
+            <label>采集延迟（秒）</label>
+            <input type="number" id="case-cfg-delay" value="2" min="0.5" max="10" step="0.5">
+          </div>
+          <div class="form-group" style="flex:0 0 180px">
+            <label>来源网站名称</label>
+            <input type="text" id="case-source-name" placeholder="如：链家、安居客" value="">
+            <div class="tip">自动写入 source 字段</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔗 目标 URL</div>
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <input type="text" id="case-url-input" placeholder="https://example.com/ershoufang/list" onkeydown="if(event.key==='Enter') caseAddUrl()">
+          </div>
+          <div class="form-group" style="flex:0 0 auto;display:flex;align-items:flex-end">
+            <button class="btn btn-primary" onclick="caseAddUrl()">+ 添加</button>
+          </div>
+        </div>
+        <div id="case-url-tags" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📄 采集模式</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>采集模式</label>
+            <select id="case-cfg-mode" onchange="updateCaseModeUI()">
+              <option value="single">单页模式（每个URL提取一条案例）</option>
+              <option value="list" selected>列表模式（每页提取多条案例）</option>
+            </select>
+          </div>
+        </div>
+        <div id="case-list-options">
+          <div class="form-row">
+            <div class="form-group">
+              <label>列表项 CSS 选择器</label>
+              <input type="text" id="case-list-selector" placeholder="如：.sellListContent li, .house-lst li">
+              <div class="tip">每条案例的容器选择器</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>下一页按鈕选择器</label>
+              <input type="text" id="case-next-selector" placeholder="如：a.next, .page-box .on + a">
+            </div>
+            <div class="form-group" style="flex:0 0 140px">
+              <label>最大采集页数</label>
+              <input type="number" id="case-max-pages" value="20" min="1" max="500">
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>等待元素出现（可选）</label>
+            <input type="text" id="case-wait-selector" placeholder="如：.house-lst（等待此元素出现后再提取）">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div class="card-title" style="margin-bottom:0">📋 字段提取配置</div>
+          <button class="btn btn-primary btn-sm" onclick="caseAddField()">+ 添加字段</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="fields-table">
+            <thead>
+              <tr>
+                <th style="width:120px">字段标签</th>
+                <th style="width:200px">CSS 选择器</th>
+                <th style="width:90px">提取属性</th>
+                <th style="width:120px">正则提取</th>
+                <th style="width:150px">映射 cases 字段</th>
+                <th style="width:60px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="case-fields-tbody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="applyCasePreset('lianjia')">🏠 链家二手房</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyCasePreset('anjuke')">🏡 安居客</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyCasePreset('fang')">🏢 房天下</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyWubaPreset()" style="background:#e65c1e;color:#fff;border-color:#e65c1e;">🏙 58同城</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyCasePreset('generic')">📋 通用模板</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearCaseFields()">🗑 清空</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔌 数据库连接</div>
+        <div class="alert alert-info" style="margin-bottom:10px">使用左侧「数据库设置」中配置的连接，案例数据将自动写入 cases 表，自动去重和数据清洗。</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-success" onclick="startCaseTask()" id="btn-case-start" style="font-size:15px;padding:10px 24px;">▶ 开始采集</button>
+          <button class="btn btn-danger" onclick="stopCaseTask()" id="btn-case-stop" disabled style="font-size:15px;padding:10px 24px;">⏹ 停止</button>
+          <div id="case-task-badge"></div>
+          <div id="case-task-count" style="font-size:14px;color:#94a3b8;"></div>
+        </div>
+        <div class="progress-bar" style="margin-top:12px;"><div class="progress-fill" id="case-progress" style="width:0%"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📝 实时日志</div>
+        <div class="log-box" id="case-log-box"><div class="log-info">等待开始采集...</div></div>
+        <div style="margin-top:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('case-log-box').innerHTML=''">清空日志</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 案例数据查看 -->
+    <div class="panel" id="panel-cases-data">
+      <div class="panel-title">📊 案例数据查看</div>
+
+      <div class="card">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+          <button class="btn btn-primary" onclick="loadCasesStats()">🔄 刷新统计</button>
+          <div id="cases-total-badge"></div>
+        </div>
+        <div id="cases-stats-area" style="display:flex;gap:16px;flex-wrap:wrap;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔍 搜索过滤</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>关键词（小区/地址）</label>
+            <input type="text" id="cases-keyword" placeholder="输入小区名或地址">
+          </div>
+          <div class="form-group" style="flex:0 0 160px">
+            <label>来源网站</label>
+            <input type="text" id="cases-source-filter" placeholder="如：链家">
+          </div>
+          <div class="form-group" style="flex:0 0 auto;display:flex;align-items:flex-end;">
+            <button class="btn btn-primary" onclick="loadCasesData(1)">🔍 查询</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div>共 <strong id="cases-count" style="color:#38bdf8">0</strong> 条案例数据</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="exportCasesCSV()">⬇ 导出 CSV</button>
+          </div>
+        </div>
+        <div class="result-table-wrap">
+          <table class="result-table" id="cases-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>小区</th><th>地址</th><th>面积(㎡)</th>
+                <th>成交价(元)</th><th>单价(元/㎡)</th><th>交易类型</th>
+                <th>户型</th><th>楼层</th><th>朝向</th>
+                <th>装修</th><th>建年</th><th>成交日期</th>
+                <th>来源</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="cases-tbody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:12px;" id="cases-pagination"></div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+// ─── 全局状态 ───
+let currentTaskId = null;
+let pollTimer = null;
+let urlList = [];
+let currentDbTab = 'estates';
+
+const DB_STRUCT = {
+  estates: [
+    {name:'name', type:'varchar(200)', null:'NO', desc:'楼盘名称'},
+    {name:'pinyin', type:'varchar(200)', null:'YES', desc:'拼音首字母'},
+    {name:'city_id', type:'int', null:'NO', desc:'城市ID'},
+    {name:'district_id', type:'int', null:'YES', desc:'区域ID'},
+    {name:'address', type:'varchar(500)', null:'YES', desc:'详细地址'},
+    {name:'developer', type:'varchar(200)', null:'YES', desc:'开发商'},
+    {name:'build_year', type:'int', null:'YES', desc:'建造年份'},
+    {name:'property_type', type:'varchar(100)', null:'YES', desc:'物业类型（住宅/商业/公寓等）'},
+    {name:'total_units', type:'int', null:'YES', desc:'总套数'},
+    {name:'is_active', type:'tinyint(1)', null:'NO', desc:'是否有效'},
+  ],
+  buildings: [
+    {name:'estate_id', type:'int', null:'NO', desc:'所属楼盘ID'},
+    {name:'name', type:'varchar(100)', null:'NO', desc:'楼栋名称'},
+    {name:'floors', type:'int', null:'YES', desc:'总楼层'},
+    {name:'units_per_floor', type:'int', null:'YES', desc:'每层户数'},
+    {name:'build_year', type:'int', null:'YES', desc:'建造年份'},
+    {name:'property_type', type:'varchar(100)', null:'YES', desc:'物业类型'},
+    {name:'alias', type:'varchar(200)', null:'YES', desc:'别名'},
+    {name:'build_type', type:'varchar(50)', null:'YES', desc:'建筑类型（板楼/塔楼等）'},
+    {name:'build_structure', type:'varchar(50)', null:'YES', desc:'建筑结构（钢混/砖混等）'},
+    {name:'floor_height', type:'decimal(5,2)', null:'YES', desc:'层高(m)'},
+    {name:'unit_amount', type:'int', null:'YES', desc:'单元数'},
+    {name:'total_units', type:'int', null:'YES', desc:'总套数'},
+    {name:'building_area', type:'decimal(12,2)', null:'YES', desc:'总建筑面积(㎡)'},
+    {name:'completion_date', type:'varchar(50)', null:'YES', desc:'竣工日期'},
+    {name:'sale_date', type:'varchar(50)', null:'YES', desc:'开盘日期'},
+    {name:'avg_price', type:'decimal(10,2)', null:'YES', desc:'均价(元/㎡)'},
+    {name:'elevator_rate', type:'varchar(50)', null:'YES', desc:'梯户比'},
+    {name:'sale_licence', type:'varchar(200)', null:'YES', desc:'预售证号'},
+  ],
+  units: [
+    {name:'building_id', type:'int', null:'NO', desc:'所属楼栋ID'},
+    {name:'estate_id', type:'int', null:'NO', desc:'所属楼盘ID'},
+    {name:'unit_number', type:'varchar(50)', null:'NO', desc:'房号（如101、A1-2302）'},
+    {name:'floor', type:'int', null:'YES', desc:'楼层'},
+    {name:'area', type:'decimal(10,2)', null:'YES', desc:'套内面积(㎡)'},
+    {name:'build_area', type:'decimal(10,2)', null:'YES', desc:'建筑面积(㎡)'},
+    {name:'rooms', type:'int', null:'YES', desc:'室数'},
+    {name:'bathrooms', type:'int', null:'YES', desc:'卫生间数'},
+    {name:'orientation', type:'varchar(50)', null:'YES', desc:'朝向（南/北/东南等）'},
+    {name:'towards', type:'varchar(50)', null:'YES', desc:'面向'},
+    {name:'landscape', type:'varchar(100)', null:'YES', desc:'景观'},
+    {name:'unit_price', type:'decimal(12,2)', null:'YES', desc:'单价(元/㎡)'},
+    {name:'total_price', type:'decimal(14,2)', null:'YES', desc:'总价(元)'},
+    {name:'property_type', type:'varchar(100)', null:'YES', desc:'物业类型'},
+    {name:'property_structure', type:'varchar(100)', null:'YES', desc:'房屋结构'},
+    {name:'property_no', type:'varchar(50)', null:'YES', desc:'房产证号'},
+    {name:'remark', type:'varchar(500)', null:'YES', desc:'备注'},
+  ]
+};
+
+const PRESETS = {
+  estate: [
+    {label:'楼盘名称', selector:'.estate-name, h1.title', attr:'text', db_field:'name', regex:''},
+    {label:'详细地址', selector:'.address, .location', attr:'text', db_field:'address', regex:''},
+    {label:'开发商', selector:'.developer, .company-name', attr:'text', db_field:'developer', regex:''},
+    {label:'建造年份', selector:'.build-year, .year', attr:'text', db_field:'build_year', regex:'(\\d{4})'},
+    {label:'物业类型', selector:'.property-type, .type', attr:'text', db_field:'property_type', regex:''},
+    {label:'总套数', selector:'.total-units, .units', attr:'text', db_field:'total_units', regex:'(\\d+)'},
+  ],
+  building: [
+    {label:'楼栋名称', selector:'.building-name, .block-name', attr:'text', db_field:'name', regex:''},
+    {label:'总楼层', selector:'.floors, .total-floor', attr:'text', db_field:'floors', regex:'(\\d+)'},
+    {label:'建筑类型', selector:'.build-type', attr:'text', db_field:'build_type', regex:''},
+    {label:'建筑结构', selector:'.structure', attr:'text', db_field:'build_structure', regex:''},
+    {label:'均价', selector:'.avg-price, .price', attr:'text', db_field:'avg_price', regex:'([\\d\\.]+)'},
+    {label:'竣工日期', selector:'.completion-date', attr:'text', db_field:'completion_date', regex:''},
+  ],
+  unit: [
+    {label:'房号', selector:'.unit-no, .room-no', attr:'text', db_field:'unit_number', regex:''},
+    {label:'楼层', selector:'.floor', attr:'text', db_field:'floor', regex:'(\\d+)'},
+    {label:'建筑面积', selector:'.area, .build-area', attr:'text', db_field:'build_area', regex:'([\\d\\.]+)'},
+    {label:'户型', selector:'.layout, .room-type', attr:'text', db_field:'rooms', regex:'(\\d+)室'},
+    {label:'朝向', selector:'.orientation, .direction', attr:'text', db_field:'orientation', regex:''},
+    {label:'单价', selector:'.unit-price', attr:'text', db_field:'unit_price', regex:'([\\d\\.]+)'},
+    {label:'总价', selector:'.total-price', attr:'text', db_field:'total_price', regex:'([\\d\\.]+)'},
+  ]
+};
+
+// ─── 面板切换 ───
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  const nav = document.getElementById('nav-' + name);
+  if (nav) nav.classList.add('active');
+  if (name === 'configs') loadConfigList();
+  if (name === 'dbstruct') renderDbStruct(currentDbTab);
+  if (name === 'results' && currentTaskId) refreshResults();
+}
+
+function updateModeUI() {
+  const mode = document.getElementById('cfg-mode').value;
+  document.getElementById('list-mode-options').style.display = mode === 'list' ? 'block' : 'none';
+}
+
+// ─── URL 管理 ───
+function addUrl() {
+  const input = document.getElementById('url-input');
+  const url = input.value.trim();
+  if (!url) return;
+  if (!urlList.includes(url)) {
+    urlList.push(url);
+    renderUrlTags();
+  }
+  input.value = '';
+}
+
+function removeUrl(url) {
+  urlList = urlList.filter(u => u !== url);
+  renderUrlTags();
+}
+
+function renderUrlTags() {
+  const container = document.getElementById('url-tags');
+  container.innerHTML = urlList.map(url =>
+    `<span class="url-tag">
+      <span style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${url}</span>
+      <span class="remove" onclick="removeUrl('${url.replace(/'/g, "\\'")}')">✕</span>
+    </span>`
+  ).join('');
+}
+
+// ─── 字段配置 ───
+let fieldRows = [];
+let fieldIdCounter = 0;
+
+function addField(data = {}) {
+  const id = ++fieldIdCounter;
+  fieldRows.push({ id, ...data });
+  renderFields();
+}
+
+function removeField(id) {
+  fieldRows = fieldRows.filter(f => f.id !== id);
+  renderFields();
+}
+
+function renderFields() {
+  const tbody = document.getElementById('fields-tbody');
+  if (fieldRows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:20px;">暂无字段，点击"添加字段"或使用预设</td></tr>';
+    return;
+  }
+  tbody.innerHTML = fieldRows.map(f => `
+    <tr id="field-row-${f.id}">
+      <td><input type="text" value="${f.label||''}" placeholder="字段名" onchange="updateField(${f.id},'label',this.value)"></td>
+      <td><input type="text" value="${f.selector||''}" placeholder=".class, #id, tag" onchange="updateField(${f.id},'selector',this.value)"></td>
+      <td>
+        <select onchange="updateField(${f.id},'attr',this.value)">
+          <option value="text" ${(f.attr||'text')==='text'?'selected':''}>文本</option>
+          <option value="href" ${f.attr==='href'?'selected':''}>href</option>
+          <option value="src" ${f.attr==='src'?'selected':''}>src</option>
+          <option value="title" ${f.attr==='title'?'selected':''}>title</option>
+          <option value="data-value" ${f.attr==='data-value'?'selected':''}>data-value</option>
+        </select>
+      </td>
+      <td><input type="text" value="${f.regex||''}" placeholder="(\\d+)" onchange="updateField(${f.id},'regex',this.value)"></td>
+      <td><input type="text" value="${f.db_field||''}" placeholder="数据库字段名" onchange="updateField(${f.id},'db_field',this.value)"></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeField(${f.id})">删除</button></td>
+    </tr>
+  `).join('');
+}
+
+function updateField(id, key, value) {
+  const f = fieldRows.find(r => r.id === id);
+  if (f) f[key] = value;
+}
+
+function addPresetFields(type) {
+  PRESETS[type].forEach(p => addField(p));
+}
+
+function clearFields() {
+  if (confirm('确定清空所有字段配置？')) {
+    fieldRows = [];
+    renderFields();
+  }
+}
+
+// ─── 数据库操作 ───
+function getDbConfig() {
+  return {
+    host: document.getElementById('db-host').value,
+    port: document.getElementById('db-port').value,
+    database: document.getElementById('db-name').value,
+    user: document.getElementById('db-user').value,
+    password: document.getElementById('db-pass').value,
+  };
+}
+
+async function testDb() {
+  const status = document.getElementById('db-status');
+  status.innerHTML = '<span style="color:#fbbf24">连接中...</span>';
+  const res = await fetch('/api/db/test', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(getDbConfig())});
+  const data = await res.json();
+  status.innerHTML = data.ok
+    ? `<span class="badge badge-green">✓ ${data.msg}</span>`
+    : `<span class="badge badge-red">✗ ${data.msg}</span>`;
+}
+
+async function loadTables() {
+  const res = await fetch('/api/db/tables', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(getDbConfig())});
+  const data = await res.json();
+  if (data.ok) {
+    const sel = document.getElementById('db-table');
+    sel.innerHTML = '<option value="">-- 选择目标表 --</option>' + data.tables.map(t => `<option value="${t}">${t}</option>`).join('');
+    alert(`加载成功，共 ${data.tables.length} 张表`);
+  }
+}
+
+async function loadColumns() {
+  const table = document.getElementById('db-table').value;
+  const tip = document.getElementById('db-cases-tip');
+  if (tip) tip.style.display = (table === 'cases') ? 'block' : 'none';
+  if (!table) return;
+  const payload = {...getDbConfig(), table};
+  const res = await fetch('/api/db/columns', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  const data = await res.json();
+  const area = document.getElementById('db-columns-area');
+  const tags = document.getElementById('db-columns-tags');
+  if (data.ok && data.columns.length) {
+    area.style.display = 'block';
+    // cases 表特殊标注：estate_id 自动匹配
+    tags.innerHTML = data.columns.map(c => {
+      const isAutoFill = (table === 'cases' && c.name === 'estate_id');
+      const extra = isAutoFill ? ' style="background:#10b98130;color:#34d399;border:1px solid #10b98150"' : '';
+      const titleText = isAutoFill ? '自动通过 community 匹配，无需手动配置' : c.type;
+      return `<span class="db-field-tag"${extra} onclick="fillDbField('${c.name}')" title="${titleText}">${c.name}${isAutoFill ? ' ✨' : ''}</span>`;
+    }).join('');
+  }
+}
+
+function fillDbField(name) {
+  // 找到最后一个没有 db_field 的行，或者直接添加新行
+  const empty = fieldRows.find(f => !f.db_field);
+  if (empty) {
+    empty.db_field = name;
+    renderFields();
+  } else {
+    addField({label: name, selector: '', attr: 'text', db_field: name, regex: ''});
+  }
+}
+
+// ─── 选择器测试 ───
+async function testSelector() {
+  const btn = document.getElementById('btn-test');
+  btn.disabled = true;
+  btn.textContent = '测试中...';
+  const url = document.getElementById('test-url').value;
+  const selector = document.getElementById('test-selector').value;
+  const attr = document.getElementById('test-attr').value;
+  const waitSel = document.getElementById('cfg-wait-selector').value;
+
+  if (!url || !selector) {
+    alert('请填写 URL 和选择器');
+    btn.disabled = false;
+    btn.textContent = '🔍 测试';
+    return;
+  }
+
+  const res = await fetch('/api/test-selector', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({url, selector, attr, wait_selector: waitSel})
+  });
+  const data = await res.json();
+  const resultDiv = document.getElementById('test-result');
+  const contentDiv = document.getElementById('test-result-content');
+  resultDiv.style.display = 'block';
+
+  if (data.ok) {
+    contentDiv.innerHTML = `
+      <div style="color:#34d399;margin-bottom:8px;">✓ 找到 <strong>${data.count}</strong> 个匹配元素</div>
+      ${data.samples.length ? `<div style="font-size:12px;color:#94a3b8;margin-bottom:6px;">前 ${data.samples.length} 条结果：</div>
+      <div style="background:#0f172a;padding:10px;border-radius:6px;font-family:monospace;font-size:12px;">
+        ${data.samples.map((s,i) => `<div style="padding:3px 0;border-bottom:1px solid #1e293b;color:#e2e8f0;">[${i+1}] ${escapeHtml(s)}</div>`).join('')}
+      </div>` : '<div style="color:#64748b">未提取到内容</div>'}
+    `;
+  } else {
+    contentDiv.innerHTML = `<div style="color:#f87171;">✗ 错误：${data.error}</div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🔍 测试';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── 采集任务 ───
+function buildConfig() {
+  return {
+    name: document.getElementById('cfg-name').value,
+    delay: parseFloat(document.getElementById('cfg-delay').value) || 1.5,
+    urls: urlList,
+    list_selector: document.getElementById('cfg-mode').value === 'list' ? document.getElementById('cfg-list-selector').value : '',
+    wait_selector: document.getElementById('cfg-wait-selector').value,
+    pagination: {
+      selector: document.getElementById('cfg-next-selector') ? document.getElementById('cfg-next-selector').value : '',
+      max_pages: document.getElementById('cfg-max-pages') ? parseInt(document.getElementById('cfg-max-pages').value) || 1 : 1,
+    },
+    fields: fieldRows.map(f => ({
+      label: f.label, selector: f.selector, attr: f.attr || 'text',
+      regex: f.regex || '', db_field: f.db_field || ''
+    })),
+    db: getDbConfig(),
+    target_table: document.getElementById('db-table').value,
+  };
+}
+
+async function startTask() {
+  if (urlList.length === 0) { alert('请先添加采集 URL'); showPanel('urls'); return; }
+  if (fieldRows.length === 0) { alert('请先配置提取字段'); showPanel('fields'); return; }
+
+  const config = buildConfig();
+  const res = await fetch('/api/task/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(config)
+  });
+  const data = await res.json();
+  if (data.ok) {
+    currentTaskId = data.task_id;
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('btn-stop').disabled = false;
+    document.getElementById('log-box').innerHTML = '';
+    startPolling();
+  }
+}
+
+async function stopTask() {
+  if (!currentTaskId) return;
+  await fetch(`/api/task/stop/${currentTaskId}`, {method:'POST'});
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollStatus, 1500);
+}
+
+async function pollStatus() {
+  if (!currentTaskId) return;
+  const res = await fetch(`/api/task/status/${currentTaskId}`);
+  const data = await res.json();
+  if (!data.ok) return;
+
+  // 更新日志
+  const logBox = document.getElementById('log-box');
+  logBox.innerHTML = data.logs.map(l =>
+    `<div class="log-${l.level}">[${l.time}] ${escapeHtml(l.msg)}</div>`
+  ).join('');
+  logBox.scrollTop = logBox.scrollHeight;
+
+  // 更新计数
+  document.getElementById('task-count').textContent = `已采集 ${data.count} 条`;
+
+  // 更新状态
+  const badge = document.getElementById('task-status-badge');
+  const statusMap = {
+    running: ['status-running', '采集中'],
+    done: ['status-done', '完成'],
+    failed: ['status-failed', '失败'],
+    stopped: ['status-pending', '已停止'],
+    pending: ['status-pending', '等待中'],
+  };
+  const [cls, label] = statusMap[data.status] || ['status-pending', data.status];
+  badge.innerHTML = `<span class="badge badge-blue"><span class="status-dot ${cls}" style="margin-right:5px"></span>${label}</span>`;
+
+  if (['done', 'failed', 'stopped'].includes(data.status)) {
+    clearInterval(pollTimer);
+    document.getElementById('btn-start').disabled = false;
+    document.getElementById('btn-stop').disabled = true;
+    refreshResults();
+  }
+}
+
+async function refreshResults() {
+  if (!currentTaskId) return;
+  const res = await fetch(`/api/task/status/${currentTaskId}`);
+  const data = await res.json();
+  if (!data.ok || !data.results.length) return;
+
+  document.getElementById('result-count').textContent = data.count;
+  const results = data.results;
+  const keys = Object.keys(results[0]);
+
+  document.getElementById('result-thead').innerHTML =
+    '<tr>' + keys.map(k => `<th>${k}</th>`).join('') + '</tr>';
+  document.getElementById('result-tbody').innerHTML =
+    results.map(row =>
+      '<tr>' + keys.map(k => `<td title="${escapeHtml(row[k]||'')}">${escapeHtml(row[k]||'')}</td>`).join('') + '</tr>'
+    ).join('');
+}
+
+function clearLog() {
+  document.getElementById('log-box').innerHTML = '';
+}
+
+function downloadJson() {
+  if (!currentTaskId) { alert('暂无数据'); return; }
+  window.open(`/api/task/download/${currentTaskId}`);
+}
+
+function downloadCsv() {
+  if (!currentTaskId) { alert('暂无数据'); return; }
+  window.open(`/api/task/export-csv/${currentTaskId}`);
+}
+
+// ─── 配置管理 ───
+async function saveConfig() {
+  const config = buildConfig();
+  const res = await fetch('/api/config/save', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(config)
+  });
+  const data = await res.json();
+  if (data.ok) alert(`配置已保存：${data.file}`);
+}
+
+async function loadConfigList() {
+  const res = await fetch('/api/config/list');
+  const data = await res.json();
+  const container = document.getElementById('config-list');
+  if (!data.configs.length) {
+    container.innerHTML = '<div style="color:#64748b;font-size:13px;">暂无保存的配置</div>';
+    return;
+  }
+  container.innerHTML = data.configs.map(c => `
+    <div class="config-item" onclick="loadConfig('${c.file}')">
+      <div>
+        <div class="config-item-name">${c.name}</div>
+        <div class="config-item-meta">${c.file}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); loadConfig('${c.file}')">载入</button>
+    </div>
+  `).join('');
+}
+
+async function loadConfig(filename) {
+  const res = await fetch(`/api/config/load/${filename}`);
+  const data = await res.json();
+  if (!data.ok) { alert(data.msg); return; }
+  const cfg = data.config;
+
+  document.getElementById('cfg-name').value = cfg.name || '';
+  document.getElementById('cfg-delay').value = cfg.delay || 1.5;
+  urlList = cfg.urls || [];
+  renderUrlTags();
+
+  if (cfg.list_selector) {
+    document.getElementById('cfg-mode').value = 'list';
+    document.getElementById('cfg-list-selector').value = cfg.list_selector;
+    document.getElementById('list-mode-options').style.display = 'block';
+  }
+  if (cfg.pagination) {
+    if (document.getElementById('cfg-next-selector'))
+      document.getElementById('cfg-next-selector').value = cfg.pagination.selector || '';
+    if (document.getElementById('cfg-max-pages'))
+      document.getElementById('cfg-max-pages').value = cfg.pagination.max_pages || 10;
+  }
+  if (cfg.wait_selector)
+    document.getElementById('cfg-wait-selector').value = cfg.wait_selector;
+
+  // 字段
+  fieldRows = [];
+  fieldIdCounter = 0;
+  (cfg.fields || []).forEach(f => addField(f));
+
+  // 数据库
+  if (cfg.db) {
+    document.getElementById('db-host').value = cfg.db.host || 'localhost';
+    document.getElementById('db-port').value = cfg.db.port || 3306;
+    document.getElementById('db-name').value = cfg.db.database || '';
+    document.getElementById('db-user').value = cfg.db.user || '';
+    document.getElementById('db-pass').value = cfg.db.password || '';
+  }
+  if (cfg.target_table) {
+    document.getElementById('db-table').value = cfg.target_table;
+  }
+
+  alert(`配置 "${cfg.name}" 已载入！`);
+  showPanel('urls');
+}
+
+// ─── 数据库结构 ───
+function switchDbTab(table) {
+  currentDbTab = table;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['estates','buildings','units'][i] === table);
+  });
+  renderDbStruct(table);
+}
+
+function renderDbStruct(table) {
+  const fields = DB_STRUCT[table] || [];
+  document.getElementById('dbstruct-tbody').innerHTML = fields.map(f => `
+    <tr>
+      <td><code style="color:#38bdf8">${f.name}</code></td>
+      <td><span style="color:#94a3b8;font-family:monospace">${f.type}</span></td>
+      <td><span class="badge ${f.null==='NO'?'badge-red':'badge-green'}">${f.null==='NO'?'必填':'可空'}</span></td>
+      <td style="color:#64748b">${f.desc}</td>
+    </tr>
+  `).join('');
+}
+
+// ─── cases 表结构 ───
+DB_STRUCT.cases = [
+  {name:'community', type:'varchar(200)', null:'YES', desc:'小区名称（采集后自动匹配 estate_id）'},
+  {name:'estate_id', type:'int', null:'YES', desc:'楼盘ID ✨ 自动匹配：community → estates.name，无需手动配置'},
+  {name:'address', type:'varchar(500)', null:'YES', desc:'详细地址'},
+  {name:'area', type:'decimal(10,2)', null:'YES', desc:'建筑面积(㎡)'},
+  {name:'floor', type:'int', null:'YES', desc:'所在楼层'},
+  {name:'total_floors', type:'int', null:'YES', desc:'总楼层'},
+  {name:'orientation', type:'varchar(50)', null:'YES', desc:'朝向'},
+  {name:'rooms_str', type:'varchar(50)', null:'YES', desc:'户型（如：3室2卨20厅）'},
+  {name:'decoration', type:'varchar(50)', null:'YES', desc:'装修情况'},
+  {name:'build_year', type:'int', null:'YES', desc:'建造年份'},
+  {name:'transaction_type', type:'varchar(20)', null:'YES', desc:'交易类型(sale/rent)'},
+  {name:'price', type:'decimal(14,2)', null:'YES', desc:'成交价（元）'},
+  {name:'unit_price', type:'decimal(12,2)', null:'YES', desc:'单价（元/㎡）'},
+  {name:'total_price', type:'decimal(14,2)', null:'YES', desc:'总价（元）'},
+  {name:'listing_price', type:'decimal(14,2)', null:'YES', desc:'挂牌价（元）'},
+  {name:'deal_date', type:'date', null:'YES', desc:'成交日期'},
+  {name:'deal_cycle', type:'int', null:'YES', desc:'成交周期（天）'},
+  {name:'source', type:'varchar(100)', null:'YES', desc:'来源网站名称'},
+  {name:'source_id', type:'varchar(100)', null:'YES', desc:'原始数据ID'},
+  {name:'source_url', type:'varchar(1000)', null:'YES', desc:'原始链接'},
+  {name:'city', type:'varchar(50)', null:'YES', desc:'城市'},
+  {name:'district', type:'varchar(100)', null:'YES', desc:'行政区'},
+  {name:'sub_district', type:'varchar(100)', null:'YES', desc:'商圈/板块'},
+  {name:'property_type', type:'varchar(50)', null:'YES', desc:'房屋类型'},
+  {name:'remark', type:'varchar(500)', null:'YES', desc:'备注'},
+];
+
+// ─── 案例采集全局状态 ───
+let caseUrlList = [];
+let caseFieldRows = [];
+let caseFieldIdCounter = 0;
+let caseTaskId = null;
+let casePollTimer = null;
+let casesCurrentPage = 1;
+
+// 案例字段预设
+const CASE_PRESETS = {
+  lianjia: [
+    {label:'小区名称', selector:'.positionInfo a:first-child', attr:'text', db_field:'community', regex:''},
+    {label:'地址', selector:'.positionInfo', attr:'text', db_field:'address', regex:''},
+    {label:'户型', selector:'.houseInfo', attr:'text', db_field:'rooms_str', regex:'(\\d+室\\d+厅)'},
+    {label:'面积', selector:'.houseInfo', attr:'text', db_field:'area', regex:'([\\d\\.]+)平米'},
+    {label:'朝向', selector:'.houseInfo', attr:'text', db_field:'orientation', regex:'平米\\s+([^ ]+)'},
+    {label:'成交价', selector:'.totalPrice .number', attr:'text', db_field:'total_price', regex:'([\\d\\.]+)'},
+    {label:'单价', selector:'.unitPrice .unitPriceValue', attr:'text', db_field:'unit_price', regex:'([\\d\\.]+)'},
+    {label:'成交日期', selector:'.dealDate', attr:'text', db_field:'deal_date', regex:'(\\d{4}-\\d{2}-\\d{2})'},
+    {label:'成交周期', selector:'.dealCycleTxt', attr:'text', db_field:'deal_cycle', regex:'(\\d+)'},
+    {label:'挂牌价', selector:'.listPrice', attr:'text', db_field:'listing_price', regex:'([\\d\\.]+)'},
+    {label:'来源链接', selector:'a.title', attr:'href', db_field:'source_url', regex:''},
+  ],
+  anjuke: [
+    {label:'小区名称', selector:'.lp-name', attr:'text', db_field:'community', regex:''},
+    {label:'地址', selector:'.lp-address', attr:'text', db_field:'address', regex:''},
+    {label:'户型', selector:'.room', attr:'text', db_field:'rooms_str', regex:''},
+    {label:'面积', selector:'.area', attr:'text', db_field:'area', regex:'([\\d\\.]+)'},
+    {label:'成交价', selector:'.price-det strong', attr:'text', db_field:'total_price', regex:'([\\d\\.]+)'},
+    {label:'单价', selector:'.unit-price', attr:'text', db_field:'unit_price', regex:'([\\d\\.]+)'},
+    {label:'来源链接', selector:'a.houseListItem', attr:'href', db_field:'source_url', regex:''},
+  ],
+  fang: [
+    {label:'小区名称', selector:'.tit a', attr:'text', db_field:'community', regex:''},
+    {label:'地址', selector:'.add', attr:'text', db_field:'address', regex:''},
+    {label:'户型', selector:'.room', attr:'text', db_field:'rooms_str', regex:''},
+    {label:'面积', selector:'.area', attr:'text', db_field:'area', regex:'([\\d\\.]+)'},
+    {label:'成交价', selector:'.price .num', attr:'text', db_field:'total_price', regex:'([\\d\\.]+)'},
+    {label:'单价', selector:'.price .unit', attr:'text', db_field:'unit_price', regex:'([\\d\\.]+)'},
+    {label:'来源链接', selector:'a.tit', attr:'href', db_field:'source_url', regex:''},
+  ],
+  wuba: [
+    {label:'小区名称', selector:'.property-content-title-name', attr:'text', db_field:'community', regex:''},
+    {label:'地址', selector:'.property-content-info-comm-address', attr:'text', db_field:'address', regex:''},
+    {label:'户型', selector:'.property-content-info-text:nth-child(1)', attr:'text', db_field:'rooms_str', regex:'(\\d+室\\d+厅|\\d+室)'},
+    {label:'面积', selector:'.property-content-info-text:nth-child(2)', attr:'text', db_field:'area', regex:'([\\d\\.]+)'},
+    {label:'楼层', selector:'.property-content-info-text:nth-child(3)', attr:'text', db_field:'floor', regex:'(\\d+)'},
+    {label:'朝向', selector:'.property-content-info-text:nth-child(4)', attr:'text', db_field:'orientation', regex:''},
+    {label:'装修', selector:'.property-content-info-text:nth-child(5)', attr:'text', db_field:'decoration', regex:''},
+    {label:'建年', selector:'.property-content-info-text:nth-child(6)', attr:'text', db_field:'build_year', regex:'(\\d{4})'},
+    {label:'总价(万元)', selector:'.property-price-total', attr:'text', db_field:'total_price', regex:'([\\d\\.]+)'},
+    {label:'单价(元/㎡)', selector:'.property-price-average', attr:'text', db_field:'unit_price', regex:'([\\d\\.]+)'},
+    {label:'来源链接', selector:'.property-content-title', attr:'href', db_field:'source_url', regex:''},
+  ],
+  generic: [
+    {label:'小区名称', selector:'', attr:'text', db_field:'community', regex:''},
+    {label:'地址', selector:'', attr:'text', db_field:'address', regex:''},
+    {label:'面积(㎡)', selector:'', attr:'text', db_field:'area', regex:'([\\d\\.]+)'},
+    {label:'户型', selector:'', attr:'text', db_field:'rooms_str', regex:''},
+    {label:'楼层', selector:'', attr:'text', db_field:'floor', regex:'(\\d+)'},
+    {label:'朝向', selector:'', attr:'text', db_field:'orientation', regex:''},
+    {label:'装修', selector:'', attr:'text', db_field:'decoration', regex:''},
+    {label:'建年', selector:'', attr:'text', db_field:'build_year', regex:'(\\d{4})'},
+    {label:'成交价(元)', selector:'', attr:'text', db_field:'total_price', regex:'([\\d\\.]+)'},
+    {label:'单价(元/㎡)', selector:'', attr:'text', db_field:'unit_price', regex:'([\\d\\.]+)'},
+    {label:'挂牌价(元)', selector:'', attr:'text', db_field:'listing_price', regex:'([\\d\\.]+)'},
+    {label:'成交日期', selector:'', attr:'text', db_field:'deal_date', regex:'(\\d{4}[\\-\\/]\\d{1,2}[\\-\\/]\\d{1,2})'},
+    {label:'成交周期(天)', selector:'', attr:'text', db_field:'deal_cycle', regex:'(\\d+)'},
+    {label:'来源链接', selector:'', attr:'href', db_field:'source_url', regex:''},
+  ]
+};
+
+function updateCaseModeUI() {
+  const mode = document.getElementById('case-cfg-mode').value;
+  document.getElementById('case-list-options').style.display = mode === 'list' ? 'block' : 'none';
+}
+
+function caseAddUrl() {
+  const input = document.getElementById('case-url-input');
+  const url = input.value.trim();
+  if (!url) return;
+  if (!caseUrlList.includes(url)) { caseUrlList.push(url); renderCaseUrlTags(); }
+  input.value = '';
+}
+
+function removeCaseUrl(url) {
+  caseUrlList = caseUrlList.filter(u => u !== url);
+  renderCaseUrlTags();
+}
+
+function renderCaseUrlTags() {
+  document.getElementById('case-url-tags').innerHTML = caseUrlList.map(url =>
+    `<span class="url-tag"><span style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${url}</span>
+     <span class="remove" onclick="removeCaseUrl('${url.replace(/'/g,"\\'")}')">&#x2715;</span></span>`
+  ).join('');
+}
+
+function caseAddField(data = {}) {
+  const id = ++caseFieldIdCounter;
+  caseFieldRows.push({ id, ...data });
+  renderCaseFields();
+}
+
+function removeCaseField(id) {
+  caseFieldRows = caseFieldRows.filter(f => f.id !== id);
+  renderCaseFields();
+}
+
+function updateCaseField(id, key, value) {
+  const f = caseFieldRows.find(r => r.id === id);
+  if (f) f[key] = value;
+}
+
+function renderCaseFields() {
+  const tbody = document.getElementById('case-fields-tbody');
+  if (!caseFieldRows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:20px;">暂无字段，点击“添加字段”或使用预设</td></tr>';
+    return;
+  }
+  tbody.innerHTML = caseFieldRows.map(f => `
+    <tr id="cfield-${f.id}">
+      <td><input type="text" value="${f.label||''}" placeholder="字段名" onchange="updateCaseField(${f.id},'label',this.value)"></td>
+      <td><input type="text" value="${f.selector||''}" placeholder=".class, #id" onchange="updateCaseField(${f.id},'selector',this.value)"></td>
+      <td><select onchange="updateCaseField(${f.id},'attr',this.value)">
+        <option value="text" ${(f.attr||'text')==='text'?'selected':''}>text</option>
+        <option value="href" ${f.attr==='href'?'selected':''}>href</option>
+        <option value="src" ${f.attr==='src'?'selected':''}>src</option>
+        <option value="title" ${f.attr==='title'?'selected':''}>title</option>
+      </select></td>
+      <td><input type="text" value="${f.regex||''}" placeholder="(\\d+)" onchange="updateCaseField(${f.id},'regex',this.value)"></td>
+      <td><select onchange="updateCaseField(${f.id},'db_field',this.value)">
+        <option value="">—选择字段—</option>
+        ${DB_STRUCT.cases.map(c => `<option value="${c.name}" ${f.db_field===c.name?'selected':''}>${c.name} (${c.desc})</option>`).join('')}
+      </select></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeCaseField(${f.id})">&#x5220;除</button></td>
+    </tr>
+  `).join('');
+}
+
+function applyCasePreset(type) {
+  CASE_PRESETS[type].forEach(p => caseAddField(p));
+}
+
+function applyWubaPreset() {
+  // 清空当前字段
+  caseFieldRows = [];
+  // 填入 58同城预设字段
+  CASE_PRESETS.wuba.forEach(p => caseAddField(p));
+  // 预填 URL（深圳二手房）
+  if (!caseUrlList.includes('https://sz.58.com/ershoufang/')) {
+    caseUrlList.push('https://sz.58.com/ershoufang/');
+    renderCaseUrlTags();
+  }
+  // 预填列表选择器
+  document.getElementById('case-list-selector').value = 'ul.house-list-wrap > li.list-item, section.list > div.property';
+  document.getElementById('case-next-selector').value = 'a.next, .pager a[rel="next"]';
+  document.getElementById('case-wait-selector').value = '.house-list-wrap, section.list';
+  document.getElementById('case-max-pages').value = '20';
+  document.getElementById('case-source-name').value = '58同城';
+  // 切换到列表模式
+  document.getElementById('case-cfg-mode').value = 'list';
+  updateCaseModeUI();
+  alert('已应用 58同城模板！\n\n注意：58同城有反爬机制，建议：\n1. 在采集软件中设置延迟 3-5 秒\n2. 如遇验证码，请在浏览器中手动完成一次验证后再采集\n3. 建议每次采集不超过 5 页，避免被封 IP');
+}
+
+function clearCaseFields() {
+  if (confirm('确定清空案例字段配置？')) { caseFieldRows = []; renderCaseFields(); }
+}
+
+function buildCaseConfig() {
+  return {
+    name: document.getElementById('case-cfg-name').value,
+    delay: parseFloat(document.getElementById('case-cfg-delay').value) || 2,
+    urls: caseUrlList,
+    list_selector: document.getElementById('case-cfg-mode').value === 'list' ? document.getElementById('case-list-selector').value : '',
+    wait_selector: document.getElementById('case-wait-selector').value,
+    pagination: {
+      selector: document.getElementById('case-next-selector').value,
+      max_pages: parseInt(document.getElementById('case-max-pages').value) || 20,
+    },
+    fields: caseFieldRows.map(f => ({label:f.label, selector:f.selector, attr:f.attr||'text', regex:f.regex||'', db_field:f.db_field||''})),
+    db: getDbConfig(),
+    target_table: 'cases',
+    source_name: document.getElementById('case-source-name').value,
+    is_case_task: true,
+  };
+}
+
+async function startCaseTask() {
+  if (!caseUrlList.length) { alert('请先添加采集 URL'); return; }
+  if (!caseFieldRows.length) { alert('请先配置提取字段'); return; }
+  const config = buildCaseConfig();
+  const res = await fetch('/api/task/start', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(config)});
+  const data = await res.json();
+  if (data.ok) {
+    caseTaskId = data.task_id;
+    document.getElementById('btn-case-start').disabled = true;
+    document.getElementById('btn-case-stop').disabled = false;
+    document.getElementById('case-log-box').innerHTML = '';
+    startCasePolling();
+  } else {
+    alert('启动失败：' + data.msg);
+  }
+}
+
+async function stopCaseTask() {
+  if (!caseTaskId) return;
+  await fetch(`/api/task/stop/${caseTaskId}`, {method:'POST'});
+}
+
+function startCasePolling() {
+  if (casePollTimer) clearInterval(casePollTimer);
+  casePollTimer = setInterval(pollCaseStatus, 1500);
+}
+
+async function pollCaseStatus() {
+  if (!caseTaskId) return;
+  const res = await fetch(`/api/task/status/${caseTaskId}`);
+  const data = await res.json();
+  if (!data.ok) return;
+  const logBox = document.getElementById('case-log-box');
+  logBox.innerHTML = data.logs.map(l => `<div class="log-${l.level}">[${l.time}] ${escapeHtml(l.msg)}</div>`).join('');
+  logBox.scrollTop = logBox.scrollHeight;
+  document.getElementById('case-task-count').textContent = `已采集 ${data.count} 条`;
+  const statusMap = {running:['status-running','采集中'], done:['status-done','完成'], failed:['status-failed','失败'], stopped:['status-pending','已停止'], pending:['status-pending','等待中']};
+  const [cls, label] = statusMap[data.status] || ['status-pending', data.status];
+  document.getElementById('case-task-badge').innerHTML = `<span class="badge badge-blue"><span class="status-dot ${cls}" style="margin-right:5px"></span>${label}</span>`;
+  const pct = data.total_urls > 0 ? Math.round(data.count / (data.total_urls * 10) * 100) : 0;
+  document.getElementById('case-progress').style.width = Math.min(pct, 100) + '%';
+  if (['done','failed','stopped'].includes(data.status)) {
+    clearInterval(casePollTimer);
+    document.getElementById('btn-case-start').disabled = false;
+    document.getElementById('btn-case-stop').disabled = true;
+  }
+}
+
+// ─── 案例数据查看 ───
+async function loadCasesStats() {
+  const db = getDbConfig();
+  const res = await fetch('/api/cases/stats', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(db)});
+  const data = await res.json();
+  if (!data.ok) { alert('加载失败：' + data.msg); return; }
+  document.getElementById('cases-total-badge').innerHTML = `<span class="badge badge-green">共 ${data.total} 条案例</span>`;
+  const statsArea = document.getElementById('cases-stats-area');
+  statsArea.innerHTML = [
+    {label:'出售案例', value: data.sale_count, color:'#38bdf8'},
+    {label:'租赁案例', value: data.rent_count, color:'#34d399'},
+    {label:'来源数', value: data.source_count, color:'#fbbf24'},
+    {label:'小区数', value: data.community_count, color:'#a78bfa'},
+  ].map(s => `
+    <div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:16px 24px;min-width:140px;">
+      <div style="font-size:28px;font-weight:700;color:${s.color}">${s.value||0}</div>
+      <div style="font-size:13px;color:#64748b;margin-top:4px">${s.label}</div>
+    </div>
+  `).join('');
+  loadCasesData(1);
+}
+
+async function loadCasesData(page = 1) {
+  casesCurrentPage = page;
+  const db = getDbConfig();
+  const keyword = document.getElementById('cases-keyword').value;
+  const source = document.getElementById('cases-source-filter').value;
+  const res = await fetch('/api/cases/list', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({...db, page, keyword, source, page_size: 20})});
+  const data = await res.json();
+  if (!data.ok) { alert('查询失败：' + data.msg); return; }
+  document.getElementById('cases-count').textContent = data.total;
+  const tbody = document.getElementById('cases-tbody');
+  if (!data.rows.length) { tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;color:#64748b;padding:20px;">暂无数据</td></tr>'; return; }
+  tbody.innerHTML = data.rows.map(r => `
+    <tr>
+      <td>${r.id||''}</td>
+      <td>${escapeHtml(r.community||'')}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(r.address||'')}">${escapeHtml(r.address||'')}</td>
+      <td>${r.area||''}</td>
+      <td style="color:#38bdf8">${r.total_price ? (r.total_price/10000).toFixed(1)+'万' : (r.price ? (r.price/10000).toFixed(1)+'万' : '')}</td>
+      <td>${r.unit_price ? r.unit_price+'元/㎡' : ''}</td>
+      <td><span class="badge ${r.transaction_type==='rent'?'badge-green':'badge-blue'}">${r.transaction_type==='rent'?'租赁':'出售'}</span></td>
+      <td>${escapeHtml(r.rooms_str||'')}</td>
+      <td>${r.floor ? r.floor+(r.total_floors?'/'+r.total_floors:'') : ''}</td>
+      <td>${escapeHtml(r.orientation||'')}</td>
+      <td>${escapeHtml(r.decoration||'')}</td>
+      <td>${r.build_year||''}</td>
+      <td>${r.deal_date||''}</td>
+      <td><span class="badge badge-yellow">${escapeHtml(r.source||'')}</span></td>
+      <td>${r.source_url ? `<a href="${escapeHtml(r.source_url)}" target="_blank" style="color:#38bdf8;font-size:11px">查看</a>` : ''}</td>
+    </tr>
+  `).join('');
+  // 分页
+  const totalPages = Math.ceil(data.total / 20);
+  const pg = document.getElementById('cases-pagination');
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+  let btns = '';
+  if (page > 1) btns += `<button class="btn btn-ghost btn-sm" onclick="loadCasesData(${page-1})">&#x276E; 上一页</button>`;
+  btns += `<span style="color:#64748b;font-size:13px">第 ${page} / ${totalPages} 页</span>`;
+  if (page < totalPages) btns += `<button class="btn btn-ghost btn-sm" onclick="loadCasesData(${page+1})">&#x276F; 下一页</button>`;
+  pg.innerHTML = btns;
+}
+
+async function exportCasesCSV() {
+  const db = getDbConfig();
+  const keyword = document.getElementById('cases-keyword').value;
+  const source = document.getElementById('cases-source-filter').value;
+  const params = new URLSearchParams({keyword, source, host:db.host, port:db.port, database:db.database, user:db.user, password:db.password});
+  window.open('/api/cases/export-csv?' + params.toString());
+}
+
+// ─── 初始化 ───
+renderFields();
+renderCaseFields();
+renderDbStruct('estates');
+</script>
+</body>
+</html>
