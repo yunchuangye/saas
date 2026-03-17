@@ -371,6 +371,16 @@ export const operationLogs = mysqlTable("operation_logs", {
 // ============================================================
 
 // 采集任务表
+export const crawlTemplates = mysqlTable("crawl_templates", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 200 }).notNull().unique(),
+  description: text("description"),
+  configJson: json("config_json").notNull(),
+  createdBy: int("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
 export const crawlJobs = mysqlTable("crawl_jobs", {
   id: int("id").primaryKey().autoincrement(),
   name: varchar("name", { length: 200 }).notNull(),
@@ -395,6 +405,7 @@ export const crawlJobs = mysqlTable("crawl_jobs", {
   errorMessage: text("error_message"),
   scheduleType: varchar("schedule_type", { length: 20 }).default("manual"), // manual | cron
   cronExpression: varchar("cron_expression", { length: 100 }),
+  customConfigJson: json("custom_config_json"),
   createdBy: int("created_by"),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
@@ -568,6 +579,9 @@ export type SelectCrawlScheduleHistory = typeof crawlScheduleHistory.$inferSelec
 
 export type InsertCrawlConfig = typeof crawlConfig.$inferInsert
 export type SelectCrawlConfig = typeof crawlConfig.$inferSelect
+
+export type InsertCrawlTemplate = typeof crawlTemplates.$inferInsert;
+export type SelectCrawlTemplate = typeof crawlTemplates.$inferSelect;
 
 // 新闻表
 export const news = mysqlTable("news", {

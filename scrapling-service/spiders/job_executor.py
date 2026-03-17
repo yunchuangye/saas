@@ -15,6 +15,7 @@ from parsers.lianjia_parser import (
     parse_lianjia_sold_list, parse_lianjia_listing_list, parse_lianjia_estate_list
 )
 from parsers.anjuke_parser import parse_anjuke_sold_list, parse_anjuke_listing_list
+from .custom_job_executor import execute_custom_job
 from parsers.general_parser import (
     parse_fang_sold_list, parse_leyoujia_sold_list, parse_szfdc_estate_list
 )
@@ -39,6 +40,46 @@ STEALTH_SOURCES = {'lianjia', 'beike'}
 
 
 def execute_job(job_id: int) -> dict:
+    job = get_job(job_id)
+    if not job:
+        raise ValueError(f'任务 {job_id} 不存在')
+
+    source = job.get('source', 'lianjia')
+
+    # 如果是自定义任务
+    if source == 'custom':
+        # 从 crawl_jobs 表的 custom_config_json 字段获取配置
+        config_str = job.get('custom_config_json') 
+        if not config_str:
+            update_job_status(job_id, 'failed', error_message='自定义任务缺少 JSON 配置')
+            raise ValueError(f'任务 {job_id} 是自定义任务，但缺少配置')
+        
+        try:
+            # 在 Flask/Gunicorn 环境下，Drizzle ORM 返回的 JSON 可能是字符串
+            if isinstance(config_str, str):
+                config = json.loads(config_str)
+            else:
+                config = config_str # 假设已经是 dict
+        except (json.JSONDecodeError, TypeError) as e:
+            update_job_status(job_id, 'failed', error_message=f'自定义配置JSON格式错误: {e}')
+            raise ValueError(f'任务 {job_id} 的自定义配置 JSON 格式错误')
+
+        update_job_status(job_id, 'running', started_at=datetime.now(), progress=0)
+        write_log(job_id, 'info', f'[Scrapling] 开始执行自定义采集任务: {job.get("name")}')
+        
+        try:
+            execute_custom_job(job_id, config)
+            update_job_status(job_id, 'completed', progress=100, completed_at=datetime.now())
+            write_log(job_id, 'info', f'[Scrapling] 自定义采集任务完成: {job.get("name")}')
+            return {'status': 'completed'}
+        except Exception as e:
+            error_msg = f'自定义任务执行失败: {str(e)}'
+            update_job_status(job_id, 'failed', error_message=error_msg, completed_at=datetime.now())
+            write_log(job_id, 'error', error_msg)
+            raise
+
+    # --- 以下为原有预设任务逻辑 ---
+
     """
     执行采集任务（主入口）
     返回执行结果统计

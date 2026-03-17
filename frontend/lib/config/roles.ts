@@ -307,7 +307,10 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
         { title: "楼栋管理", href: "/dashboard/admin/directory/buildings", icon: Layers },
         { title: "房屋管理", href: "/dashboard/admin/directory/units", icon: DoorOpen },
         { title: "案例管理", href: "/dashboard/admin/directory/cases", icon: Database },
-        { title: "数据采集", href: "/dashboard/admin/crawler", icon: Bot },
+                { title: "数据采集", href: "/dashboard/admin/crawler", icon: Bot, children: [
+          { title: "采集任务", href: "/dashboard/admin/crawler", icon: Bot },
+          { title: "采集模板", href: "/dashboard/admin/crawler/templates", icon: FileText },
+        ] },
         {
           title: "OpenClaw AI",
           href: "/dashboard/admin/directory/cases",

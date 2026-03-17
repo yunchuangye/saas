@@ -39,6 +39,7 @@ const CreateJobSchema = z.object({
   useProxy: z.boolean().default(false),
   scheduleType: z.enum(['manual', 'cron']).default('manual'),
   cronExpression: z.string().optional(),
+  customConfigJson: z.any().optional(),
 });
 
 const UpdateJobSchema = CreateJobSchema.partial().extend({ id: z.number() });
@@ -114,6 +115,9 @@ export const crawlRouter = router({
     .input(UpdateJobSchema)
     .mutation(async ({ input }) => {
       const { id, ...data } = input;
+      if (data.source === 'custom' && !data.customConfigJson) {
+        throw new Error('自定义任务必须提供 configJson');
+      }
       await db.update(crawlJobs).set(data as any).where(eq(crawlJobs.id, id));
       // 重新注册调度
       unregisterJobSchedule(id);
