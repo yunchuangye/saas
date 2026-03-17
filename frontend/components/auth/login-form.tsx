@@ -203,50 +203,50 @@ export function LoginForm() {
             </div>
           </div>
 
-          {/* 图形验证码 */}
+          {/* 数字验证码 */}
           <div className="space-y-2">
-            <Label htmlFor="captchaCode">图形验证码</Label>
-            <div className="flex items-stretch gap-3">
+            <Label htmlFor="captchaCode">验证码</Label>
+            <div className="flex gap-2">
               <Input
                 id="captchaCode"
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 placeholder="请输入验证码"
                 value={formData.captchaCode}
-                onChange={(e) => setFormData({ ...formData, captchaCode: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, captchaCode: e.target.value.replace(/\D/g, '') })}
                 required
-                maxLength={6}
-                className="flex-1 tracking-[0.3em] text-lg font-semibold uppercase"
+                maxLength={4}
+                className="flex-1 h-10 tracking-[0.4em] text-lg font-bold"
                 disabled={loginMutation.isPending}
                 autoComplete="off"
               />
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={refreshCaptcha}
-                  title="点击刷新验证码"
-                  className="relative group p-0 border-0 bg-transparent"
-                  disabled={captchaLoading}
-                >
-                  {captchaLoading ? (
-                    <div className="w-[148px] h-[52px] rounded-lg border-2 border-border bg-muted flex items-center justify-center shadow-sm">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <button
+                type="button"
+                onClick={refreshCaptcha}
+                title="点击刷新验证码"
+                className="relative group shrink-0 p-0 border-0 bg-transparent"
+                disabled={captchaLoading}
+              >
+                {captchaLoading ? (
+                  <div className="h-10 w-[120px] rounded-md border border-input bg-muted flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : captchaSvg ? (
+                  <div className="relative h-10 w-[120px]">
+                    <div
+                      className="h-10 w-[120px] rounded-md border border-input overflow-hidden bg-white group-hover:border-primary group-hover:shadow-sm transition-all"
+                      dangerouslySetInnerHTML={{ __html: captchaSvg }}
+                      style={{ lineHeight: 0 }}
+                    />
+                    <div className="absolute inset-0 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/5 transition-opacity">
+                      <RefreshCw className="h-4 w-4 text-primary" />
                     </div>
-                  ) : captchaSvg ? (
-                    <div className="relative">
-                      <div
-                        className="w-[148px] h-[52px] rounded-lg border-2 border-border overflow-hidden bg-white shadow-sm group-hover:border-primary group-hover:shadow-md transition-all"
-                        dangerouslySetInnerHTML={{ __html: captchaSvg }}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      />
-                      <div className="absolute inset-0 rounded-lg bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <RefreshCw className="h-4 w-4 text-primary drop-shadow" />
-                      </div>
-                    </div>
-                  ) : null}
-                </button>
-              </div>
+                  </div>
+                ) : null}
+              </button>
             </div>
-            <p className="text-xs text-muted-foreground">不区分大小写 &middot; 点击验证码图片可刷新</p>
+            <p className="text-xs text-muted-foreground">点击验证码图片可刷新</p>
           </div>
 
           {/* 错误提示 */}

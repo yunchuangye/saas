@@ -73,15 +73,14 @@ app.get("/health", (req, res) => {
 app.get("/api/captcha", async (req, res) => {
   try {
     const captcha = svgCaptcha.create({
-      size: 4,              // 4位字符
-      noise: 1,             // 减少干扰线（1条），提升可读性
-      color: false,         // 关闭彩色字符，使用统一深色，更清晰
-      background: '#ffffff', // 纯白背景，对比度最佳
-      width: 140,           // 加宽
-      height: 50,           // 加高
-      fontSize: 52,         // 更大字号
-      ignoreChars: '0o1ilI', // 排除更多易混淆字符
-      charPreset: 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789', // 只用清晰字符集
+      size: 4,              // 4位数字
+      noise: 1,             // 减少干扰线（1条）
+      color: false,         // 统一深色，更清晰
+      background: '#ffffff', // 纯白背景
+      width: 120,           // 宽度适配数字
+      height: 44,           // 高度与输入框对齐
+      fontSize: 46,         // 字号
+      charPreset: '23456789', // 纯数字，排除 0/1 易混淆
     });
     const id = randomUUID();
     // 存入 Redis，5分钟过期
