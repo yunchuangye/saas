@@ -197,7 +197,7 @@ function NavSection({ section, pathname }: { section: NavSection; pathname: stri
   if (isAlwaysOpen) {
     return (
       <SidebarGroup>
-        <SidebarGroupLabel className="text-[13px] font-semibold text-sidebar-foreground/80 uppercase tracking-wider px-2 py-1.5">
+        <SidebarGroupLabel className="text-[16px] font-semibold text-sidebar-foreground/80 uppercase tracking-wider px-2 py-1.5">
           {section.title}
         </SidebarGroupLabel>
         <SidebarGroupContent>
@@ -215,7 +215,7 @@ function NavSection({ section, pathname }: { section: NavSection; pathname: stri
           <SidebarGroupLabel
             className={cn(
               "flex w-full cursor-pointer select-none items-center justify-between",
-              "px-3 py-2 text-[13px] font-semibold uppercase tracking-wider",
+              "px-3 py-2 text-[16px] font-semibold uppercase tracking-wider",
               "text-sidebar-foreground/80 hover:text-sidebar-foreground",
               "hover:bg-sidebar-accent/50 rounded-md transition-colors",
               "group-data-[collapsible=icon]:hidden"
@@ -259,7 +259,7 @@ function NavItems({ items, pathname }: { items: NavSection["items"]; pathname: s
             >
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton tooltip={item.title} className="text-[12px]">
+                  <SidebarMenuButton tooltip={item.title} className="text-[15px]">
                     <Icon className="shrink-0" />
                     <span>{item.title}</span>
                     <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -272,7 +272,7 @@ function NavItems({ items, pathname }: { items: NavSection["items"]; pathname: s
                         <SidebarMenuSubButton
                           asChild
                           isActive={pathname === child.href || pathname.startsWith(child.href + "/")}
-                          className="text-[11px]"
+                          className="text-[13px]"
                         >
                           <Link href={child.href}>
                             <span>{child.title}</span>
@@ -289,7 +289,7 @@ function NavItems({ items, pathname }: { items: NavSection["items"]; pathname: s
 
         return (
           <SidebarMenuItem key={item.title}>
-            <SidebarMenuButton asChild isActive={isActive} tooltip={item.title} className="text-[12px]">
+            <SidebarMenuButton asChild isActive={isActive} tooltip={item.title} className="text-[15px]">
               <Link href={item.href}>
                 <Icon className="shrink-0" />
                 <span>{item.title}</span>
