@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { roles, type UserRole } from "@/lib/config/roles"
 import { cn } from "@/lib/utils"
-import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react"
-import { trpc } from "@/lib/trpc"
+import { Eye, EyeOff, Loader2, AlertCircle, RefreshCw } from "lucide-react"
+import { trpc, BACKEND_URL } from "@/lib/trpc"
 
 const ROLE_DASHBOARD_MAP: Record<string, string> = {
   appraiser: "/dashboard/appraiser",
@@ -17,6 +17,33 @@ const ROLE_DASHBOARD_MAP: Record<string, string> = {
   investor: "/dashboard/investor",
   customer: "/dashboard/customer",
   admin: "/dashboard/admin",
+}
+
+// 验证码 Hook
+function useCaptcha() {
+  const [captchaId, setCaptchaId] = React.useState("")
+  const [captchaSvg, setCaptchaSvg] = React.useState("")
+  const [loading, setLoading] = React.useState(false)
+
+  const refresh = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/captcha`)
+      const data = await res.json()
+      setCaptchaId(data.id)
+      setCaptchaSvg(data.svg)
+    } catch (e) {
+      console.error("验证码加载失败", e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  return { captchaId, captchaSvg, loading, refresh }
 }
 
 export function LoginForm() {
@@ -27,7 +54,10 @@ export function LoginForm() {
   const [formData, setFormData] = React.useState({
     username: "",
     password: "",
+    captchaCode: "",
   })
+
+  const { captchaId, captchaSvg, loading: captchaLoading, refresh: refreshCaptcha } = useCaptcha()
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: (data) => {
@@ -43,6 +73,9 @@ export function LoginForm() {
     },
     onError: (error) => {
       setErrorMsg(error.message || "用户名或密码错误，请重试")
+      // 登录失败时刷新验证码
+      refreshCaptcha()
+      setFormData(prev => ({ ...prev, captchaCode: "" }))
     },
   })
 
@@ -53,9 +86,15 @@ export function LoginForm() {
       setErrorMsg("请输入用户名和密码")
       return
     }
+    if (!formData.captchaCode) {
+      setErrorMsg("请输入验证码")
+      return
+    }
     loginMutation.mutate({
       username: formData.username,
       password: formData.password,
+      captchaId,
+      captchaCode: formData.captchaCode,
     })
   }
 
@@ -162,6 +201,50 @@ export function LoginForm() {
                 )}
               </button>
             </div>
+          </div>
+
+          {/* 图形验证码 */}
+          <div className="space-y-2">
+            <Label htmlFor="captchaCode">图形验证码</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="captchaCode"
+                type="text"
+                placeholder="请输入验证码"
+                value={formData.captchaCode}
+                onChange={(e) => setFormData({ ...formData, captchaCode: e.target.value })}
+                required
+                maxLength={6}
+                className="flex-1 tracking-widest text-base uppercase"
+                disabled={loginMutation.isPending}
+                autoComplete="off"
+              />
+              <div
+                className="flex items-center gap-1 cursor-pointer select-none"
+                onClick={refreshCaptcha}
+                title="点击刷新验证码"
+              >
+                {captchaLoading ? (
+                  <div className="w-[120px] h-[40px] rounded border border-border bg-muted flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : captchaSvg ? (
+                  <div
+                    className="w-[120px] h-[40px] rounded border border-border overflow-hidden bg-white"
+                    dangerouslySetInnerHTML={{ __html: captchaSvg }}
+                  />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); refreshCaptcha() }}
+                  className="p-1 text-muted-foreground hover:text-primary transition-colors"
+                  title="刷新验证码"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">验证码不区分大小写，点击图片可刷新</p>
           </div>
 
           {/* 错误提示 */}

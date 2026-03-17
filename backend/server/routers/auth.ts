@@ -5,6 +5,7 @@ import { eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { TRPCError } from "@trpc/server";
+import { redis } from "../lib/db";
 
 // 获取真实 IP（支持反向代理）
 function getClientIp(req: any): string {
@@ -47,6 +48,19 @@ async function writeLog(
   }
 }
 
+// 验证验证码（从 Redis 取出并比对，不区分大小写）
+async function verifyCaptcha(captchaId: string, captchaCode: string): Promise<boolean> {
+  const key = `captcha:${captchaId}`;
+  const stored = await redis.get(key);
+  if (!stored) return false;
+  const match = stored.toLowerCase() === captchaCode.toLowerCase();
+  if (match) {
+    // 验证成功后立即删除，防止重复使用
+    await redis.del(key);
+  }
+  return match;
+}
+
 export const authRouter = router({
   // 登录
   login: publicProcedure
@@ -54,12 +68,20 @@ export const authRouter = router({
       z.object({
         username: z.string().min(1),
         password: z.string().min(1),
+        captchaId: z.string().min(1, "验证码 ID 不能为空"),
+        captchaCode: z.string().min(1, "请输入验证码"),
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const { username, password } = input;
+      const { username, password, captchaId, captchaCode } = input;
       const ip = getClientIp(ctx.req);
       const userAgent = (ctx.req.headers["user-agent"] || "").substring(0, 500);
+
+      // 验证图形验证码
+      const captchaValid = await verifyCaptcha(captchaId, captchaCode);
+      if (!captchaValid) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "验证码错误或已过期，请刷新重试" });
+      }
 
       // 查找用户（支持用户名、手机号、邮箱）
       const [user] = await ctx.db
@@ -174,12 +196,20 @@ export const authRouter = router({
         email: z.string().email().optional(),
         displayName: z.string().optional(),
         role: z.enum(["appraiser", "bank", "investor", "customer"]).default("customer"),
+        captchaId: z.string().min(1, "验证码 ID 不能为空"),
+        captchaCode: z.string().min(1, "请输入验证码"),
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const { username, password, phone, email, displayName, role } = input;
+      const { username, password, phone, email, displayName, role, captchaId, captchaCode } = input;
       const ip = getClientIp(ctx.req);
       const userAgent = (ctx.req.headers["user-agent"] || "").substring(0, 500);
+
+      // 验证图形验证码
+      const captchaValid = await verifyCaptcha(captchaId, captchaCode);
+      if (!captchaValid) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "验证码错误或已过期，请刷新重试" });
+      }
 
       // 检查用户名是否已存在
       const [existing] = await ctx.db

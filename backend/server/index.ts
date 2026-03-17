@@ -14,6 +14,8 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { startCrawlWorker } from './crawler/engines/job-queue';
 import { initCronScheduler } from './crawler/engines/cron-scheduler';
+import svgCaptcha from 'svg-captcha';
+import { randomUUID } from 'crypto';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "8721");
@@ -63,6 +65,31 @@ app.use(
 // 健康检查
 app.get("/health", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
+});
+
+// 图形验证码接口
+// GET /api/captcha  -> 返回 { id: string, svg: string }
+// 验证码文本存入 Redis，key=captcha:{id}，TTL=5分钟
+app.get("/api/captcha", async (req, res) => {
+  try {
+    const captcha = svgCaptcha.create({
+      size: 4,          // 4位字符
+      noise: 3,         // 干扰线数量
+      color: true,      // 彩色字符
+      background: '#f0f4f8', // 背景色
+      width: 120,
+      height: 40,
+      fontSize: 48,
+      ignoreChars: '0o1il', // 排除易混淆字符
+    });
+    const id = randomUUID();
+    // 存入 Redis，5分钟过期
+    await redis.set(`captcha:${id}`, captcha.text, 'EX', 300);
+    res.json({ id, svg: captcha.data });
+  } catch (err: any) {
+    console.error('[Captcha] 生成失败:', err.message);
+    res.status(500).json({ error: '验证码生成失败' });
+  }
 });
 
 // tRPC 路由

@@ -33,6 +33,7 @@
     "playwright-extra": "^4.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "superjson": "^2.2.6",
+    "svg-captcha": "^1.4.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

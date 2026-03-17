@@ -8,46 +8,108 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { roles, type UserRole } from "@/lib/config/roles"
 import { cn } from "@/lib/utils"
-import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react"
+import { trpc, BACKEND_URL } from "@/lib/trpc"
+
+// 验证码 Hook
+function useCaptcha() {
+  const [captchaId, setCaptchaId] = React.useState("")
+  const [captchaSvg, setCaptchaSvg] = React.useState("")
+  const [loading, setLoading] = React.useState(false)
+
+  const refresh = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/captcha`)
+      const data = await res.json()
+      setCaptchaId(data.id)
+      setCaptchaSvg(data.svg)
+    } catch (e) {
+      console.error("验证码加载失败", e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  return { captchaId, captchaSvg, loading, refresh }
+}
 
 export function RegisterForm() {
   const router = useRouter()
   const [selectedRole, setSelectedRole] = React.useState<UserRole>("appraiser")
-  const [isLoading, setIsLoading] = React.useState(false)
   const [showPassword, setShowPassword] = React.useState(false)
+  const [errorMsg, setErrorMsg] = React.useState("")
   const [formData, setFormData] = React.useState({
-    companyName: "",
+    username: "",
     contactName: "",
     phone: "",
     email: "",
     password: "",
     confirmPassword: "",
+    captchaCode: "",
   })
   const [agreed, setAgreed] = React.useState(false)
 
+  const { captchaId, captchaSvg, loading: captchaLoading, refresh: refreshCaptcha } = useCaptcha()
+
+  const registerMutation = trpc.auth.register.useMutation({
+    onSuccess: (data) => {
+      const token = (data as any)?.token
+      if (token) {
+        document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
+      }
+      // 注册成功后跳转到登录页
+      router.push("/login?registered=1")
+    },
+    onError: (error) => {
+      setErrorMsg(error.message || "注册失败，请重试")
+      // 注册失败时刷新验证码
+      refreshCaptcha()
+      setFormData(prev => ({ ...prev, captchaCode: "" }))
+    },
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    setErrorMsg("")
+
     if (formData.password !== formData.confirmPassword) {
-      alert("两次输入的密码不一致")
+      setErrorMsg("两次输入的密码不一致")
       return
     }
-    
+
     if (!agreed) {
-      alert("请阅读并同意服务协议和隐私政策")
+      setErrorMsg("请阅读并同意服务协议和隐私政策")
       return
     }
-    
-    setIsLoading(true)
-    
-    // 模拟注册延迟
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    
-    // 注册成功后跳转到登录页
-    router.push("/login")
-    
-    setIsLoading(false)
+
+    if (!formData.captchaCode) {
+      setErrorMsg("请输入验证码")
+      return
+    }
+
+    if (!formData.username || formData.username.length < 2) {
+      setErrorMsg("用户名至少需要2个字符")
+      return
+    }
+
+    registerMutation.mutate({
+      username: formData.username,
+      password: formData.password,
+      phone: formData.phone || undefined,
+      email: formData.email || undefined,
+      displayName: formData.contactName || formData.username,
+      role: selectedRole as "appraiser" | "bank" | "investor" | "customer",
+      captchaId,
+      captchaCode: formData.captchaCode,
+    })
   }
+
+  const isLoading = registerMutation.isPending
 
   return (
     <Card className="w-full max-w-lg border-0 shadow-xl">
@@ -99,16 +161,19 @@ export function RegisterForm() {
             </div>
           </div>
 
-          {/* 公司名称 */}
+          {/* 用户名 */}
           <div className="space-y-2">
-            <Label htmlFor="companyName">公司名称</Label>
+            <Label htmlFor="username">用户名 <span className="text-destructive">*</span></Label>
             <Input
-              id="companyName"
+              id="username"
               type="text"
-              placeholder="请输入公司全称"
-              value={formData.companyName}
-              onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+              placeholder="请输入登录用户名（至少2个字符）"
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               required
+              minLength={2}
+              maxLength={50}
+              disabled={isLoading}
             />
           </div>
 
@@ -122,7 +187,7 @@ export function RegisterForm() {
                 placeholder="请输入姓名"
                 value={formData.contactName}
                 onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -133,37 +198,39 @@ export function RegisterForm() {
                 placeholder="请输入手机号"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                required
+                disabled={isLoading}
               />
             </div>
           </div>
 
           {/* 邮箱 */}
           <div className="space-y-2">
-            <Label htmlFor="email">企业邮箱</Label>
+            <Label htmlFor="email">邮箱</Label>
             <Input
               id="email"
               type="email"
-              placeholder="请输入企业邮箱"
+              placeholder="请输入邮箱（可选）"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required
+              disabled={isLoading}
             />
           </div>
 
           {/* 密码 */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="password">设置密码</Label>
+              <Label htmlFor="password">设置密码 <span className="text-destructive">*</span></Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="请输入密码"
+                  placeholder="至少6位密码"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
+                  minLength={6}
                   className="pr-10"
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
@@ -179,7 +246,7 @@ export function RegisterForm() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">确认密码</Label>
+              <Label htmlFor="confirmPassword">确认密码 <span className="text-destructive">*</span></Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -187,8 +254,53 @@ export function RegisterForm() {
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 required
+                disabled={isLoading}
               />
             </div>
+          </div>
+
+          {/* 图形验证码 */}
+          <div className="space-y-2">
+            <Label htmlFor="captchaCode">图形验证码 <span className="text-destructive">*</span></Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="captchaCode"
+                type="text"
+                placeholder="请输入验证码"
+                value={formData.captchaCode}
+                onChange={(e) => setFormData({ ...formData, captchaCode: e.target.value })}
+                required
+                maxLength={6}
+                className="flex-1 tracking-widest text-base uppercase"
+                disabled={isLoading}
+                autoComplete="off"
+              />
+              <div
+                className="flex items-center gap-1 cursor-pointer select-none"
+                onClick={refreshCaptcha}
+                title="点击刷新验证码"
+              >
+                {captchaLoading ? (
+                  <div className="w-[120px] h-[40px] rounded border border-border bg-muted flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : captchaSvg ? (
+                  <div
+                    className="w-[120px] h-[40px] rounded border border-border overflow-hidden bg-white"
+                    dangerouslySetInnerHTML={{ __html: captchaSvg }}
+                  />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); refreshCaptcha() }}
+                  className="p-1 text-muted-foreground hover:text-primary transition-colors"
+                  title="刷新验证码"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">验证码不区分大小写，点击图片可刷新</p>
           </div>
 
           {/* 服务协议 */}
@@ -199,6 +311,7 @@ export function RegisterForm() {
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              disabled={isLoading}
             />
             <label htmlFor="agree" className="text-sm text-muted-foreground">
               我已阅读并同意
@@ -207,6 +320,14 @@ export function RegisterForm() {
               <a href="/privacy" className="text-primary hover:underline">《隐私政策》</a>
             </label>
           </div>
+
+          {/* 错误提示 */}
+          {errorMsg && (
+            <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
           {/* 注册按钮 */}
           <Button type="submit" className="w-full" size="lg" disabled={isLoading || !agreed}>
