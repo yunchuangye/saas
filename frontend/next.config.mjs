@@ -6,6 +6,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // 允许公网代理域名访问开发服务器资源（避免跨域警告）
+  allowedDevOrigins: [
+    "*.us1.manus.computer",
+  ],
   // ⚠️ 注意：不要在这里设置 NEXT_PUBLIC_BACKEND_URL！
   //
   // 原因：next.config.mjs 在 .env.local 被 Next.js 加载之前执行，

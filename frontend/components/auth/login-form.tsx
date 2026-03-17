@@ -31,7 +31,14 @@ export function LoginForm() {
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: (data) => {
-      const dashboardPath = ROLE_DASHBOARD_MAP[(data as any)?.user?.role ?? ""] || "/dashboard/appraiser"
+      const token = (data as any)?.token
+      const role = (data as any)?.user?.role ?? ""
+      // 将 token 存入前端域名的 Cookie，供前端 middleware (proxy.ts) 读取鉴权
+      // 解决前后端不同域名时 Cookie 无法共享的问题
+      if (token) {
+        document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
+      }
+      const dashboardPath = ROLE_DASHBOARD_MAP[role] || "/dashboard/appraiser"
       router.push(dashboardPath)
     },
     onError: (error) => {
