@@ -90,11 +90,13 @@ export default function CrawlerPage() {
   const { data: proxiesData, refetch: refetchProxies } =
     trpc.crawl.listProxies.useQuery({ page: proxyPage, pageSize: 20 });
   const { data: citiesData } = trpc.crawl.getCities.useQuery();
+  const { data: scraplingStatus, refetch: refetchScrapling } =
+    trpc.crawl.getScraplingStatus.useQuery(undefined, { refetchInterval: 15000 });
 
   const jobs = jobsData?.jobs ?? [];
   const proxies = proxiesData?.proxies ?? [];
 
-  const refetchAll = () => { refetchStats(); refetchJobs(); refetchAlerts(); refetchProxies(); };
+  const refetchAll = () => { refetchStats(); refetchJobs(); refetchAlerts(); refetchProxies(); refetchScrapling(); };
 
   // ─── Mutations ──────────────────────────────────────────────
   const createJob = trpc.crawl.createJob.useMutation({
@@ -102,7 +104,11 @@ export default function CrawlerPage() {
     onError: (e) => toast.error(e.message),
   });
   const startJob = trpc.crawl.startJob.useMutation({
-    onSuccess: () => { toast.success("任务已加入队列"); refetchAll(); },
+    onSuccess: (d: any) => {
+      const engine = d?.engine === 'scrapling' ? '[Scrapling 引擎]' : '[BullMQ]';
+      toast.success(`${engine} 任务已启动`);
+      refetchAll();
+    },
     onError: (e) => toast.error(e.message),
   });
   const pauseJob = trpc.crawl.pauseJob.useMutation({
@@ -226,6 +232,51 @@ export default function CrawlerPage() {
               </Card>
             ))}
           </div>
+
+          {/* Scrapling 引擎状态卡片 */}
+          <Card className={`border-0 shadow-sm border-l-4 ${
+            scraplingStatus?.available
+              ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-l-emerald-500'
+              : 'bg-gradient-to-r from-gray-50 to-slate-50 border-l-gray-300'
+          }`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    scraplingStatus?.available ? 'bg-emerald-100' : 'bg-gray-100'
+                  }`}>
+                    <Zap className={`w-5 h-5 ${
+                      scraplingStatus?.available ? 'text-emerald-600' : 'text-gray-400'
+                    }`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">Scrapling 采集引擎</p>
+                    <p className="text-xs text-gray-500">基于 Python 的高性能采集引擎，支持自适应解析、隐身护甲和代理轮换</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                    scraplingStatus?.available
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <span className={`w-2 h-2 rounded-full ${
+                      scraplingStatus?.available ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'
+                    }`} />
+                    {scraplingStatus?.available ? '引擎已就绪' : '引擎未启动'}
+                  </span>
+                  {scraplingStatus?.available && (
+                    <div className="text-sm text-gray-600">
+                      当前运行：<span className="font-bold text-emerald-600 text-base">{scraplingStatus.count ?? 0}</span> 个采集任务
+                    </div>
+                  )}
+                  {!scraplingStatus?.available && (
+                    <p className="text-xs text-gray-400">启动 Scrapling 服务后，采集任务将自动使用该引擎</p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* 队列状态 */}
           <Card className="border-0 shadow-sm">

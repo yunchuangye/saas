@@ -26,8 +26,17 @@ if [ -f "$ROOT_DIR/logs/frontend.pid" ]; then
     rm -f "$ROOT_DIR/logs/frontend.pid"
 fi
 
+# 停止 Scrapling 微服务
+if [ -f "$ROOT_DIR/logs/scrapling.pid" ]; then
+    SCRAPLING_PID=$(cat "$ROOT_DIR/logs/scrapling.pid")
+    kill $SCRAPLING_PID 2>/dev/null && echo -e "${GREEN}✅ Scrapling 微服务已停止 (PID: $SCRAPLING_PID)${RESET}" || true
+    rm -f "$ROOT_DIR/logs/scrapling.pid"
+fi
+
 # 强制清理端口
 kill $(lsof -ti:8721) 2>/dev/null || true
 kill $(lsof -ti:8720) 2>/dev/null || true
+kill $(lsof -ti:8722) 2>/dev/null || true
+pkill -f "scrapling-service/app.py" 2>/dev/null || true
 
 echo -e "${GREEN}[$(date '+%H:%M:%S')] 所有服务已停止${RESET}"

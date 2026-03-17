@@ -14,6 +14,11 @@ import {
 import { eq, desc, and, gte, count, sql, ne, lt, isNull } from 'drizzle-orm';
 import { enqueueJob, pauseJob, getQueueStats } from '../crawler/engines/job-queue';
 import {
+  checkScraplingHealth,
+  scraplingStartJob,
+  scraplingStopJob,
+} from '../crawler/engines/scrapling-client';
+import {
   registerJobSchedule, unregisterJobSchedule,
   getScheduledTasksStatus, getCronDescription
 } from '../crawler/engines/cron-scheduler';
@@ -118,7 +123,7 @@ export const crawlRouter = router({
       return { message: '任务已更新' };
     }),
 
-  /** 启动任务 */
+  /** 启动任务（优先使用 Scrapling 微服务，降级到 BullMQ） */
   startJob: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
@@ -126,23 +131,35 @@ export const crawlRouter = router({
       if (!job) throw new Error('任务不存在');
       if (job.status === 'running') throw new Error('任务已在运行中');
       await db.update(crawlJobs).set({ status: 'pending' } as Partial<InsertCrawlJob>).where(eq(crawlJobs.id, input.id));
-      const queueId = await enqueueJob(input.id);
       // 记录手动触发历史
       await db.insert(crawlScheduleHistory).values({
         jobId: input.id, triggeredBy: 'manual', status: 'success', startedAt: new Date(),
       } as InsertCrawlScheduleHistory);
-      return { message: '任务已加入队列', queueId };
+      // 优先使用 Scrapling 微服务（Python，更强反爬能力）
+      const scraplingAvailable = await checkScraplingHealth();
+      if (scraplingAvailable) {
+        const result = await scraplingStartJob(input.id);
+        return { message: `[Scrapling] ${result.message}`, engine: 'scrapling', thread: result.thread };
+      }
+      // 降级：使用原有 BullMQ 队列
+      const queueId = await enqueueJob(input.id);
+      return { message: '任务已加入队列（BullMQ 降级）', engine: 'bullmq', queueId };
     }),
 
-  /** 暂停任务 */
+  /** 暂停任务（同时通知 Scrapling 微服务停止） */
   pauseJob: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
+      // 通知 Scrapling 微服务停止
+      const scraplingAvailable = await checkScraplingHealth();
+      if (scraplingAvailable) {
+        try { await scraplingStopJob(input.id); } catch { /* 忽略 */ }
+      }
       await pauseJob(input.id);
       return { message: '任务已暂停' };
     }),
 
-  /** 重启任务（清空进度重新执行） */
+  /** 重启任务（清空进度重新执行，优先使用 Scrapling） */
   restartJob: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
@@ -150,8 +167,13 @@ export const crawlRouter = router({
         status: 'pending', progress: 0, successCount: 0, failCount: 0,
         duplicateCount: 0, errorMessage: null, startedAt: null, completedAt: null,
       } as Partial<InsertCrawlJob>).where(eq(crawlJobs.id, input.id));
+      const scraplingAvailable = await checkScraplingHealth();
+      if (scraplingAvailable) {
+        const result = await scraplingStartJob(input.id);
+        return { message: `[Scrapling] ${result.message}`, engine: 'scrapling' };
+      }
       const queueId = await enqueueJob(input.id);
-      return { message: '任务已重启', queueId };
+      return { message: '任务已重启（BullMQ 降级）', engine: 'bullmq', queueId };
     }),
 
   /** 删除任务（含日志和原始数据） */
@@ -594,6 +616,22 @@ export const crawlRouter = router({
         cities: cityList,
         dedupeRule: '以来源平台+房源ID为主键去重，无ID时以小区名+面积+成交日期组合去重',
       };
+    }),
+
+  /** 查询 Scrapling 微服务引擎状态 */
+  getScraplingStatus: protectedProcedure
+    .query(async () => {
+      const available = await checkScraplingHealth();
+      if (!available) {
+        return { available: false, running_jobs: [], count: 0 };
+      }
+      try {
+        const { scraplingRunningJobs } = await import('../crawler/engines/scrapling-client');
+        const data = await scraplingRunningJobs();
+        return { available: true, ...data };
+      } catch {
+        return { available: true, running_jobs: [], count: 0 };
+      }
     }),
 
   /** 按类型统计采集任务 */

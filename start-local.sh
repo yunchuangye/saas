@@ -42,15 +42,31 @@ fi
 log_step "清理旧进程..."
 kill $(lsof -ti:8721) 2>/dev/null || true
 kill $(lsof -ti:8720) 2>/dev/null || true
+kill $(lsof -ti:8722) 2>/dev/null || true
+pkill -f "scrapling-service/app.py" 2>/dev/null || true
 sleep 2
 
-# 4. 启动后端
+# 4. 启动 Scrapling 采集微服务
+log_step "启动 Scrapling 采集微服务 (端口 8722)..."
+cd "$ROOT_DIR/scrapling-service"
+nohup python3.11 app.py > "$ROOT_DIR/logs/scrapling.log" 2>&1 &
+SCRAPLING_PID=$!
+echo $SCRAPLING_PID > "$ROOT_DIR/logs/scrapling.pid"
+sleep 5
+if curl -s http://localhost:8722/health | grep -q "ok"; then
+    log_info "Scrapling 微服务运行中 (PID: $SCRAPLING_PID) - http://localhost:8722"
+else
+    log_warn "Scrapling 微服务可能未完全启动，查看日志: $ROOT_DIR/logs/scrapling.log"
+    tail -10 "$ROOT_DIR/logs/scrapling.log"
+fi
+
+# 5. 启动后端
 log_step "启动后端服务 (端口 8721)..."
 cd "$ROOT_DIR/backend"
-nohup npx tsx server/index.ts > "$ROOT_DIR/logs/backend.log" 2>&1 &
+nohup npx tsx --env-file=.env server/index.ts > "$ROOT_DIR/logs/backend.log" 2>&1 &
 BACKEND_PID=$!
 echo $BACKEND_PID > "$ROOT_DIR/logs/backend.pid"
-sleep 8
+sleep 12
 if curl -s http://localhost:8721/health | grep -q "ok"; then
     log_info "后端运行中 (PID: $BACKEND_PID) - http://localhost:8721"
 else
@@ -58,13 +74,13 @@ else
     tail -20 "$ROOT_DIR/logs/backend.log"
 fi
 
-# 5. 启动前端
+# 6. 启动前端
 log_step "启动前端服务 (端口 8720)..."
 cd "$ROOT_DIR/frontend"
 nohup pnpm exec next dev -p 8720 > "$ROOT_DIR/logs/frontend.log" 2>&1 &
 FRONTEND_PID=$!
 echo $FRONTEND_PID > "$ROOT_DIR/logs/frontend.pid"
-sleep 15
+sleep 20
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8720/ 2>/dev/null || echo "000")
 if [ "$HTTP_CODE" = "200" ]; then
     log_info "前端运行中 (PID: $FRONTEND_PID) - http://localhost:8720"
@@ -73,16 +89,18 @@ else
 fi
 
 echo ""
-echo -e "${GREEN}══════════════════════════════════════════════${RESET}"
+echo -e "${GREEN}══════════════════════════════════════════════════════${RESET}"
 echo -e "${GREEN}  gujia.app 本地开发环境启动完成${RESET}"
-echo -e "${GREEN}══════════════════════════════════════════════${RESET}"
-echo -e "  前端地址: ${CYAN}http://localhost:8720${RESET}"
-echo -e "  后端地址: ${CYAN}http://localhost:8721${RESET}"
-echo -e "  健康检查: ${CYAN}http://localhost:8721/health${RESET}"
-echo -e "  默认账号: ${YELLOW}admin / admin123456${RESET}"
-echo -e "  后端日志: ${CYAN}tail -f $ROOT_DIR/logs/backend.log${RESET}"
-echo -e "  前端日志: ${CYAN}tail -f $ROOT_DIR/logs/frontend.log${RESET}"
+echo -e "${GREEN}══════════════════════════════════════════════════════${RESET}"
+echo -e "  前端地址:       ${CYAN}http://localhost:8720${RESET}"
+echo -e "  后端地址:       ${CYAN}http://localhost:8721${RESET}"
+echo -e "  Scrapling 服务: ${CYAN}http://localhost:8722${RESET}"
+echo -e "  健康检查:       ${CYAN}http://localhost:8721/health${RESET}"
+echo -e "  默认账号:       ${YELLOW}admin / admin123456${RESET}"
+echo -e "  后端日志:       ${CYAN}tail -f $ROOT_DIR/logs/backend.log${RESET}"
+echo -e "  前端日志:       ${CYAN}tail -f $ROOT_DIR/logs/frontend.log${RESET}"
+echo -e "  采集日志:       ${CYAN}tail -f $ROOT_DIR/logs/scrapling.log${RESET}"
 echo ""
-echo -e "  同步到 GitHub: ${YELLOW}./sync-to-github.sh \"提交信息\"${RESET}"
-echo -e "  停止所有服务: ${YELLOW}./dev-stop.sh${RESET}"
-echo -e "${GREEN}══════════════════════════════════════════════${RESET}"
+echo -e "  同步到 GitHub:  ${YELLOW}./sync-to-github.sh \"提交信息\"${RESET}"
+echo -e "  停止所有服务:   ${YELLOW}./dev-stop.sh${RESET}"
+echo -e "${GREEN}══════════════════════════════════════════════════════${RESET}"
