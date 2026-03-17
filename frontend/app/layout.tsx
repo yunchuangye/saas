@@ -57,7 +57,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
-      <head></head>
+      <head suppressHydrationWarning></head>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
