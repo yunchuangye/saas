@@ -150,11 +150,17 @@ export function AppSidebar({ role, user, ...props }: AppSidebarProps) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/dashboard/${role}/profile`)}
+                  >
                     <User className="mr-2 h-4 w-4" />
                     个人中心
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/dashboard/${role}/account`)}
+                  >
                     <Settings className="mr-2 h-4 w-4" />
                     账户设置
                   </DropdownMenuItem>
