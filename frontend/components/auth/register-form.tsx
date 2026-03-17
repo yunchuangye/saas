@@ -262,7 +262,7 @@ export function RegisterForm() {
           {/* 图形验证码 */}
           <div className="space-y-2">
             <Label htmlFor="captchaCode">图形验证码 <span className="text-destructive">*</span></Label>
-            <div className="flex items-center gap-3">
+            <div className="flex items-stretch gap-3">
               <Input
                 id="captchaCode"
                 type="text"
@@ -271,36 +271,38 @@ export function RegisterForm() {
                 onChange={(e) => setFormData({ ...formData, captchaCode: e.target.value })}
                 required
                 maxLength={6}
-                className="flex-1 tracking-widest text-base uppercase"
+                className="flex-1 tracking-[0.3em] text-lg font-semibold uppercase"
                 disabled={isLoading}
                 autoComplete="off"
               />
-              <div
-                className="flex items-center gap-1 cursor-pointer select-none"
-                onClick={refreshCaptcha}
-                title="点击刷新验证码"
-              >
-                {captchaLoading ? (
-                  <div className="w-[120px] h-[40px] rounded border border-border bg-muted flex items-center justify-center">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  </div>
-                ) : captchaSvg ? (
-                  <div
-                    className="w-[120px] h-[40px] rounded border border-border overflow-hidden bg-white"
-                    dangerouslySetInnerHTML={{ __html: captchaSvg }}
-                  />
-                ) : null}
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); refreshCaptcha() }}
-                  className="p-1 text-muted-foreground hover:text-primary transition-colors"
-                  title="刷新验证码"
+                  onClick={refreshCaptcha}
+                  title="点击刷新验证码"
+                  className="relative group p-0 border-0 bg-transparent"
+                  disabled={captchaLoading || isLoading}
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  {captchaLoading ? (
+                    <div className="w-[148px] h-[52px] rounded-lg border-2 border-border bg-muted flex items-center justify-center shadow-sm">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : captchaSvg ? (
+                    <div className="relative">
+                      <div
+                        className="w-[148px] h-[52px] rounded-lg border-2 border-border overflow-hidden bg-white shadow-sm group-hover:border-primary group-hover:shadow-md transition-all"
+                        dangerouslySetInnerHTML={{ __html: captchaSvg }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      />
+                      <div className="absolute inset-0 rounded-lg bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <RefreshCw className="h-4 w-4 text-primary drop-shadow" />
+                      </div>
+                    </div>
+                  ) : null}
                 </button>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">验证码不区分大小写，点击图片可刷新</p>
+            <p className="text-xs text-muted-foreground">不区分大小写 &middot; 点击验证码图片可刷新</p>
           </div>
 
           {/* 服务协议 */}
