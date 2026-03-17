@@ -151,6 +151,9 @@
   <div class="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-section-title">配置</div>
+       <div class="sidebar-item" onclick="showPanel('analyze')" id="nav-analyze" style="border-left:2px solid #f59e0b;background:#f59e0b10;">
+        <span class="icon">🤖</span> <strong style="color:#fbbf24">智能分析</strong>
+      </div>
       <div class="sidebar-item active" onclick="showPanel('urls')" id="nav-urls">
         <span class="icon">🌐</span> 采集目标
       </div>
@@ -195,6 +198,76 @@
 
   <!-- 主内容区 -->
   <div class="main">
+
+    <!-- 智能分析面板 -->
+    <div class="panel" id="panel-analyze">
+      <div class="panel-title">🤖 智能页面分析</div>
+      <div class="alert alert-info">
+        输入目标网页 URL，系统将自动加载页面并分析 DOM 结构，智能推荐列表选择器、翻页按鈕选择器和等待元素。点击“一键应用”可直接填入采集配置。
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔍 分析目标页面</div>
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label>URL</label>
+            <input type="text" id="analyze-url" placeholder="https://example.com/list" onkeydown="if(event.key==='Enter') runAnalyze()">
+          </div>
+          <div class="form-group" style="flex:0 0 auto;display:flex;align-items:flex-end;gap:8px">
+            <button class="btn btn-primary" onclick="runAnalyze()" id="btn-analyze" style="background:#f59e0b;">
+              🤖 开始分析
+            </button>
+          </div>
+        </div>
+        <div id="analyze-status" style="display:none;margin-top:8px;"></div>
+      </div>
+
+      <!-- 分析结果区域 -->
+      <div id="analyze-result" style="display:none">
+
+        <!-- 页面标题 -->
+        <div id="analyze-page-title" style="color:#94a3b8;font-size:13px;margin-bottom:12px;"></div>
+
+        <!-- 列表选择器候选 -->
+        <div class="card">
+          <div class="card-title">📊 列表项选择器候选
+            <span class="badge badge-blue" id="list-cand-count">0 个</span>
+          </div>
+          <div class="tip" style="margin-bottom:12px">按匹配数量和结构相似性自动排序，分数越高越可能是目标列表</div>
+          <div id="list-candidates-area"></div>
+        </div>
+
+        <!-- 翻页选择器候选 -->
+        <div class="card">
+          <div class="card-title">📄 翻页按鈕选择器候选
+            <span class="badge badge-yellow" id="next-cand-count">0 个</span>
+          </div>
+          <div id="next-candidates-area"></div>
+        </div>
+
+        <!-- 等待元素候选 -->
+        <div class="card">
+          <div class="card-title">⏳ 等待元素候选
+            <span class="badge badge-green" id="wait-cand-count">0 个</span>
+          </div>
+          <div id="wait-candidates-area"></div>
+        </div>
+
+        <!-- 一键应用按鈕 -->
+        <div class="card" style="background:#0f172a;border-color:#f59e0b40">
+          <div class="card-title" style="color:#fbbf24">⚡ 一键应用到采集配置</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="applyAnalyzeToCase()" style="background:#f59e0b20;border:1px solid #f59e0b40;color:#fbbf24">
+              🏠 应用到《案例采集配置》
+            </button>
+            <button class="btn btn-ghost" onclick="applyAnalyzeToGeneral()" style="background:#0ea5e920;border:1px solid #0ea5e940;color:#38bdf8">
+              🔧 应用到《采集目标配置》
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
 
     <!-- 采集目标 -->
     <div class="panel active" id="panel-urls">
@@ -1549,6 +1622,207 @@ async function exportCasesCSV() {
   const source = document.getElementById('cases-source-filter').value;
   const params = new URLSearchParams({keyword, source, host:db.host, port:db.port, database:db.database, user:db.user, password:db.password});
   window.open('/api/cases/export-csv?' + params.toString());
+}
+
+// ─── 智能分析 ───
+let analyzeResult = null;  // 存储最近一次分析结果
+
+async function runAnalyze() {
+  const url = document.getElementById('analyze-url').value.trim();
+  if (!url) { alert('请输入目标 URL'); return; }
+
+  const btn = document.getElementById('btn-analyze');
+  const statusDiv = document.getElementById('analyze-status');
+  const resultDiv = document.getElementById('analyze-result');
+
+  btn.disabled = true;
+  btn.textContent = '分析中...';
+  statusDiv.style.display = 'block';
+  statusDiv.innerHTML = `<div class="alert alert-info">⏳ 正在加载页面并分析 DOM 结构，请稍候（通常需要 5-15 秒）...</div>`;
+  resultDiv.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url})
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      statusDiv.innerHTML = `<div class="alert alert-error">❌ 分析失败：${escapeHtml(data.msg)}</div>`;
+      return;
+    }
+
+    analyzeResult = data;
+    statusDiv.innerHTML = `<div class="alert alert-success">✓ 分析完成！页面标题：${escapeHtml(data.title || '未知')}</div>`;
+    renderAnalyzeResult(data);
+    resultDiv.style.display = 'block';
+
+  } catch(e) {
+    statusDiv.innerHTML = `<div class="alert alert-error">❌ 请求异常：${escapeHtml(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 开始分析';
+  }
+}
+
+function renderAnalyzeResult(data) {
+  // 页面标题
+  document.getElementById('analyze-page-title').textContent = data.title ? `页面标题：${data.title}` : '';
+
+  // 列表选择器
+  const listArea = document.getElementById('list-candidates-area');
+  const listCands = data.list_candidates || [];
+  document.getElementById('list-cand-count').textContent = listCands.length + ' 个';
+  if (!listCands.length) {
+    listArea.innerHTML = '<div style="color:#64748b;font-size:13px;">\u672a检测到列表结构</div>';
+  } else {
+    listArea.innerHTML = listCands.map((c, i) => `
+      <div style="border:1px solid ${i===0?'#f59e0b':'#334155'};border-radius:10px;padding:14px;margin-bottom:10px;background:${i===0?'#f59e0b08':'#0f172a'}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+          ${i===0 ? '<span class="badge badge-yellow">★ 最佳候选</span>' : `<span class="badge badge-blue">候选 ${i+1}</span>`}
+          <code style="color:#38bdf8;font-size:13px;background:#0f172a;padding:3px 8px;border-radius:4px">${escapeHtml(c.selector)}</code>
+          <span style="color:#64748b;font-size:12px">匹配 ${c.count} 个元素 &bull; 分数 ${c.score}</span>
+          <button class="btn btn-ghost btn-sm" onclick="selectListCandidate('${escapeHtml(c.selector)}')"
+            style="margin-left:auto;background:#f59e0b20;border:1px solid #f59e0b40;color:#fbbf24">
+            选择此选择器
+          </button>
+        </div>
+        ${c.previews && c.previews.length ? `
+          <div style="font-size:11px;color:#64748b;margin-bottom:4px">内容预览（前3项）：</div>
+          <div style="background:#1e293b;border-radius:6px;padding:8px;">
+            ${c.previews.map((p, pi) => `<div style="padding:4px 0;border-bottom:1px solid #334155;font-size:12px;color:#cbd5e1"><span style="color:#64748b">[${pi+1}]</span> ${escapeHtml(p)}</div>`).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+  }
+
+  // 翻页选择器
+  const nextArea = document.getElementById('next-candidates-area');
+  const nextCands = data.next_candidates || [];
+  document.getElementById('next-cand-count').textContent = nextCands.length + ' 个';
+  if (!nextCands.length) {
+    nextArea.innerHTML = '<div style="color:#64748b;font-size:13px;">未检测到翻页按鈕</div>';
+  } else {
+    nextArea.innerHTML = nextCands.map((c, i) => `
+      <div style="border:1px solid ${i===0?'#f59e0b':'#334155'};border-radius:8px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        ${i===0 ? '<span class="badge badge-yellow">★</span>' : `<span class="badge badge-blue">${i+1}</span>`}
+        <code style="color:#fbbf24;font-size:13px;background:#0f172a;padding:3px 8px;border-radius:4px">${escapeHtml(c.selector)}</code>
+        <span style="color:#94a3b8;font-size:12px">文字：${escapeHtml(c.text||'')}</span>
+        ${c.href ? `<span style="color:#64748b;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">链接：${escapeHtml(c.href)}</span>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="selectNextCandidate('${escapeHtml(c.selector)}')"
+          style="margin-left:auto;background:#f59e0b20;border:1px solid #f59e0b40;color:#fbbf24">
+          选择
+        </button>
+      </div>
+    `).join('');
+  }
+
+  // 等待元素
+  const waitArea = document.getElementById('wait-candidates-area');
+  const waitCands = data.wait_candidates || [];
+  document.getElementById('wait-cand-count').textContent = waitCands.length + ' 个';
+  if (!waitCands.length) {
+    waitArea.innerHTML = '<div style="color:#64748b;font-size:13px;">未检测到候选等待元素</div>';
+  } else {
+    waitArea.innerHTML = waitCands.map((c, i) => `
+      <div style="border:1px solid #334155;border-radius:8px;padding:10px;margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="badge badge-green">${c.tag}</span>
+        <code style="color:#34d399;font-size:13px;background:#0f172a;padding:3px 8px;border-radius:4px">${escapeHtml(c.selector)}</code>
+        <button class="btn btn-ghost btn-sm" onclick="selectWaitCandidate('${escapeHtml(c.selector)}')"
+          style="margin-left:auto;background:#10b98120;border:1px solid #10b98140;color:#34d399">
+          选择
+        </button>
+      </div>
+    `).join('');
+  }
+}
+
+// 候选选择器的当前选中状态
+let selectedListSel = '';
+let selectedNextSel = '';
+let selectedWaitSel = '';
+
+function selectListCandidate(sel) {
+  selectedListSel = sel;
+  // 高亮所有列表候选卡片中的选中按鈕
+  document.querySelectorAll('#list-candidates-area button').forEach(btn => {
+    btn.style.background = btn.getAttribute('onclick').includes(sel.replace(/'/g,"\\'")||sel) ? '#f59e0b40' : '#f59e0b20';
+  });
+  showToast(`列表选择器已选中：${sel}`);
+}
+
+function selectNextCandidate(sel) {
+  selectedNextSel = sel;
+  showToast(`翻页选择器已选中：${sel}`);
+}
+
+function selectWaitCandidate(sel) {
+  selectedWaitSel = sel;
+  showToast(`等待元素已选中：${sel}`);
+}
+
+function applyAnalyzeToCase() {
+  if (!analyzeResult) { alert('请先执行分析'); return; }
+  const url = document.getElementById('analyze-url').value.trim();
+  const listSel = selectedListSel || (analyzeResult.list_candidates[0]?.selector || '');
+  const nextSel = selectedNextSel || (analyzeResult.next_candidates[0]?.selector || '');
+  const waitSel = selectedWaitSel || (analyzeResult.wait_candidates[0]?.selector || '');
+
+  if (url && !caseUrlList.includes(url)) {
+    caseUrlList.push(url);
+    renderCaseUrlTags();
+  }
+  if (listSel) {
+    document.getElementById('case-list-selector').value = listSel;
+    document.getElementById('case-cfg-mode').value = 'list';
+    updateCaseModeUI();
+  }
+  if (nextSel) document.getElementById('case-next-selector').value = nextSel;
+  if (waitSel) document.getElementById('case-wait-selector').value = waitSel;
+
+  showPanel('cases-config');
+  showToast('已应用到《案例采集配置》！');
+}
+
+function applyAnalyzeToGeneral() {
+  if (!analyzeResult) { alert('请先执行分析'); return; }
+  const url = document.getElementById('analyze-url').value.trim();
+  const listSel = selectedListSel || (analyzeResult.list_candidates[0]?.selector || '');
+  const nextSel = selectedNextSel || (analyzeResult.next_candidates[0]?.selector || '');
+  const waitSel = selectedWaitSel || (analyzeResult.wait_candidates[0]?.selector || '');
+
+  if (url && !urlList.includes(url)) {
+    urlList.push(url);
+    renderUrlTags();
+  }
+  if (listSel) {
+    document.getElementById('cfg-list-selector').value = listSel;
+    document.getElementById('cfg-mode').value = 'list';
+    updateModeUI();
+  }
+  if (nextSel && document.getElementById('cfg-next-selector'))
+    document.getElementById('cfg-next-selector').value = nextSel;
+  if (waitSel) document.getElementById('cfg-wait-selector').value = waitSel;
+
+  showPanel('urls');
+  showToast('已应用到《采集目标配置》！');
+}
+
+function showToast(msg) {
+  let toast = document.getElementById('global-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'global-toast';
+    toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1e293b;color:#e2e8f0;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;border:1px solid #334155;box-shadow:0 4px 12px rgba(0,0,0,0.4);transition:opacity 0.3s';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
 }
 
 // ─── 初始化 ───

@@ -788,6 +788,228 @@ def api_cases_export_csv():
         return jsonify({"ok": False, "msg": str(e)})
 
 
+# ─────────────────────────────────────────────
+# 智能页面分析 API
+# ─────────────────────────────────────────────
+@app.route("/api/analyze", methods=["POST"])
+def api_analyze():
+    """智能分析目标 URL，自动推荐列表选择器、翻页选择器、等待元素"""
+    data = request.json or {}
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"ok": False, "msg": "请提供目标 URL"})
+
+    try:
+        import asyncio
+        result = asyncio.run(_analyze_page(url))
+        return jsonify({"ok": True, **result})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)})
+
+
+async def _analyze_page(url: str) -> dict:
+    """用 Playwright 加载页面，分析 DOM 结构，智能推荐选择器"""
+    from playwright.async_api import async_playwright
+    from bs4 import BeautifulSoup
+    import re
+
+    html = ""
+    screenshot_b64 = ""
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-setuid-sandbox",
+                  "--disable-blink-features=AutomationControlled"]
+        )
+        ctx = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                       "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 800},
+            locale="zh-CN"
+        )
+        page = await ctx.new_page()
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+            await page.wait_for_timeout(2500)
+            html = await page.content()
+        except Exception:
+            pass
+        finally:
+            await browser.close()
+
+    if not html:
+        return {"list_candidates": [], "next_candidates": [], "wait_candidates": [], "error": "页面加载失败"}
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    # ── 1. 候选列表选择器 ──────────────────────────
+    list_candidates = []
+    seen_selectors = set()
+
+    # 常见列表容器标签组合
+    LIST_PATTERNS = [
+        # (容器标签, 子项标签, 最小子项数)
+        ("ul", "li", 3),
+        ("ol", "li", 3),
+        ("div", "div", 3),
+        ("section", "div", 3),
+        ("table", "tr", 3),
+        ("tbody", "tr", 3),
+    ]
+
+    # 关键词权重（class/id 含这些词的优先级更高）
+    HIGH_PRIORITY = ["list", "item", "result", "card", "house", "property",
+                     "estate", "record", "row", "entry", "product", "goods",
+                     "article", "post", "news", "data", "content"]
+
+    def score_element(el, tag):
+        """给容器元素打分，分越高越可能是列表容器"""
+        score = 0
+        cls = " ".join(el.get("class", []))
+        eid = el.get("id", "")
+        combined = (cls + " " + eid).lower()
+        for kw in HIGH_PRIORITY:
+            if kw in combined:
+                score += 3
+        children = el.find_all(tag, recursive=False)
+        score += min(len(children), 20)  # 子项越多越好，最多加20分
+        # 子项结构相似性（子项 class 相同则加分）
+        child_classes = [" ".join(c.get("class", [])) for c in children]
+        if len(set(child_classes)) == 1 and child_classes:
+            score += 5
+        return score, children
+
+    def build_selector(el):
+        """为元素构建 CSS 选择器"""
+        tag = el.name
+        cls = el.get("class", [])
+        eid = el.get("id", "")
+        if eid:
+            return f"#{eid} > {tag}"
+        if cls:
+            main_cls = cls[0]
+            return f".{main_cls}"
+        return tag
+
+    def build_container_selector(el):
+        tag = el.name
+        cls = el.get("class", [])
+        eid = el.get("id", "")
+        if eid:
+            return f"#{eid}"
+        if cls:
+            return f"{tag}.{'.'.join(cls[:2])}"
+        return tag
+
+    scored = []
+    for container_tag, item_tag, min_items in LIST_PATTERNS:
+        for el in soup.find_all(container_tag):
+            score, children = score_element(el, item_tag)
+            if len(children) >= min_items:
+                scored.append((score, el, item_tag, children))
+
+    # 按分数排序，取前8
+    scored.sort(key=lambda x: -x[0])
+    for score, el, item_tag, children in scored[:8]:
+        container_sel = build_container_selector(el)
+        # 子项选择器
+        item_cls = children[0].get("class", []) if children else []
+        if item_cls:
+            item_sel = f".{item_cls[0]}"
+        else:
+            item_sel = f"{container_sel} > {item_tag}"
+
+        full_sel = item_sel
+        if full_sel in seen_selectors:
+            continue
+        seen_selectors.add(full_sel)
+
+        # 提取前3个子项的文本预览
+        previews = []
+        for child in children[:3]:
+            text = child.get_text(separator=" | ", strip=True)[:120]
+            if text:
+                previews.append(text)
+
+        list_candidates.append({
+            "selector": full_sel,
+            "container": container_sel,
+            "count": len(children),
+            "score": score,
+            "previews": previews,
+            "tag": item_tag,
+        })
+
+    # ── 2. 候选翻页选择器 ──────────────────────────
+    next_candidates = []
+    NEXT_KEYWORDS = ["next", "下一页", "下页", "›", "»", ">", "forward", "后页"]
+    NEXT_SELECTORS = [
+        "a.next", ".pagination a.next", ".pager a.next",
+        "a[rel='next']", ".next-page", ".nextpage",
+        "a.pagination-next", ".page-next a",
+        "[class*='next']", "[class*='pagination'] a",
+    ]
+
+    seen_next = set()
+    # 先试预定义选择器
+    for sel in NEXT_SELECTORS:
+        try:
+            els = soup.select(sel)
+            if els:
+                for el in els[:2]:
+                    text = el.get_text(strip=True)[:30]
+                    href = el.get("href", "")
+                    if sel not in seen_next:
+                        seen_next.add(sel)
+                        next_candidates.append({"selector": sel, "text": text, "href": href})
+        except Exception:
+            pass
+
+    # 再扫描所有 a 标签
+    for a in soup.find_all("a"):
+        text = a.get_text(strip=True)
+        cls = " ".join(a.get("class", []))
+        for kw in NEXT_KEYWORDS:
+            if kw in text.lower() or kw in cls.lower():
+                sel = f"a.{cls.split()[0]}" if cls else "a"
+                if sel not in seen_next:
+                    seen_next.add(sel)
+                    next_candidates.append({
+                        "selector": sel,
+                        "text": text[:30],
+                        "href": a.get("href", "")
+                    })
+                break
+
+    # ── 3. 候选等待元素 ──────────────────────────
+    wait_candidates = []
+    WAIT_KEYWORDS = ["loaded", "content", "list", "result", "data", "main", "container"]
+    for el in soup.find_all(True):
+        cls = " ".join(el.get("class", []))
+        eid = el.get("id", "")
+        combined = (cls + " " + eid).lower()
+        for kw in WAIT_KEYWORDS:
+            if kw in combined:
+                sel = f"#{eid}" if eid else f".{cls.split()[0]}"
+                if sel not in [w["selector"] for w in wait_candidates]:
+                    wait_candidates.append({"selector": sel, "tag": el.name})
+                if len(wait_candidates) >= 5:
+                    break
+        if len(wait_candidates) >= 5:
+            break
+
+    # ── 4. 页面标题 ──────────────────────────────
+    title = soup.title.string.strip() if soup.title else ""
+
+    return {
+        "title": title,
+        "list_candidates": list_candidates[:6],
+        "next_candidates": next_candidates[:4],
+        "wait_candidates": wait_candidates[:4],
+    }
+
+
 if __name__ == "__main__":
     print("\n" + "="*50)
     print("  通用网页采集软件 v2.0")
