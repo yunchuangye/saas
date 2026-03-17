@@ -20,7 +20,8 @@ function useCaptcha() {
   const refresh = React.useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${BACKEND_URL}/api/captcha`)
+      // 通过 Next.js API 路由代理，避免浏览器直接访问 localhost:8721
+      const res = await fetch('/api/captcha', { cache: 'no-store' })
       const data = await res.json()
       setCaptchaId(data.id)
       setCaptchaSvg(data.svg)
