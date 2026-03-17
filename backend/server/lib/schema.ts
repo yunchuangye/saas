@@ -353,6 +353,7 @@ export const openclawTasks = mysqlTable("openclaw_tasks", {
 export const operationLogs = mysqlTable("operation_logs", {
   id: int("id").primaryKey().autoincrement(),
   userId: int("user_id"),
+  username: varchar("username", { length: 100 }),
   action: varchar("action", { length: 200 }).notNull(),
   resource: varchar("resource", { length: 100 }),
   resourceId: int("resource_id"),
@@ -360,6 +361,8 @@ export const operationLogs = mysqlTable("operation_logs", {
   detail: text("detail"),
   ip: varchar("ip", { length: 50 }),
   ipAddress: varchar("ip_address", { length: 50 }),
+  status: varchar("status", { length: 20 }).default("success"),
+  userAgent: varchar("user_agent", { length: 500 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

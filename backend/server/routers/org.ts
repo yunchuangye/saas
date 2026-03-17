@@ -305,19 +305,40 @@ export const openclawRouter = router({
 
 export const logsRouter = router({
   list: adminProcedure
-    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(50) }))
+    .input(z.object({
+      page: z.number().default(1),
+      pageSize: z.number().default(30),
+      search: z.string().optional(),
+      action: z.string().optional(),
+      status: z.string().optional(),
+    }))
     .query(async ({ input, ctx }) => {
-      const { page, pageSize } = input;
+      const { page, pageSize, search, action, status } = input;
       const offset = (page - 1) * pageSize;
+
+      const conditions: any[] = [];
+      if (search) {
+        conditions.push(
+          sql`(${operationLogs.username} LIKE ${`%${search}%`} OR ${operationLogs.action} LIKE ${`%${search}%`} OR ${operationLogs.detail} LIKE ${`%${search}%`} OR ${operationLogs.ip} LIKE ${`%${search}%`})`
+        );
+      }
+      if (action) conditions.push(like(operationLogs.action, `%${action}%`));
+      if (status) conditions.push(eq(operationLogs.status as any, status));
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
       const items = await ctx.db
         .select()
         .from(operationLogs)
+        .where(whereClause)
         .orderBy(desc(operationLogs.createdAt))
         .limit(pageSize)
         .offset(offset);
 
-      const [totalResult] = await ctx.db.select({ count: count() }).from(operationLogs);
+      const [totalResult] = await ctx.db
+        .select({ count: count() })
+        .from(operationLogs)
+        .where(whereClause);
 
       return { items, total: totalResult.count, page, pageSize };
     }),
