@@ -565,3 +565,23 @@ export type SelectCrawlScheduleHistory = typeof crawlScheduleHistory.$inferSelec
 
 export type InsertCrawlConfig = typeof crawlConfig.$inferInsert
 export type SelectCrawlConfig = typeof crawlConfig.$inferSelect
+
+// 新闻表
+export const news = mysqlTable("news", {
+  id: int("id").primaryKey().autoincrement(),
+  title: varchar("title", { length: 300 }).notNull(),
+  summary: varchar("summary", { length: 500 }),
+  content: text("content"),
+  coverImage: varchar("cover_image", { length: 500 }),
+  category: varchar("category", { length: 50 }).default("industry"), // industry/policy/company
+  status: varchar("status", { length: 20 }).default("draft"), // draft/published/archived
+  isPinned: boolean("is_pinned").notNull().default(false),
+  viewCount: int("view_count").notNull().default(0),
+  authorId: int("author_id").notNull(),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+export type InsertNews = typeof news.$inferInsert;
+export type SelectNews = typeof news.$inferSelect;

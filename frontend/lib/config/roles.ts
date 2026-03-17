@@ -27,6 +27,8 @@ import {
   Sparkles,
   GitCompare,
   ShieldAlert,
+  Newspaper,
+  BellRing,
   type LucideIcon,
 } from "lucide-react"
 
@@ -319,6 +321,13 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
             { title: "AI 批量估值", href: "/dashboard/admin/directory/cases/ai-batch", icon: Calculator },
           ],
         },
+      ],
+    },
+    {
+      title: "内容管理",
+      items: [
+        { title: "新闻管理", href: "/dashboard/admin/news", icon: Newspaper },
+        { title: "通知管理", href: "/dashboard/admin/notifications", icon: BellRing },
       ],
     },
     {

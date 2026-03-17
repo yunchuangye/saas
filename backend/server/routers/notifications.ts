@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../lib/trpc";
-import { notifications, messages, type InsertNotification, type InsertMessage } from "../lib/schema";
-import { eq, and, desc, count } from "drizzle-orm";
+import { router, protectedProcedure, adminProcedure } from "../lib/trpc";
+import { notifications, messages, users, type InsertNotification, type InsertMessage } from "../lib/schema";
+import { eq, and, desc, count, like, or } from "drizzle-orm";
 
 export const notificationsRouter = router({
-  // 通知列表
+  // 通知列表（当前用户）
   list: protectedProcedure
     .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20) }))
     .query(async ({ input, ctx }) => {
@@ -55,6 +55,108 @@ export const notificationsRouter = router({
       .set({ isRead: true } as Partial<InsertNotification>)
       .where(eq(notifications.userId, ctx.user.id));
     return { success: true };
+  }),
+
+  // ============ 管理员接口 ============
+
+  // 管理员：获取所有通知记录（通知管理页面）
+  adminList: adminProcedure
+    .input(
+      z.object({
+        page: z.number().default(1),
+        pageSize: z.number().default(20),
+        keyword: z.string().optional(),
+        type: z.string().optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { page, pageSize, keyword, type } = input;
+      const offset = (page - 1) * pageSize;
+
+      const conditions: any[] = [];
+      if (keyword) {
+        conditions.push(
+          or(like(notifications.title, `%${keyword}%`), like(notifications.content, `%${keyword}%`))
+        );
+      }
+      if (type) conditions.push(eq(notifications.type, type));
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const items = await ctx.db
+        .select()
+        .from(notifications)
+        .where(whereClause)
+        .orderBy(desc(notifications.createdAt))
+        .limit(pageSize)
+        .offset(offset);
+
+      const [totalResult] = await ctx.db
+        .select({ count: count() })
+        .from(notifications)
+        .where(whereClause);
+
+      return { items, total: totalResult.count, page, pageSize };
+    }),
+
+  // 管理员：向指定用户或全体用户发送通知
+  adminSend: adminProcedure
+    .input(
+      z.object({
+        target: z.enum(["all", "specific"]).default("all"),
+        userIds: z.array(z.number()).optional(),
+        title: z.string().min(1, "标题不能为空").max(200),
+        content: z.string().optional(),
+        type: z.enum(["system", "project", "report", "warning"]).default("system"),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const { target, userIds, title, content, type } = input;
+
+      let targetUserIds: number[] = [];
+
+      if (target === "specific" && userIds && userIds.length > 0) {
+        targetUserIds = userIds;
+      } else {
+        // 广播：获取所有用户 ID
+        const allUsers = await ctx.db.select({ id: users.id }).from(users);
+        targetUserIds = allUsers.map((u) => u.id);
+      }
+
+      if (targetUserIds.length === 0) {
+        return { success: false, sentCount: 0, message: "没有找到目标用户" };
+      }
+
+      // 批量插入通知
+      await ctx.db.insert(notifications).values(
+        targetUserIds.map((uid) => ({
+          userId: uid,
+          title,
+          content: content || null,
+          type,
+          isRead: false,
+        } as InsertNotification))
+      );
+
+      return { success: true, sentCount: targetUserIds.length };
+    }),
+
+  // 管理员：删除通知
+  adminDelete: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      await ctx.db.delete(notifications).where(eq(notifications.id, input.id));
+      return { success: true };
+    }),
+
+  // 管理员：获取通知统计
+  adminStats: adminProcedure.query(async ({ ctx }) => {
+    const [total] = await ctx.db.select({ count: count() }).from(notifications);
+    const [unread] = await ctx.db
+      .select({ count: count() })
+      .from(notifications)
+      .where(eq(notifications.isRead, false));
+    return { total: total.count, unread: unread.count };
   }),
 });
 

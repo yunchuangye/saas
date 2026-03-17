@@ -3,10 +3,9 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { ChevronRight, ChevronsUpDown, LogOut, Settings, User } from "lucide-react"
+import { ChevronDown, ChevronRight, ChevronsUpDown, LogOut, Settings, User } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 
-import { Logo } from "@/components/brand/logo"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
@@ -23,6 +22,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
@@ -35,6 +35,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { getNavigation, getRoleConfig, type UserRole, type NavSection } from "@/lib/config/roles"
+import { cn } from "@/lib/utils"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   role: UserRole
@@ -53,12 +54,10 @@ export function AppSidebar({ role, user, ...props }: AppSidebarProps) {
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
-      // 后端已清除 httpOnly cookie，跳转到登录页
       router.push("/login")
       router.refresh()
     },
     onError: () => {
-      // 即使后端出错，也强制跳转登录页
       router.push("/login")
       router.refresh()
     },
@@ -179,60 +178,129 @@ export function AppSidebar({ role, user, ...props }: AppSidebarProps) {
   )
 }
 
+// 判断某个分组是否有激活的子项（用于默认展开）
+function isSectionActive(section: NavSection, pathname: string): boolean {
+  return section.items.some(
+    (item) =>
+      pathname === item.href ||
+      pathname.startsWith(item.href + "/") ||
+      item.children?.some((child) => pathname === child.href || pathname.startsWith(child.href + "/"))
+  )
+}
+
 function NavSection({ section, pathname }: { section: NavSection; pathname: string }) {
+  // 控制台分组不可折叠（始终展开）
+  const isAlwaysOpen = section.title === "控制台" || section.title === "工作台"
+  const defaultOpen = isAlwaysOpen || isSectionActive(section, pathname)
+  const [open, setOpen] = React.useState(defaultOpen)
+
+  if (isAlwaysOpen) {
+    return (
+      <SidebarGroup>
+        <SidebarGroupLabel className="text-[13px] font-semibold text-sidebar-foreground/80 uppercase tracking-wider px-2 py-1.5">
+          {section.title}
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          <NavItems items={section.items} pathname={pathname} />
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+  }
+
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
-      <SidebarMenu>
-        {section.items.map((item) => {
-          const isActive = pathname === item.href
-          const hasChildren = item.children && item.children.length > 0
-          const Icon = item.icon
-
-          if (hasChildren) {
-            return (
-              <Collapsible key={item.title} asChild defaultOpen={item.children?.some(child => pathname === child.href)}>
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton tooltip={item.title}>
-                      <Icon />
-                      <span>{item.title}</span>
-                      <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {item.children?.map((child) => (
-                        <SidebarMenuSubItem key={child.title}>
-                          <SidebarMenuSubButton asChild isActive={pathname === child.href}>
-                            <Link href={child.href}>
-                              <span>{child.title}</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-            )
-          }
-
-          return (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
-                <Link href={item.href}>
-                  <Icon />
-                  <span>{item.title}</span>
-                </Link>
-              </SidebarMenuButton>
-              {item.badge && item.badge > 0 && (
-                <SidebarMenuBadge>{item.badge > 99 ? "99+" : item.badge}</SidebarMenuBadge>
+    <SidebarGroup className="p-0">
+      <Collapsible open={open} onOpenChange={setOpen}>
+        {/* 一级目录标题：字体比二级菜单项大一号，可点击折叠 */}
+        <CollapsibleTrigger asChild>
+          <SidebarGroupLabel
+            className={cn(
+              "flex w-full cursor-pointer select-none items-center justify-between",
+              "px-3 py-2 text-[13px] font-semibold uppercase tracking-wider",
+              "text-sidebar-foreground/80 hover:text-sidebar-foreground",
+              "hover:bg-sidebar-accent/50 rounded-md transition-colors",
+              "group-data-[collapsible=icon]:hidden"
+            )}
+          >
+            <span>{section.title}</span>
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
+                open ? "rotate-0" : "-rotate-90"
               )}
-            </SidebarMenuItem>
-          )
-        })}
-      </SidebarMenu>
+            />
+          </SidebarGroupLabel>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            <NavItems items={section.items} pathname={pathname} />
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </Collapsible>
     </SidebarGroup>
+  )
+}
+
+function NavItems({ items, pathname }: { items: NavSection["items"]; pathname: string }) {
+  return (
+    <SidebarMenu>
+      {items.map((item) => {
+        const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+        const hasChildren = item.children && item.children.length > 0
+        const Icon = item.icon
+
+        if (hasChildren) {
+          return (
+            <Collapsible
+              key={item.title}
+              asChild
+              defaultOpen={item.children?.some(
+                (child) => pathname === child.href || pathname.startsWith(child.href + "/")
+              )}
+            >
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton tooltip={item.title} className="text-[12px]">
+                    <Icon className="shrink-0" />
+                    <span>{item.title}</span>
+                    <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    {item.children?.map((child) => (
+                      <SidebarMenuSubItem key={child.title}>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={pathname === child.href || pathname.startsWith(child.href + "/")}
+                          className="text-[11px]"
+                        >
+                          <Link href={child.href}>
+                            <span>{child.title}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </Collapsible>
+          )
+        }
+
+        return (
+          <SidebarMenuItem key={item.title}>
+            <SidebarMenuButton asChild isActive={isActive} tooltip={item.title} className="text-[12px]">
+              <Link href={item.href}>
+                <Icon className="shrink-0" />
+                <span>{item.title}</span>
+              </Link>
+            </SidebarMenuButton>
+            {item.badge && item.badge > 0 && (
+              <SidebarMenuBadge>{item.badge > 99 ? "99+" : item.badge}</SidebarMenuBadge>
+            )}
+          </SidebarMenuItem>
+        )
+      })}
+    </SidebarMenu>
   )
 }
