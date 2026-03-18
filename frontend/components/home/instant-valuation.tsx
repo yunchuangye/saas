@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
   Calculator,
   MapPin,
@@ -495,25 +496,25 @@ export function InstantValuation() {
 
       {/* ── 估价结果 ── */}
       {step === "result" && result && (
-        <div className="space-y-6">
+        <div>
           {/* 主结果卡片 */}
           <Card className="border-2 shadow-xl overflow-hidden">
             <div className="bg-gradient-to-r from-primary to-primary/80 text-white p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white/80 text-sm">参考估算价值</p>
+                  <p className="text-white/70 text-base">参考估算价值</p>
                   <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-4xl sm:text-5xl font-bold">
+                    <span className="text-5xl sm:text-6xl font-bold tracking-tight">
                       {formatPrice(result.estimatedValue)}
                     </span>
-                    <span className="text-xl">元</span>
+                    <span className="text-2xl font-medium">元</span>
                   </div>
-                  <p className="text-white/80 text-sm mt-2">
+                  <p className="text-white/80 text-base mt-2">
                     单价: {result.unitPrice.toLocaleString()} 元/平方米
                   </p>
                 </div>
                 <div className="text-right">
-                  <Badge className="bg-white/20 text-white border-white/30">
+                  <Badge className="bg-white/20 text-white border-white/30 text-sm px-3 py-1">
                     {result.confidence}% 置信度
                   </Badge>
                   <div className="flex items-center justify-end gap-1 mt-3">
@@ -522,7 +523,7 @@ export function InstantValuation() {
                     ) : (
                       <TrendingUp className="h-5 w-5 text-red-300 rotate-180" />
                     )}
-                    <span className="text-sm">
+                    <span className="text-base">
                       近期{result.marketTrend === "up" ? "上涨" : result.marketTrend === "down" ? "下跌" : "平稳"}
                       {result.trendPercent?.toFixed(1)}%
                     </span>
@@ -533,24 +534,24 @@ export function InstantValuation() {
             <CardContent className="p-6">
               <div className="grid grid-cols-3 gap-4 pb-6 border-b">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{result.comparables}</div>
-                  <div className="text-xs text-muted-foreground mt-1">参考案例数</div>
+                  <div className="text-3xl font-bold text-primary">{result.comparables}</div>
+                  <div className="text-sm text-muted-foreground mt-1">参考案例数</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{result.confidence}%</div>
-                  <div className="text-xs text-muted-foreground mt-1">估算置信度</div>
+                  <div className="text-3xl font-bold text-primary">{result.confidence}%</div>
+                  <div className="text-sm text-muted-foreground mt-1">估算置信度</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">{result.dataDate}</div>
-                  <div className="text-xs text-muted-foreground mt-1">数据更新日期</div>
+                  <div className="text-sm text-muted-foreground mt-1">数据更新日期</div>
                 </div>
               </div>
 
               {/* 房产信息摘要 */}
-              <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2 text-sm flex-wrap">
+              <div className="mt-5 p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 text-base flex-wrap">
                   <Home className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">{result.estateName}</span>
+                  <span className="font-semibold">{result.estateName}</span>
                   <span className="text-muted-foreground">|</span>
                   <span className="text-muted-foreground">{result.cityName} {result.districtName}</span>
                   <span className="text-muted-foreground">|</span>
@@ -558,97 +559,105 @@ export function InstantValuation() {
                 </div>
               </div>
 
-              {/* 服务推荐入口 */}
-              {!showServices && (
-                <div className="mt-6 grid grid-cols-2 gap-4">
-                  <Button
-                    size="lg"
-                    className="h-auto py-4"
-                    onClick={() => { setShowServices(true); setSelectedService("loan") }}
-                  >
-                    <Landmark className="mr-2 h-5 w-5" />
-                    <div className="text-left">
-                      <div className="font-semibold">申请贷款</div>
-                      <div className="text-xs opacity-80">查看合作银行优惠利率</div>
-                    </div>
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="h-auto py-4"
-                    onClick={() => { setShowServices(true); setSelectedService("appraisal") }}
-                  >
-                    <FileText className="mr-2 h-5 w-5" />
-                    <div className="text-left">
-                      <div className="font-semibold">获取评估报告</div>
-                      <div className="text-xs opacity-80">专业机构出具正式报告</div>
-                    </div>
-                  </Button>
-                </div>
-              )}
+              {/* 服务推荐入口 — 始终显示，点击打开侧滑 */}
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                <Button
+                  size="lg"
+                  className="h-auto py-4 text-base"
+                  onClick={() => { setShowServices(true); setSelectedService("loan") }}
+                >
+                  <Landmark className="mr-2 h-5 w-5" />
+                  <div className="text-left">
+                    <div className="font-semibold text-base">申请贷款</div>
+                    <div className="text-xs opacity-80">查看合作银行优惠利率</div>
+                  </div>
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-auto py-4 text-base"
+                  onClick={() => { setShowServices(true); setSelectedService("appraisal") }}
+                >
+                  <FileText className="mr-2 h-5 w-5" />
+                  <div className="text-left">
+                    <div className="font-semibold text-base">获取评估报告</div>
+                    <div className="text-xs opacity-80">专业机构出具正式报告</div>
+                  </div>
+                </Button>
+              </div>
 
               {/* 重新估价 */}
               <div className="mt-4 text-center">
-                <Button variant="ghost" onClick={handleReset}>
+                <Button variant="ghost" className="text-base" onClick={handleReset}>
                   重新估价其他房产
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* 服务推荐 */}
-          {showServices && (
-            <Card className="border-2 shadow-xl">
-              <CardHeader>
+          {/* ── 侧滑 Drawer：服务推荐 ── */}
+          <Sheet open={showServices} onOpenChange={setShowServices}>
+            <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+              <SheetHeader className="px-6 pt-6 pb-4 border-b">
+                <SheetTitle className="text-xl">
+                  {selectedService === "loan" ? "合作银行贷款方案" : "认证评估机构"}
+                </SheetTitle>
+              </SheetHeader>
+
+              {/* Tab 切换 */}
+              <div className="px-6 pt-4">
                 <Tabs value={selectedService || "loan"} onValueChange={(v) => setSelectedService(v as "loan" | "appraisal")}>
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="loan" className="flex items-center gap-2">
+                    <TabsTrigger value="loan" className="flex items-center gap-2 text-base">
                       <Landmark className="h-4 w-4" />银行贷款
                     </TabsTrigger>
-                    <TabsTrigger value="appraisal" className="flex items-center gap-2">
+                    <TabsTrigger value="appraisal" className="flex items-center gap-2 text-base">
                       <FileText className="h-4 w-4" />评估报告
                     </TabsTrigger>
                   </TabsList>
 
                   {/* 银行列表 */}
-                  <TabsContent value="loan" className="mt-6">
+                  <TabsContent value="loan" className="mt-5">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-semibold">合作银行推荐</h3>
-                          <p className="text-sm text-muted-foreground">基于您的房产估值，为您推荐以下贷款方案</p>
+                          <h3 className="font-semibold text-base">合作银行推荐</h3>
+                          <p className="text-sm text-muted-foreground mt-0.5">基于您的房产估值，为您推荐以下贷款方案</p>
                         </div>
-                        <Badge variant="secondary">
+                        <Badge variant="secondary" className="text-sm shrink-0 ml-2">
                           预估可贷: {formatPrice(Math.round(result.estimatedValue * 0.7))}元
                         </Badge>
                       </div>
-                      <div className="grid gap-4">
+                      <div className="grid gap-3 max-h-[55vh] overflow-y-auto pr-1">
                         {(banks.length > 0 ? banks : [
-                          { id: 0, name: "工商银行", address: "全国", rating: "4.8", description: "最低利率3.5%起，最长30年", contactPhone: null },
-                          { id: 0, name: "中国银行", address: "全国", rating: "4.9", description: "房贷产品丰富，审批快速", contactPhone: null },
+                          { id: 1, name: "工商银行北京分行", address: "工商银行北京分行，全国最大商业银行，房贷产品...", rating: "4.9", description: "最低利率3.5%起，最长30年", contactPhone: null },
+                          { id: 2, name: "中国银行北京分行", address: "中国银行北京分行，提供房产抵押贷款、个人住房...", rating: "4.8", description: "房贷产品丰富，审批快速", contactPhone: null },
+                          { id: 3, name: "招商银行深圳分行", address: "招商银行深圳分行，零售银行标杆，房贷利率灵活...", rating: "4.8", description: "利率优惠，服务专业", contactPhone: null },
+                          { id: 4, name: "建设银行上海分行", address: "建设银行上海分行，住房金融专家，产品线丰富", rating: "4.7", description: "专注住房金融30年", contactPhone: null },
+                          { id: 5, name: "农业银行广州分行", address: "农业银行广州分行，惠农利民，贷款门槛低", rating: "4.6", description: "低门槛，审批便捷", contactPhone: null },
                         ]).map((bank, idx) => (
-                          <div key={bank.id || idx} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                            <div className="flex items-center gap-4">
-                              <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-red-500 to-red-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                          <div key={bank.id || idx} className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-red-500 to-red-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
                                 {bank.name.slice(0, 2)}
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-semibold">{bank.name}</span>
+                                  <span className="font-semibold text-base">{bank.name}</span>
                                   {bank.rating && (
                                     <div className="flex items-center text-yellow-500">
-                                      <Star className="h-3 w-3 fill-current" />
-                                      <span className="text-xs ml-0.5">{bank.rating}</span>
+                                      <Star className="h-3.5 w-3.5 fill-current" />
+                                      <span className="text-sm ml-0.5">{bank.rating}</span>
                                     </div>
                                   )}
                                 </div>
                                 {bank.description && (
-                                  <div className="text-sm text-muted-foreground mt-1 line-clamp-1">{bank.description}</div>
+                                  <div className="text-sm text-muted-foreground mt-0.5 line-clamp-1">{bank.description}</div>
                                 )}
                               </div>
                             </div>
                             <Link href="/register?role=customer">
-                              <Button size="sm">
+                              <Button size="sm" className="shrink-0">
                                 申请贷款
                                 <ChevronRight className="ml-1 h-4 w-4" />
                               </Button>
@@ -656,9 +665,9 @@ export function InstantValuation() {
                           </div>
                         ))}
                       </div>
-                      <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                      <div className="p-4 bg-primary/5 rounded-xl border border-primary/20">
                         <p className="text-sm text-center">
-                          <span className="text-muted-foreground">注册成为会员后，可向平台合作银行发起贷款申请</span>
+                          <span className="text-muted-foreground">注册会员后可直接向合作银行发起贷款申请</span>
                           <Link href="/register?role=customer" className="text-primary font-medium ml-2 hover:underline">
                             立即注册 <ArrowRight className="inline h-4 w-4" />
                           </Link>
@@ -668,47 +677,50 @@ export function InstantValuation() {
                   </TabsContent>
 
                   {/* 评估机构列表 */}
-                  <TabsContent value="appraisal" className="mt-6">
+                  <TabsContent value="appraisal" className="mt-5">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-semibold">认证评估机构</h3>
-                          <p className="text-sm text-muted-foreground">平台认证的专业评估公司，出具正式评估报告</p>
+                          <h3 className="font-semibold text-base">认证评估机构</h3>
+                          <p className="text-sm text-muted-foreground mt-0.5">平台认证的专业评估公司，出具正式评估报告</p>
                         </div>
-                        <Badge variant="secondary">
-                          <Clock className="h-3 w-3 mr-1" />
+                        <Badge variant="secondary" className="text-sm shrink-0 ml-2">
+                          <Clock className="h-3.5 w-3.5 mr-1" />
                           平均3-5个工作日
                         </Badge>
                       </div>
-                      <div className="grid gap-4">
+                      <div className="grid gap-3 max-h-[55vh] overflow-y-auto pr-1">
                         {(appraisers.length > 0 ? appraisers : [
-                          { id: 0, name: "中诚信评估", address: "北京", rating: "4.9", description: "全国顶级评估机构，住宅评估专家", contactPhone: null },
-                          { id: 0, name: "世联评估",   address: "深圳", rating: "4.8", description: "综合评估，4150+项目经验", contactPhone: null },
+                          { id: 1, name: "中诚信房地产评估", address: "北京市朝阳区建国路88号", rating: "4.9", description: "全国顶级评估机构，住宅评估专家", contactPhone: null },
+                          { id: 2, name: "世联评估顾问",     address: "深圳市南山区科技园南区", rating: "4.9", description: "综合评估，4150+项目经验", contactPhone: null },
+                          { id: 3, name: "戴德梁行评估咨询", address: "上海市浦东新区陆家嘴环路1000号", rating: "4.8", description: "国际顶级评估机构", contactPhone: null },
+                          { id: 4, name: "第一太平戴维斯评估", address: "成都市锦江区红星路三段1号", rating: "4.8", description: "商业综合体评估专家", contactPhone: null },
+                          { id: 5, name: "高力国际评估",     address: "杭州市滨江区网商路699号", rating: "4.7", description: "写字楼评估权威机构", contactPhone: null },
                         ]).map((company, idx) => (
-                          <div key={company.id || idx} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                            <div className="flex items-center gap-4">
-                              <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary to-primary/80 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                          <div key={company.id || idx} className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-primary to-primary/80 text-white flex items-center justify-center font-bold text-sm shrink-0">
                                 {company.name.slice(0, 2)}
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-semibold">{company.name}</span>
+                                  <span className="font-semibold text-base">{company.name}</span>
                                   {company.rating && (
                                     <div className="flex items-center text-yellow-500">
-                                      <Star className="h-3 w-3 fill-current" />
-                                      <span className="text-xs ml-0.5">{company.rating}</span>
+                                      <Star className="h-3.5 w-3.5 fill-current" />
+                                      <span className="text-sm ml-0.5">{company.rating}</span>
                                     </div>
                                   )}
                                 </div>
                                 {company.address && (
-                                  <div className="text-sm text-muted-foreground mt-1">
+                                  <div className="text-sm text-muted-foreground mt-0.5">
                                     <MapPin className="inline h-3 w-3 mr-1" />{company.address}
                                   </div>
                                 )}
                               </div>
                             </div>
                             <Link href="/register?role=customer">
-                              <Button size="sm" variant="outline">
+                              <Button size="sm" variant="outline" className="shrink-0">
                                 发起评估
                                 <ChevronRight className="ml-1 h-4 w-4" />
                               </Button>
@@ -716,9 +728,9 @@ export function InstantValuation() {
                           </div>
                         ))}
                       </div>
-                      <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                      <div className="p-4 bg-primary/5 rounded-xl border border-primary/20">
                         <p className="text-sm text-center">
-                          <span className="text-muted-foreground">注册成为会员后，可向平台认证评估公司发起评估需求</span>
+                          <span className="text-muted-foreground">注册会员后可向认证评估公司发起评估需求</span>
                           <Link href="/register?role=customer" className="text-primary font-medium ml-2 hover:underline">
                             立即注册 <ArrowRight className="inline h-4 w-4" />
                           </Link>
@@ -727,9 +739,9 @@ export function InstantValuation() {
                     </div>
                   </TabsContent>
                 </Tabs>
-              </CardHeader>
-            </Card>
-          )}
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       )}
     </div>
