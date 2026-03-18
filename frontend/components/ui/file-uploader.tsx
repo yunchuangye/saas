@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useRef, useCallback } from "react"
-import { X, Upload, FileText, Image, File, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
+import { X, Upload, FileText, Image, File, Loader2, CheckCircle2, AlertCircle, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { FilePreviewModal, type PreviewFile } from "./file-preview-modal"
 
 // ============================================================
 // 类型定义
@@ -34,6 +35,8 @@ interface FileItem {
   progress: number
   result?: UploadedFile
   error?: string
+  /** 本地 ObjectURL，用于上传成功后立即预览 */
+  localUrl?: string
 }
 
 interface FileUploaderProps {
@@ -73,6 +76,20 @@ function getFileIcon(mimeType: string) {
   return <File className="h-4 w-4 text-gray-500" />
 }
 
+/** 判断文件类型是否支持在线预览 */
+function canPreview(mimeType: string, fileName: string): boolean {
+  if (mimeType.startsWith("image/")) return true
+  if (mimeType === "application/pdf") return true
+  if (mimeType === "text/plain") return true
+  if (
+    mimeType.includes("word") || mimeType.includes("document") ||
+    mimeType.includes("excel") || mimeType.includes("spreadsheet") ||
+    fileName.endsWith(".doc") || fileName.endsWith(".docx") ||
+    fileName.endsWith(".xls") || fileName.endsWith(".xlsx")
+  ) return true
+  return false
+}
+
 const DEFAULT_ACCEPT = [
   "image/jpeg", "image/png", "image/gif", "image/webp",
   "application/pdf",
@@ -101,10 +118,13 @@ export function FileUploader({
   const [isDragOver, setIsDragOver] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // 预览状态
+  const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null)
+  const [previewIndex, setPreviewIndex] = useState(0)
+
   // 获取后端地址
   const getApiBase = useCallback(() => {
     if (apiBase) return apiBase
-    // 前端通过 Next.js API 代理或直接访问后端
     return process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8721"
   }, [apiBase])
 
@@ -116,7 +136,7 @@ export function FileUploader({
       const formData = new FormData()
       formData.append("file", fileItem.file)
 
-      // 从 cookie 读取 token
+      // 从 cookie 读取 token（兼容跨域场景）
       const token = document.cookie.split(";").find(c => c.trim().startsWith("token="))?.split("=")[1]
 
       const resp = await fetch(`${getApiBase()}/api/upload`, {
@@ -171,11 +191,14 @@ export function FileUploader({
         alert(`文件 "${file.name}" 类型不支持，请上传 PDF、Word、Excel 或图片格式`)
         continue
       }
+      // 创建本地预览 URL
+      const localUrl = URL.createObjectURL(file)
       newItems.push({
         id: `${Date.now()}-${Math.random()}`,
         file,
         status: "pending",
         progress: 0,
+        localUrl,
       })
     }
 
@@ -208,8 +231,41 @@ export function FileUploader({
 
   // 删除上传中/失败的文件
   const removeItem = (id: string) => {
+    const item = items.find(i => i.id === id)
+    if (item?.localUrl) URL.revokeObjectURL(item.localUrl)
     setItems(prev => prev.filter(i => i.id !== id))
   }
+
+  // 打开预览（已上传文件）
+  const openPreview = (file: UploadedFile, index: number) => {
+    setPreviewFile({
+      url: file.url,
+      originalName: file.originalName,
+      mimeType: file.mimeType,
+      size: file.size,
+    })
+    setPreviewIndex(index)
+  }
+
+  // 打开预览（上传中/本地文件）
+  const openLocalPreview = (item: FileItem) => {
+    const url = item.result?.url || item.localUrl || ""
+    setPreviewFile({
+      url,
+      originalName: item.file.name,
+      mimeType: item.file.type,
+      size: item.file.size,
+    })
+    setPreviewIndex(-1)
+  }
+
+  // 所有已上传文件列表（用于翻页）
+  const allUploadedFiles: PreviewFile[] = value.map(f => ({
+    url: f.url,
+    originalName: f.originalName,
+    mimeType: f.mimeType,
+    size: f.size,
+  }))
 
   const hasUploading = items.some(i => i.status === "uploading" || i.status === "pending")
 
@@ -283,6 +339,17 @@ export function FileUploader({
                   )}
                 </div>
               </div>
+              {/* 预览按钮（上传成功后可预览） */}
+              {item.status === "success" && canPreview(item.file.type, item.file.name) && (
+                <button
+                  type="button"
+                  onClick={() => openLocalPreview(item)}
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  title="在线预览"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => removeItem(item.id)}
@@ -299,26 +366,45 @@ export function FileUploader({
       {/* 已上传成功的文件列表 */}
       {value.length > 0 && (
         <ul className="space-y-2">
-          {value.map(file => (
+          {value.map((file, idx) => (
             <li key={file.url} className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm bg-muted/30">
               {getFileIcon(file.mimeType)}
               <div className="flex-1 min-w-0">
-                <a
-                  href={file.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="truncate font-medium hover:underline text-primary block"
+                <button
+                  type="button"
+                  onClick={() => canPreview(file.mimeType, file.originalName) ? openPreview(file, idx) : undefined}
+                  className={cn(
+                    "truncate font-medium block text-left w-full",
+                    canPreview(file.mimeType, file.originalName)
+                      ? "text-primary hover:underline cursor-pointer"
+                      : "text-foreground cursor-default"
+                  )}
+                  title={canPreview(file.mimeType, file.originalName) ? "点击在线预览" : file.originalName}
                 >
                   {file.originalName}
-                </a>
+                </button>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {formatSize(file.size)} · {file.storageMode === "oss" ? "OSS 存储" : "本地存储"}
+                  {canPreview(file.mimeType, file.originalName) && (
+                    <span className="ml-1 text-primary/70">· 可在线预览</span>
+                  )}
                 </p>
               </div>
+              {/* 预览按钮 */}
+              {canPreview(file.mimeType, file.originalName) && (
+                <button
+                  type="button"
+                  onClick={() => openPreview(file, idx)}
+                  className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+                  title="在线预览"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => removeUploaded(file.url)}
-                className="text-muted-foreground hover:text-destructive transition-colors"
+                className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -326,6 +412,18 @@ export function FileUploader({
           ))}
         </ul>
       )}
+
+      {/* 在线预览模态框 */}
+      <FilePreviewModal
+        file={previewFile}
+        files={previewIndex >= 0 ? allUploadedFiles : undefined}
+        currentIndex={previewIndex >= 0 ? previewIndex : 0}
+        onClose={() => setPreviewFile(null)}
+        onNavigate={(idx) => {
+          setPreviewIndex(idx)
+          setPreviewFile(allUploadedFiles[idx])
+        }}
+      />
     </div>
   )
 }
