@@ -75,6 +75,14 @@ pnpm exec next dev -p 8720
 - **密码**: gujia_dev_2026
 - **主机**: 127.0.0.1:3306
 
+## 数据库数据
+
+| 表 | 记录数 | 说明 |
+|----|--------|------|
+| estates（楼盘） | 4,494 | 含深圳 4,484 个楼盘 |
+| buildings（楼栋） | 34,324 | 含深圳 34,312 个楼栋 |
+| units（房屋） | 2,174,274 | 含深圳 217 万套房屋 |
+
 ## 环境变量
 
 配置文件位于 `/home/ubuntu/saas/.env`（已创建，不会提交到 Git）
@@ -84,3 +92,9 @@ pnpm exec next dev -p 8720
 - **地址**: https://github.com/yunchuangye/saas
 - **分支**: main
 - **用户名**: yunchuangye
+
+## 沙盒访问地址（临时）
+
+- **前端**: https://8720-ie54rubdhpn3uqfqzghm1-17da993a.us2.manus.computer
+- **后端**: https://8721-ie54rubdhpn3uqfqzghm1-17da993a.us2.manus.computer
+- **健康检查**: https://8721-ie54rubdhpn3uqfqzghm1-17da993a.us2.manus.computer/health
