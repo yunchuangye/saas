@@ -503,7 +503,7 @@ export default function CustomerApplyPage() {
 
       // 跳转到我的申请列表
       setTimeout(() => {
-        router.push("/dashboard/customer/projects")
+        router.push("/dashboard/customer/applications")
       }, 1500)
     } catch (err: any) {
       toast({

@@ -52,6 +52,30 @@ export function AppSidebar({ role, user, ...props }: AppSidebarProps) {
   const navigation = getNavigation(role)
   const roleConfig = getRoleConfig(role)
 
+  // 动态获取未读通知数
+  const { data: notifData } = trpc.notifications.unreadCount.useQuery(undefined, {
+    refetchInterval: 30 * 1000, // 每30秒刷新一次
+    staleTime: 10 * 1000,
+  })
+  const unreadNotifCount = notifData?.count ?? 0
+
+  // 动态获取客户端申请数（仅 customer 角色需要）
+  const { data: projectsData } = trpc.projects.list.useQuery(
+    { page: 1, pageSize: 1 },
+    { enabled: role === "customer", staleTime: 30 * 1000 }
+  )
+  const myApplicationsCount = role === "customer" ? (projectsData?.total ?? 0) : 0
+
+  // 构建动态 badge 映射：用真实数据覆盖静态配置
+  const dynamicBadges: Record<string, number> = {
+    "/dashboard/customer/applications": myApplicationsCount > 0 ? myApplicationsCount : 0,
+    "/dashboard/customer/notifications": unreadNotifCount,
+    "/dashboard/appraiser/notifications": unreadNotifCount,
+    "/dashboard/bank/notifications": unreadNotifCount,
+    "/dashboard/investor/notifications": unreadNotifCount,
+    "/dashboard/admin/notifications": unreadNotifCount,
+  }
+
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
       router.push("/login")
@@ -101,7 +125,7 @@ export function AppSidebar({ role, user, ...props }: AppSidebarProps) {
       </SidebarHeader>
       <SidebarContent>
         {navigation.map((section) => (
-          <NavSection key={section.title} section={section} pathname={pathname} />
+          <NavSection key={section.title} section={section} pathname={pathname} dynamicBadges={dynamicBadges} />
         ))}
       </SidebarContent>
       <SidebarFooter>
@@ -194,7 +218,7 @@ function isSectionActive(section: NavSection, pathname: string): boolean {
   )
 }
 
-function NavSection({ section, pathname }: { section: NavSection; pathname: string }) {
+function NavSection({ section, pathname, dynamicBadges }: { section: NavSection; pathname: string; dynamicBadges: Record<string, number> }) {
   // 控制台分组不可折叠（始终展开）
   const isAlwaysOpen = section.title === "控制台" || section.title === "工作台"
   const defaultOpen = isAlwaysOpen || isSectionActive(section, pathname)
@@ -207,7 +231,7 @@ function NavSection({ section, pathname }: { section: NavSection; pathname: stri
           {section.title}
         </SidebarGroupLabel>
         <SidebarGroupContent>
-          <NavItems items={section.items} pathname={pathname} />
+          <NavItems items={section.items} pathname={pathname} dynamicBadges={dynamicBadges} />
         </SidebarGroupContent>
       </SidebarGroup>
     )
@@ -238,7 +262,7 @@ function NavSection({ section, pathname }: { section: NavSection; pathname: stri
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarGroupContent>
-            <NavItems items={section.items} pathname={pathname} />
+            <NavItems items={section.items} pathname={pathname} dynamicBadges={dynamicBadges} />
           </SidebarGroupContent>
         </CollapsibleContent>
       </Collapsible>
@@ -246,13 +270,15 @@ function NavSection({ section, pathname }: { section: NavSection; pathname: stri
   )
 }
 
-function NavItems({ items, pathname }: { items: NavSection["items"]; pathname: string }) {
+function NavItems({ items, pathname, dynamicBadges }: { items: NavSection["items"]; pathname: string; dynamicBadges: Record<string, number> }) {
   return (
     <SidebarMenu>
       {items.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
         const hasChildren = item.children && item.children.length > 0
         const Icon = item.icon
+        // 动态 badge 优先，如果没有动态数据则不显示静态配置的 badge
+        const badgeCount = dynamicBadges[item.href] !== undefined ? dynamicBadges[item.href] : 0
 
         if (hasChildren) {
           return (
@@ -301,8 +327,8 @@ function NavItems({ items, pathname }: { items: NavSection["items"]; pathname: s
                 <span>{item.title}</span>
               </Link>
             </SidebarMenuButton>
-            {item.badge && item.badge > 0 && (
-              <SidebarMenuBadge>{item.badge > 99 ? "99+" : item.badge}</SidebarMenuBadge>
+            {badgeCount > 0 && (
+              <SidebarMenuBadge>{badgeCount > 99 ? "99+" : badgeCount}</SidebarMenuBadge>
             )}
           </SidebarMenuItem>
         )
