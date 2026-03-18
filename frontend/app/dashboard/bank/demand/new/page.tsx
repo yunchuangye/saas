@@ -18,9 +18,11 @@ import { CalendarIcon, Send, Save } from "lucide-react"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { useState } from "react"
+import { FileUploader, type UploadedFile } from "@/components/ui/file-uploader"
 
 export default function BankDemandNewPage() {
   const [deadline, setDeadline] = useState<Date>()
+  const [attachments, setAttachments] = useState<UploadedFile[]>([])
 
   return (
     <div className="space-y-6">
@@ -127,11 +129,18 @@ export default function BankDemandNewPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="documents">附件说明</Label>
-                <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                  <p className="text-muted-foreground">拖拽文件到此处或点击上传</p>
-                  <p className="text-xs text-muted-foreground mt-1">支持 PDF、Word、图片等格式</p>
-                </div>
+                <Label>附件上传</Label>
+                <FileUploader
+                  value={attachments}
+                  onChange={setAttachments}
+                  maxFiles={10}
+                  maxSize={10 * 1024 * 1024}
+                />
+                {attachments.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    已上传 {attachments.length} 个附件，将随需求一并提交
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -144,7 +153,10 @@ export default function BankDemandNewPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <Button className="w-full" onClick={() => {
-                alert('需求发布成功！\n\n系统将自动推送给所有合作评估公司，请在"竞价项目"中查看报价情况。')
+                const attachmentInfo = attachments.length > 0
+                  ? `\n\n已附上 ${attachments.length} 个附件：\n${attachments.map(f => `• ${f.originalName}`).join('\n')}`
+                  : ''
+                alert(`需求发布成功！\n\n系统将自动推送给所有合作评估公司，请在"竞价项目"中查看报价情况。${attachmentInfo}`)
                 window.location.href = '/dashboard/bank/bidding'
               }}>
                 <Send className="mr-2 h-4 w-4" />
@@ -172,6 +184,23 @@ export default function BankDemandNewPage() {
               </ul>
             </CardContent>
           </Card>
+
+          {attachments.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>已上传附件</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="text-sm space-y-1">
+                  {attachments.map(f => (
+                    <li key={f.url} className="text-muted-foreground truncate">
+                      • {f.originalName}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

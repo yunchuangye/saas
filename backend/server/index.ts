@@ -13,6 +13,9 @@ import { users, type InsertUser } from "./lib/schema";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { startCrawlWorker } from './crawler/engines/job-queue';
+import { upload, saveFile, isOssEnabled } from './lib/upload';
+import * as fs from 'fs';
+import * as pathModule from 'path';
 import { initCronScheduler } from './crawler/engines/cron-scheduler';
 import svgCaptcha from 'svg-captcha';
 import { randomUUID } from 'crypto';
@@ -364,6 +367,62 @@ function _unused_generateReportHTML_REMOVED(record: any, comparableCases: any[],
 </body>
 </html>`
 }
+
+// ============================================================
+// 文件上传 API
+// ============================================================
+
+// 静态文件服务（本地上传文件）
+const UPLOAD_DIR = pathModule.resolve(process.cwd(), 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+app.use('/uploads', express.static(UPLOAD_DIR));
+
+/**
+ * POST /api/upload
+ * 上传单个文件，支持本地存储和 OSS
+ */
+app.post('/api/upload', (req, res, next) => {
+  const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: '未登录，请先登录' });
+  try {
+    jwt.verify(token, JWT_SECRET_KEY);
+  } catch {
+    return res.status(401).json({ error: '登录已过期，请重新登录' });
+  }
+  next();
+}, upload.single('file'), async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '未收到文件，请选择要上传的文件' });
+    }
+    const result = await saveFile(req.file);
+    res.json({
+      success: true,
+      ...result,
+      storageMode: isOssEnabled() ? 'oss' : 'local',
+    });
+  } catch (err: any) {
+    console.error('[Upload] 上传失败:', err.message);
+    res.status(500).json({ error: err.message || '文件上传失败' });
+  }
+}, (err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // multer 错误处理（文件类型不允许、文件过大等）
+  if (err) {
+    return res.status(400).json({ error: err.message || '文件上传失败' });
+  }
+});
+
+/**
+ * GET /api/upload/config
+ * 返回上传配置信息
+ */
+app.get('/api/upload/config', (_req, res) => {
+  res.json({
+    storageMode: isOssEnabled() ? 'oss' : 'local',
+    maxFileSize: 10 * 1024 * 1024,
+    allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt'],
+  });
+});
 
 // 启动服务
 app.listen(PORT, "0.0.0.0", async () => {

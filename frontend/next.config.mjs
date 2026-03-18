@@ -9,6 +9,7 @@ const nextConfig = {
   // 允许公网代理域名访问开发服务器资源（避免跨域警告）
   allowedDevOrigins: [
     "*.us1.manus.computer",
+    "*.sg1.manus.computer",
   ],
   // ⚠️ 注意：不要在这里设置 NEXT_PUBLIC_BACKEND_URL！
   //
