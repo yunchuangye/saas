@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { router, protectedProcedure, publicProcedure } from '../lib/trpc'
 import { db } from '../lib/db'
 import { autoValuations, cases, cities, districts, estates, buildings, units } from '../lib/schema'
-import { eq, desc, and, gte, lte, sql, isNotNull } from 'drizzle-orm'
+import { eq, desc, and, gte, lte, sql, isNotNull, like, or } from 'drizzle-orm'
 import { calculateValuation, formatCurrency, PropertyInput } from '../lib/valuation-engine'
 import { getMonthlyPriceTrend } from './property-search'
 import OpenAI from 'openai'
@@ -547,6 +547,64 @@ export const guestValuationRouter = router({
     .query(async () => {
       return await db.select().from(cities).orderBy(cities.name)
     }),
+  // 搜索楼盘（公开，按城市/区域/关键词）
+  searchEstates: publicProcedure
+    .input(z.object({
+      cityId: z.number(),
+      districtId: z.number().optional(),
+      keyword: z.string().min(1).max(50),
+    }))
+    .query(async ({ input }) => {
+      const kw = `%${input.keyword}%`
+      const conditions: any[] = [
+        eq(estates.cityId, input.cityId),
+        eq(estates.isActive, true),
+        or(like(estates.name, kw), like(estates.address, kw)),
+      ]
+      if (input.districtId) {
+        conditions.push(eq(estates.districtId, input.districtId))
+      }
+      const rows = await db.select({
+        id: estates.id,
+        name: estates.name,
+        address: estates.address,
+        districtId: estates.districtId,
+        developer: estates.developer,
+        buildYear: estates.buildYear,
+        propertyType: estates.propertyType,
+        totalUnits: estates.totalUnits,
+      })
+        .from(estates)
+        .where(and(...conditions))
+        .orderBy(estates.name)
+        .limit(20)
+      return rows
+    }),
+  // 获取楼盘详情（公开）
+  getEstateDetail: publicProcedure
+    .input(z.object({ estateId: z.number() }))
+    .query(async ({ input }) => {
+      const [row] = await db.select().from(estates).where(eq(estates.id, input.estateId)).limit(1)
+      if (!row) return null
+      // 获取该楼盘的近期成交均价
+      const recentCases = await db.select({
+        unitPrice: cases.unitPrice,
+        area: cases.area,
+        transactionDate: cases.transactionDate,
+      })
+        .from(cases)
+        .where(and(eq(cases.estateId, input.estateId), eq(cases.isAnomaly, false)))
+        .orderBy(desc(cases.transactionDate))
+        .limit(10)
+      const avgUnitPrice = recentCases.length > 0
+        ? Math.round(recentCases.reduce((s, c) => s + Number(c.unitPrice || 0), 0) / recentCases.filter(c => Number(c.unitPrice) > 0).length)
+        : null
+      return {
+        ...row,
+        avgUnitPrice: avgUnitPrice || null,
+        recentCaseCount: recentCases.length,
+      }
+    }),
   // 游客估价（公开，不保存记录）
   calculate: publicProcedure
     .input(z.object({
@@ -554,6 +612,9 @@ export const guestValuationRouter = router({
       city: z.string(),
       cityId: z.number().optional(),
       district: z.string().default(''),
+      districtId: z.number().optional(),
+      estateId: z.number().optional(),
+      estateName: z.string().optional(),
       address: z.string().default(''),
       buildingAge: z.number().min(0).max(100).default(10),
       totalFloors: z.number().min(1).max(200).default(18),
@@ -565,10 +626,37 @@ export const guestValuationRouter = router({
       hasParking: z.boolean().default(false),
     }))
     .mutation(async ({ input }) => {
-      // 从案例库检索相似案例
+      // 1. 优先从楼盘关联的真实案例中检索
       let dbComparables: any[] = []
-      if (input.cityId) {
-        dbComparables = await findComparableCases({
+      let estateInfo: any = null
+
+      if (input.estateId) {
+        // 获取楼盘信息
+        const [estateRow] = await db.select().from(estates).where(eq(estates.id, input.estateId)).limit(1)
+        if (estateRow) {
+          estateInfo = {
+            id: estateRow.id,
+            name: estateRow.name,
+            address: estateRow.address,
+            developer: estateRow.developer,
+            buildYear: estateRow.buildYear,
+            propertyType: estateRow.propertyType,
+          }
+          // 优先使用该楼盘的真实成交案例
+          const estateCases = await db.select()
+            .from(cases)
+            .where(and(eq(cases.estateId, input.estateId), eq(cases.isAnomaly, false)))
+            .orderBy(desc(cases.transactionDate))
+            .limit(10)
+          if (estateCases.length >= 2) {
+            dbComparables = estateCases
+          }
+        }
+      }
+
+      // 2. 如果楼盘案例不足，从城市/区域案例库补充
+      if (dbComparables.length < 3 && input.cityId) {
+        const cityComparables = await findComparableCases({
           cityId: input.cityId,
           propertyType: input.propertyType === 'residential' ? '住宅' :
                         input.propertyType === 'commercial' ? '商业' :
@@ -578,27 +666,39 @@ export const guestValuationRouter = router({
           totalFloors: input.totalFloors,
           limit: 6,
         })
+        // 合并，去重
+        const existingIds = new Set(dbComparables.map((c: any) => c.id))
+        for (const c of cityComparables) {
+          if (!existingIds.has(c.id)) dbComparables.push(c)
+        }
       }
-      // 将数据库案例转换为比较法格式
+
+      // 3. 将数据库案例转换为比较法格式
       const comparables = dbComparables.map(c => ({
-        address: c.address || '同区域案例',
+        address: c.address || estateInfo?.name || '同区域案例',
         transactionPrice: Number(c.unitPrice || c.unit_price || 0),
         transactionDate: c.transactionDate ? new Date(c.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         buildingArea: Number(c.area || 0),
-        buildingAge: 5,
+        buildingAge: estateInfo?.buildYear ? new Date().getFullYear() - estateInfo.buildYear : 5,
         floor: c.floor || 1,
-        totalFloors: c.totalFloors || 1,
+        totalFloors: c.totalFloors || input.totalFloors || 18,
         decoration: 'medium',
-        hasElevator: (c.totalFloors || 1) > 6,
+        hasElevator: (c.totalFloors || input.totalFloors || 18) > 6,
         hasParking: false,
       })).filter(c => c.transactionPrice > 0)
-      // 运行估价引擎
+
+      // 4. 运行估价引擎
+      const addressStr = estateInfo?.address || input.address || `${input.city}${input.district}某物业`
+      const buildingAgeCalc = estateInfo?.buildYear
+        ? Math.max(0, new Date().getFullYear() - estateInfo.buildYear)
+        : input.buildingAge
+
       const engineInput: PropertyInput = {
         propertyType: input.propertyType,
         city: input.city,
         district: input.district,
-        address: input.address || `${input.city}${input.district}某物业`,
-        buildingAge: input.buildingAge,
+        address: addressStr,
+        buildingAge: buildingAgeCalc,
         totalFloors: input.totalFloors,
         floor: input.floor,
         buildingArea: input.buildingArea,
@@ -622,6 +722,14 @@ export const guestValuationRouter = router({
         method: result.methodology || '市场比较法',
         comparableCount: dbComparables.length,
         valuationDate: new Date().toISOString().split('T')[0],
+        estateInfo: estateInfo ? {
+          id: estateInfo.id,
+          name: estateInfo.name,
+          address: estateInfo.address,
+          developer: estateInfo.developer,
+          buildYear: estateInfo.buildYear,
+        } : null,
+        estateName: input.estateName || estateInfo?.name || null,
       }
     }),
   // 获取区域列表（公开）
