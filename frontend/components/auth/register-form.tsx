@@ -140,17 +140,18 @@ export function RegisterForm() {
                 >
                   <div
                     className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-lg shrink-0 transition-colors",
+                      "flex items-center justify-center rounded-xl shrink-0 transition-colors",
                       isSelected
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground"
                     )}
+                    style={{ width: '52px', height: '52px' }}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-6 w-6" />
                   </div>
                   <div className="text-center">
                     <p className={cn(
-                      "text-sm font-semibold leading-tight",
+                      "text-base font-semibold leading-tight",
                       isSelected ? "text-primary" : "text-foreground"
                     )}>
                       {role.name}

@@ -5,7 +5,7 @@ import { Building2, Shield, Zap, FileCheck, TrendingUp, Users } from "lucide-rea
 
 export const metadata = {
   title: "登录",
-  description: "登录 gujia.app 房地产评估平台",
+  description: "登录 GuJia.App 房地产评估平台",
 }
 
 const features = [
@@ -129,7 +129,7 @@ export default function LoginPage() {
 
           {/* 底部版权 */}
           <div className="mt-10 text-sm text-white/30">
-            © {new Date().getFullYear()} gujia.app 版权所有
+            © {new Date().getFullYear()} GuJia.App 版权所有
           </div>
         </div>
       </div>
@@ -155,7 +155,7 @@ export default function LoginPage() {
 
         {/* 底部版权（移动端显示） */}
         <footer className="lg:hidden p-6 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} gujia.app 版权所有</p>
+          <p>&copy; {new Date().getFullYear()} GuJia.App 版权所有</p>
         </footer>
       </div>
     </div>

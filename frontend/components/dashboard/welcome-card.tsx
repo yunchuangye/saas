@@ -38,7 +38,7 @@ export function WelcomeCard({
             {getGreeting()}，{userName}
           </h2>
           <p className="text-muted-foreground">
-            欢迎回到 gujia.app {role}工作台，祝您工作顺利！
+            欢迎回到 GuJia.App {role}工作台，祝您工作顺利！
           </p>
         </div>
         {quickActions && quickActions.length > 0 && (

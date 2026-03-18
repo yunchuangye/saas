@@ -19,7 +19,7 @@ import {
 } from "lucide-react"
 
 export const metadata = {
-  title: "APP下载 - gujia.app",
+  title: "APP下载 - GuJia.App",
   description: "下载估价APP，随时随地查看项目进度、接收通知提醒、在线审批报告",
 }
 
@@ -264,7 +264,7 @@ export default function AppDownloadPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <Logo size="md" />
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} gujia.app 版权所有
+              &copy; {new Date().getFullYear()} GuJia.App 版权所有
             </p>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <Link href="/" className="hover:text-foreground transition-colors">返回首页</Link>

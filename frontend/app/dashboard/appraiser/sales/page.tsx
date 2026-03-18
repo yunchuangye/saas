@@ -387,7 +387,7 @@ export default function AppraiserSalesPage() {
               {/* 优惠券预览 */}
               <div className="rounded-2xl bg-gradient-to-r from-orange-400 to-red-500 p-4 text-white">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold">gujia.app 评估优惠券</span>
+                  <span className="text-sm font-semibold">GuJia.App 评估优惠券</span>
                   <Badge className="bg-white/20 text-white text-xs">限量 {couponForm.quantity} 张</Badge>
                 </div>
                 <p className="text-3xl font-bold mb-1">

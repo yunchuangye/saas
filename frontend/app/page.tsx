@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 
 export const metadata = {
-  title: "gujia.app - 一键免费估价 | 房产评估专业平台",
+  title: "GuJia.App - 一键免费估价 | 房产评估专业平台",
   description: "免费获取房产精准估值，对接银行贷款和专业评估机构，让房产交易更简单",
 }
 
@@ -326,7 +326,7 @@ export default function HomePage() {
                 让房产估价更简单
               </h2>
               <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
-                gujia.app 是专业的房地产评估数字化平台，致力于通过AI技术让房产估价变得简单、精准、高效。我们连接银行、评估公司与个人用户，打造一站式房产服务生态。
+                GuJia.App 是专业的房地产评估数字化平台，致力于通过AI技术让房产估价变得简单、精准、高效。我们连接银行、评估公司与个人用户，打造一站式房产服务生态。
               </p>
               <div className="mt-8 space-y-5">
                 {[

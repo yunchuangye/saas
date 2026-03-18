@@ -1,6 +1,6 @@
 export const metadata = {
   title: "工作台",
-  description: "gujia.app 评估平台工作台",
+  description: "GuJia.App 评估平台工作台",
 }
 
 export default function DashboardLayout({

@@ -47,7 +47,7 @@ function useCaptcha() {
 
 export function LoginForm() {
   const router = useRouter()
-  const [selectedRole, setSelectedRole] = React.useState<UserRole>("appraiser")
+  const [selectedRole, setSelectedRole] = React.useState<UserRole>("customer")
   const [showPassword, setShowPassword] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
   const [formData, setFormData] = React.useState({
@@ -102,7 +102,7 @@ export function LoginForm() {
           欢迎登录
         </h1>
         <p className="text-base xl:text-lg text-muted-foreground">
-          选择您的身份，登录 gujia.app 平台
+          选择您的身份，登录 GuJia.App 平台
         </p>
       </div>
 
@@ -111,7 +111,7 @@ export function LoginForm() {
         <div className="space-y-3">
           <Label className="text-base font-semibold text-foreground">选择身份</Label>
           <div className="grid grid-cols-5 gap-2.5">
-            {roles.map((role) => {
+            {[...roles.filter(r => r.id === "customer"), ...roles.filter(r => r.id !== "customer")].map((role) => {
               const Icon = role.icon
               const isSelected = selectedRole === role.id
               return (
@@ -129,22 +129,23 @@ export function LoginForm() {
                 >
                   <div
                     className={cn(
-                      "flex h-10 w-10 xl:h-11 xl:w-11 items-center justify-center rounded-xl transition-colors",
+                      "flex h-13 w-13 xl:h-14 xl:w-14 items-center justify-center rounded-xl transition-colors",
                       isSelected
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "bg-muted text-muted-foreground"
                     )}
+                    style={{ width: '52px', height: '52px' }}
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-6 w-6" />
                   </div>
                   <div className="text-center space-y-0.5">
                     <p className={cn(
-                      "text-sm font-semibold leading-tight",
+                      "text-base font-semibold leading-tight",
                       isSelected ? "text-primary" : "text-foreground"
                     )}>
                       {role.name}
                     </p>
-                    <p className="text-[11px] text-muted-foreground leading-tight hidden xl:block">
+                    <p className="text-xs text-muted-foreground leading-tight hidden xl:block">
                       {role.description.split("、")[0]}
                     </p>
                   </div>

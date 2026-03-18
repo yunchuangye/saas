@@ -16,12 +16,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'gujia.app - 有态度的估价专业平台',
-    template: '%s | gujia.app',
+    default: 'GuJia.App - 有态度的估价专业平台',
+    template: '%s | GuJia.App',
   },
   description: '房地产评估行业数字化解决方案平台，连接银行、评估公司与客户，提供高效、透明、专业的评估服务',
   keywords: ['房地产评估', '估价', '银行估价', '评估公司', '资产评估'],
-  authors: [{ name: 'gujia.app' }],
+  authors: [{ name: 'GuJia.App' }],
   icons: {
     icon: [
       {

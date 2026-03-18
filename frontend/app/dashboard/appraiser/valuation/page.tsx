@@ -738,7 +738,7 @@ function ValuationReport({ result, form, cityName, selectedEstate, selectedBuild
 
       {/* 声明 */}
       <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 text-xs text-gray-400 leading-relaxed">
-        <p>1. 本报告由 gujia.app 智能估价系统自动生成，仅供参考，不构成正式估价报告。</p>
+        <p>1. 本报告由 GuJia.App 智能估价系统自动生成，仅供参考，不构成正式估价报告。</p>
         <p>2. 正式估价报告须由持有国家注册房地产估价师资格证书的估价师签章方可生效。</p>
         <p>3. 本报告所引用的市场数据来源于系统案例库，数据截止日期为报告生成日。</p>
         <p>4. 估价结果受市场波动、政策变化等因素影响，有效期为报告生成之日起6个月内。</p>

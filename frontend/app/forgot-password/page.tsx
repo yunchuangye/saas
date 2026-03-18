@@ -5,7 +5,7 @@ import { KeyRound, ShieldCheck, Clock, Smartphone } from "lucide-react"
 
 export const metadata = {
   title: "忘记密码",
-  description: "重置您的 gujia.app 账户密码",
+  description: "重置您的 GuJia.App 账户密码",
 }
 
 const tips = [
@@ -101,7 +101,7 @@ export default function ForgotPasswordPage() {
 
         {/* 底部版权 */}
         <footer className="p-6 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} gujia.app 版权所有</p>
+          <p>&copy; {new Date().getFullYear()} GuJia.App 版权所有</p>
         </footer>
       </div>
     </div>

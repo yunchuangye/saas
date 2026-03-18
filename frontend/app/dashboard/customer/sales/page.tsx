@@ -153,7 +153,7 @@ export default function CustomerSalesPage() {
               <div className="flex gap-3">
                 <Button
                   className="flex-1"
-                  onClick={() => handleShare(inviteCode?.inviteUrl ?? "", "邀请好友使用 gujia.app")}
+                  onClick={() => handleShare(inviteCode?.inviteUrl ?? "", "邀请好友使用 GuJia.App")}
                 >
                   <Share2 className="mr-2 h-4 w-4" />
                   分享邀请链接
@@ -288,13 +288,13 @@ export default function CustomerSalesPage() {
                   <div className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center">
                     <span className="text-xs font-bold">G</span>
                   </div>
-                  <span className="text-sm font-semibold">gujia.app 房产估值</span>
+                  <span className="text-sm font-semibold">GuJia.App 房产估值</span>
                 </div>
                 <p className="text-xs opacity-60 mb-1">某住宅 · 约 89㎡</p>
                 <p className="text-3xl font-bold mb-1">约 <span className="text-yellow-400">285</span> 万</p>
                 <p className="text-xs opacity-60">参考区间：265万 ~ 305万</p>
                 <div className="mt-4 flex items-center justify-between">
-                  <p className="text-xs opacity-50">数据来源：gujia.app</p>
+                  <p className="text-xs opacity-50">数据来源：GuJia.App</p>
                   <div className="h-8 w-8 rounded bg-white/20 flex items-center justify-center">
                     <QrCode className="h-4 w-4" />
                   </div>
@@ -361,7 +361,7 @@ export default function CustomerSalesPage() {
                   size="sm" variant="outline"
                   onClick={() => handleShare(
                     inviteCode?.inviteUrl ?? "https://gujia.app/invite",
-                    "邀请好友使用 gujia.app",
+                    "邀请好友使用 GuJia.App",
                     "invite"
                   )}
                 >
@@ -388,7 +388,7 @@ export default function CustomerSalesPage() {
                     key={item.label}
                     onClick={() => handleShare(
                       inviteCode?.inviteUrl ?? "https://gujia.app/invite",
-                      "邀请好友使用 gujia.app",
+                      "邀请好友使用 GuJia.App",
                       "invite"
                     )}
                     className="flex flex-col items-center gap-1 rounded-xl p-2 hover:bg-muted/50 transition-all active:scale-95"

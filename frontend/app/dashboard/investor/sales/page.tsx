@@ -346,7 +346,7 @@ export default function InvestorSalesPage() {
                   <div className="h-6 w-6 rounded bg-purple-500 flex items-center justify-center">
                     <TrendingUp className="h-3.5 w-3.5" />
                   </div>
-                  <span className="text-sm font-semibold">gujia.app 投资洞察</span>
+                  <span className="text-sm font-semibold">GuJia.App 投资洞察</span>
                   <Badge className="bg-purple-500/30 text-purple-200 text-xs ml-auto">
                     {newsletterPeriod === "weekly" ? "周报" : newsletterPeriod === "monthly" ? "月报" : "季报"}
                   </Badge>
