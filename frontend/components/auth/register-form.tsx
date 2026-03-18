@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { roles, type UserRole } from "@/lib/config/roles"
 import { cn } from "@/lib/utils"
 import { Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react"
-import { trpc, BACKEND_URL } from "@/lib/trpc"
+import { trpc } from "@/lib/trpc"
 
 // 验证码 Hook
 function useCaptcha() {
@@ -20,7 +19,6 @@ function useCaptcha() {
   const refresh = React.useCallback(async () => {
     setLoading(true)
     try {
-      // 通过 Next.js API 路由代理，避免浏览器直接访问 localhost:8721
       const res = await fetch('/api/captcha', { cache: 'no-store' })
       const data = await res.json()
       setCaptchaId(data.id)
@@ -63,12 +61,10 @@ export function RegisterForm() {
       if (token) {
         document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
       }
-      // 注册成功后跳转到登录页
       router.push("/login?registered=1")
     },
     onError: (error) => {
       setErrorMsg(error.message || "注册失败，请重试")
-      // 注册失败时刷新验证码
       refreshCaptcha()
       setFormData(prev => ({ ...prev, captchaCode: "" }))
     },
@@ -78,23 +74,20 @@ export function RegisterForm() {
     e.preventDefault()
     setErrorMsg("")
 
+    if (!formData.username || formData.username.length < 2) {
+      setErrorMsg("用户名至少需要2个字符")
+      return
+    }
     if (formData.password !== formData.confirmPassword) {
       setErrorMsg("两次输入的密码不一致")
       return
     }
-
     if (!agreed) {
       setErrorMsg("请阅读并同意服务协议和隐私政策")
       return
     }
-
     if (!formData.captchaCode) {
       setErrorMsg("请输入验证码")
-      return
-    }
-
-    if (!formData.username || formData.username.length < 2) {
-      setErrorMsg("用户名至少需要2个字符")
       return
     }
 
@@ -113,249 +106,284 @@ export function RegisterForm() {
   const isLoading = registerMutation.isPending
 
   return (
-    <Card className="w-full max-w-lg border-0 shadow-xl">
-      <CardHeader className="space-y-1 pb-4">
-        <CardTitle className="text-2xl font-bold text-center">注册账号</CardTitle>
-        <CardDescription className="text-center">
+    <div className="w-full space-y-7">
+      {/* 标题区 — 与登录页一致的大字号 */}
+      <div className="space-y-2">
+        <h1 className="text-3xl xl:text-4xl font-bold tracking-tight text-foreground">
+          免费注册
+        </h1>
+        <p className="text-base xl:text-lg text-muted-foreground">
           填写信息，开启专业估价之旅
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* 角色选择 */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">注册身份</Label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {roles.filter(r => r.id !== "admin").map((role) => {
-                const Icon = role.icon
-                const isSelected = selectedRole === role.id
-                return (
-                  <button
-                    key={role.id}
-                    type="button"
-                    onClick={() => setSelectedRole(role.id)}
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* 角色选择 — 与登录页一致的样式 */}
+        <div className="space-y-3">
+          <Label className="text-base font-semibold text-foreground">注册身份</Label>
+          <div className="grid grid-cols-4 gap-2.5">
+            {roles.filter(r => r.id !== "admin").map((role) => {
+              const Icon = role.icon
+              const isSelected = selectedRole === role.id
+              return (
+                <button
+                  key={role.id}
+                  type="button"
+                  onClick={() => setSelectedRole(role.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-2 rounded-xl border-2 p-3 xl:p-4 transition-all duration-200",
+                    "hover:border-primary/60 hover:bg-primary/5 hover:shadow-sm",
+                    isSelected
+                      ? "border-primary bg-primary/8 shadow-sm"
+                      : "border-border bg-background"
+                  )}
+                >
+                  <div
                     className={cn(
-                      "flex flex-col items-center gap-1.5 rounded-lg border-2 p-2.5 transition-all text-center",
-                      "hover:border-primary/50 hover:bg-accent",
+                      "flex h-9 w-9 items-center justify-center rounded-lg shrink-0 transition-colors",
                       isSelected
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-background"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
                     )}
                   >
-                    <div
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-full shrink-0",
-                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </div>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="text-center">
                     <p className={cn(
-                      "text-xs font-medium",
+                      "text-xs font-semibold leading-tight",
                       isSelected ? "text-primary" : "text-foreground"
                     )}>
                       {role.name}
                     </p>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* 用户名 */}
-          <div className="space-y-2">
-            <Label htmlFor="username">用户名 <span className="text-destructive">*</span></Label>
-            <Input
-              id="username"
-              type="text"
-              placeholder="请输入登录用户名（至少2个字符）"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              required
-              minLength={2}
-              maxLength={50}
-              disabled={isLoading}
-            />
-          </div>
-
-          {/* 联系人和手机号 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="contactName">联系人</Label>
-              <Input
-                id="contactName"
-                type="text"
-                placeholder="请输入姓名"
-                value={formData.contactName}
-                onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                disabled={isLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">手机号</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="请输入手机号"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          {/* 邮箱 */}
-          <div className="space-y-2">
-            <Label htmlFor="email">邮箱</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="请输入邮箱（可选）"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={isLoading}
-            />
-          </div>
-
-          {/* 密码 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="password">设置密码 <span className="text-destructive">*</span></Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="至少6位密码"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                  minLength={6}
-                  className="pr-10"
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                    {role.description && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight hidden xl:block">
+                        {role.description}
+                      </p>
+                    )}
+                  </div>
                 </button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">确认密码 <span className="text-destructive">*</span></Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="请再次输入密码"
-                value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                required
-                disabled={isLoading}
-              />
-            </div>
+              )
+            })}
           </div>
+        </div>
 
-          {/* 图形验证码 */}
+        {/* 用户名 */}
+        <div className="space-y-2">
+          <Label htmlFor="username" className="text-base font-medium">
+            用户名 <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="username"
+            type="text"
+            placeholder="请输入登录用户名（至少2个字符）"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            required
+            minLength={2}
+            maxLength={50}
+            disabled={isLoading}
+            className="h-12 text-base px-4"
+          />
+        </div>
+
+        {/* 联系人和手机号 — 两列布局 */}
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="captchaCode">验证码 <span className="text-destructive">*</span></Label>
-            <div className="flex gap-2">
+            <Label htmlFor="contactName" className="text-base font-medium">联系人</Label>
+            <Input
+              id="contactName"
+              type="text"
+              placeholder="请输入姓名"
+              value={formData.contactName}
+              onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+              disabled={isLoading}
+              className="h-12 text-base px-4"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone" className="text-base font-medium">手机号</Label>
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="请输入手机号"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              disabled={isLoading}
+              className="h-12 text-base px-4"
+            />
+          </div>
+        </div>
+
+        {/* 邮箱 */}
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-base font-medium">
+            邮箱 <span className="text-muted-foreground text-sm font-normal">（可选）</span>
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="请输入邮箱"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            disabled={isLoading}
+            className="h-12 text-base px-4"
+          />
+        </div>
+
+        {/* 密码和确认密码 — 两列布局 */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-base font-medium">
+              设置密码 <span className="text-destructive">*</span>
+            </Label>
+            <div className="relative">
               <Input
-                id="captchaCode"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                placeholder="请输入验证码"
-                value={formData.captchaCode}
-                onChange={(e) => setFormData({ ...formData, captchaCode: e.target.value.replace(/\D/g, '') })}
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="至少6位密码"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
-                maxLength={4}
-                className="flex-1 h-10 tracking-[0.4em] text-lg font-bold"
+                minLength={6}
+                className="h-12 text-base px-4 pr-12"
                 disabled={isLoading}
-                autoComplete="off"
               />
               <button
                 type="button"
-                onClick={refreshCaptcha}
-                title="点击刷新验证码"
-                className="relative group shrink-0 p-0 border-0 bg-transparent"
-                disabled={captchaLoading || isLoading}
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
-                {captchaLoading ? (
-                  <div className="h-10 w-[120px] rounded-md border border-input bg-muted flex items-center justify-center">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  </div>
-                ) : captchaSvg ? (
-                  <div className="relative h-10 w-[120px]">
-                    <div
-                      className="h-10 w-[120px] rounded-md border border-input overflow-hidden bg-white group-hover:border-primary group-hover:shadow-sm transition-all"
-                      dangerouslySetInnerHTML={{ __html: captchaSvg }}
-                      style={{ lineHeight: 0 }}
-                    />
-                    <div className="absolute inset-0 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/5 transition-opacity">
-                      <RefreshCw className="h-4 w-4 text-primary" />
-                    </div>
-                  </div>
-                ) : null}
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
               </button>
             </div>
-            <p className="text-xs text-muted-foreground">点击验证码图片可刷新</p>
           </div>
-
-          {/* 服务协议 */}
-          <div className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              id="agree"
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword" className="text-base font-medium">
+              确认密码 <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="请再次输入密码"
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              required
               disabled={isLoading}
+              className="h-12 text-base px-4"
             />
-            <label htmlFor="agree" className="text-sm text-muted-foreground">
-              我已阅读并同意
-              <a href="/terms" className="text-primary hover:underline">《服务协议》</a>
-              和
-              <a href="/privacy" className="text-primary hover:underline">《隐私政策》</a>
-            </label>
           </div>
+        </div>
 
-          {/* 错误提示 */}
-          {errorMsg && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
+        {/* 图形验证码 — 与登录页一致的大尺寸 */}
+        <div className="space-y-2">
+          <Label htmlFor="captchaCode" className="text-base font-medium">
+            验证码 <span className="text-destructive">*</span>
+          </Label>
+          <div className="flex gap-3 items-center">
+            <Input
+              id="captchaCode"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="请输入验证码"
+              value={formData.captchaCode}
+              onChange={(e) => setFormData({ ...formData, captchaCode: e.target.value.replace(/\D/g, '') })}
+              required
+              maxLength={4}
+              className="flex-1 h-12 text-xl font-bold tracking-[0.5em] px-4"
+              disabled={isLoading}
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={refreshCaptcha}
+              title="点击刷新验证码"
+              className="relative group shrink-0 p-0 border-0 bg-transparent"
+              disabled={captchaLoading || isLoading}
+            >
+              {captchaLoading ? (
+                <div className="h-12 w-[140px] rounded-lg border-2 border-input bg-muted flex items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : captchaSvg ? (
+                <div className="relative h-12 w-[140px]">
+                  <div
+                    className="h-12 w-[140px] rounded-lg border-2 border-input overflow-hidden bg-white group-hover:border-primary group-hover:shadow-md transition-all"
+                    dangerouslySetInnerHTML={{ __html: captchaSvg }}
+                    style={{ lineHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  />
+                  <div className="absolute inset-0 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/10 transition-opacity">
+                    <RefreshCw className="h-5 w-5 text-primary drop-shadow" />
+                  </div>
+                </div>
+              ) : (
+                <div className="h-12 w-[140px] rounded-lg border-2 border-dashed border-input bg-muted/50 flex items-center justify-center">
+                  <RefreshCw className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">点击验证码图片可刷新</p>
+        </div>
+
+        {/* 服务协议 */}
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            id="agree"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+            disabled={isLoading}
+          />
+          <label htmlFor="agree" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
+            我已阅读并同意{" "}
+            <a href="/terms" className="text-primary hover:underline font-medium">《服务协议》</a>
+            {" "}和{" "}
+            <a href="/privacy" className="text-primary hover:underline font-medium">《隐私政策》</a>
+          </label>
+        </div>
+
+        {/* 错误提示 */}
+        {errorMsg && (
+          <div className="flex items-center gap-3 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <span className="font-medium">{errorMsg}</span>
+          </div>
+        )}
+
+        {/* 注册按钮 — 与登录页一致的大按钮 */}
+        <Button
+          type="submit"
+          className="w-full text-base font-semibold rounded-xl"
+          style={{ height: '52px' }}
+          disabled={isLoading || !agreed}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              注册中...
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="mr-2 h-5 w-5" />
+              立即注册
+            </>
           )}
+        </Button>
 
-          {/* 注册按钮 */}
-          <Button type="submit" className="w-full" size="lg" disabled={isLoading || !agreed}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                注册中...
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                立即注册
-              </>
-            )}
-          </Button>
-
-          {/* 登录链接 */}
-          <div className="text-center text-sm">
-            <span className="text-muted-foreground">已有账号？</span>{" "}
-            <a href="/login" className="text-primary hover:underline font-medium">
-              立即登录
-            </a>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+        {/* 登录链接 */}
+        <div className="text-center text-base">
+          <span className="text-muted-foreground">已有账号？</span>{" "}
+          <a href="/login" className="text-primary hover:underline font-semibold">
+            立即登录
+          </a>
+        </div>
+      </form>
+    </div>
   )
 }
