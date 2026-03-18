@@ -168,6 +168,15 @@ export const projectsRouter = router({
         deadline: z.string().optional(),
         cityId: z.number().optional(),
         estateId: z.number().optional(),
+        buildingId: z.number().optional(),
+        unitId: z.number().optional(),
+        floor: z.string().optional(),
+        buildYear: z.number().optional(),
+        purpose: z.string().optional(),
+        contactName: z.string().optional(),
+        contactPhone: z.string().optional(),
+        attachments: z.array(z.object({ name: z.string(), url: z.string(), size: z.number().optional() })).optional(),
+        manualEstateName: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -187,6 +196,15 @@ export const projectsRouter = router({
         deadline: input.deadline ? new Date(input.deadline) : null,
         cityId: input.cityId || null,
         estateId: input.estateId || null,
+        buildingId: input.buildingId || null,
+        unitId: input.unitId || null,
+        floor: input.floor || null,
+        buildYear: input.buildYear || null,
+        purpose: input.purpose || null,
+        contactName: input.contactName || null,
+        contactPhone: input.contactPhone || null,
+        attachments: input.attachments ? JSON.stringify(input.attachments) : null,
+        manualEstateName: input.manualEstateName || null,
         clientId: ctx.user.id,
         clientOrgId: ctx.user.orgId || null,
         bankOrgId: ctx.user.orgId || null,
@@ -197,7 +215,7 @@ export const projectsRouter = router({
         status: ctx.user.role === "appraiser" ? "active" : "bidding",
       } as InsertProject);
 
-      return { id: (result as any).insertId, success: true };
+      return { id: (result as any).insertId, projectNo, success: true };
     }),
 
   // 更新项目状态

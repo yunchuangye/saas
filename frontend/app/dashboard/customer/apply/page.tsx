@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,6 +43,7 @@ import {
 import { trpc } from "@/lib/trpc"
 import { BACKEND_URL } from "@/lib/trpc"
 import { cn } from "@/lib/utils"
+import { useToast } from "@/components/ui/use-toast"
 
 // 深圳城市 ID
 const SHENZHEN_CITY_ID = 6
@@ -318,8 +320,11 @@ function EstateCombobox({
 
 // ── 主页面 ──
 export default function CustomerApplyPage() {
+  const router = useRouter()
+  const { toast } = useToast()
   const [step, setStep] = useState(1)
   const [propertyType, setPropertyType] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // 级联选择状态
   const [selectedCityId, setSelectedCityId] = useState<number>(SHENZHEN_CITY_ID)
@@ -340,6 +345,9 @@ export default function CustomerApplyPage() {
   // 文件上传
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // ── tRPC mutation ──
+  const createProject = trpc.projects.create.useMutation()
 
   // ── tRPC 查询 ──
   const { data: citiesData } = trpc.directory.listCities.useQuery(undefined, {
@@ -448,6 +456,63 @@ export default function CustomerApplyPage() {
     if (unit) {
       if (unit.area) setArea(String(unit.area))
       if (unit.floor) setFloor(String(unit.floor))
+    }
+  }
+
+  // ── 提交申请 ──
+  const handleSubmit = async () => {
+    if (!selectedEstate) return
+    setIsSubmitting(true)
+    try {
+      const purposeLabel: Record<string, string> = {
+        mortgage: "抵押贷款", sale: "交易买卖", inheritance: "继承分割", other: "其他"
+      }
+      // 构建标题：楼盘名 + 楼栋 + 房屋
+      const titleParts = [selectedEstate.name]
+      if (selectedBuilding) titleParts.push(selectedBuilding.name)
+      if (selectedUnit) titleParts.push(selectedUnit.unitNumber)
+      const title = titleParts.join(" - ") + " 评估申请"
+
+      const doneFiles = uploadedFiles
+        .filter((f) => f.status === "done" && f.url)
+        .map((f) => ({ name: f.name, url: f.url!, size: f.size }))
+
+      const result = await createProject.mutateAsync({
+        title,
+        propertyType: selectedEstate.propertyType || propertyType || undefined,
+        propertyAddress: selectedEstate.address || undefined,
+        area: area ? Number(area) : undefined,
+        cityId: selectedCityId || undefined,
+        estateId: selectedEstate.id || undefined,
+        buildingId: selectedBuildingId || undefined,
+        unitId: selectedUnitId || undefined,
+        floor: floor || undefined,
+        buildYear: buildYear ? Number(buildYear) : undefined,
+        purpose: purpose || undefined,
+        contactName: contactName || undefined,
+        contactPhone: contactPhone || undefined,
+        attachments: doneFiles.length > 0 ? doneFiles : undefined,
+        manualEstateName: selectedEstate.isManual ? selectedEstate.name : undefined,
+        description: description || undefined,
+      })
+
+      toast({
+        title: "申请提交成功！",
+        description: `项目编号：${result.projectNo}，我们将尽快处理您的评估申请。`,
+      })
+
+      // 跳转到我的申请列表
+      setTimeout(() => {
+        router.push("/dashboard/customer/projects")
+      }, 1500)
+    } catch (err: any) {
+      toast({
+        title: "提交失败",
+        description: err?.message || "网络错误，请稍后重试",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -844,9 +909,12 @@ export default function CustomerApplyPage() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>返回修改</Button>
-              <Button className="flex-1">
-                <Send className="mr-2 h-4 w-4" />
-                提交申请
+              <Button className="flex-1" onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />提交中...</>
+                ) : (
+                  <><Send className="mr-2 h-4 w-4" />提交申请</>
+                )}
               </Button>
             </div>
           </CardContent>
