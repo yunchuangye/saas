@@ -39,7 +39,7 @@ function useCaptcha() {
 
 export function RegisterForm() {
   const router = useRouter()
-  const [selectedRole, setSelectedRole] = React.useState<UserRole>("appraiser")
+  const [selectedRole, setSelectedRole] = React.useState<UserRole>("customer")
   const [showPassword, setShowPassword] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
   const [formData, setFormData] = React.useState({
@@ -122,7 +122,7 @@ export function RegisterForm() {
         <div className="space-y-3">
           <Label className="text-base font-semibold text-foreground">注册身份</Label>
           <div className="grid grid-cols-4 gap-2.5">
-            {roles.filter(r => r.id !== "admin").map((role) => {
+            {[...roles.filter(r => r.id === "customer"), ...roles.filter(r => r.id !== "admin" && r.id !== "customer")].map((role) => {
               const Icon = role.icon
               const isSelected = selectedRole === role.id
               return (
@@ -150,13 +150,13 @@ export function RegisterForm() {
                   </div>
                   <div className="text-center">
                     <p className={cn(
-                      "text-xs font-semibold leading-tight",
+                      "text-sm font-semibold leading-tight",
                       isSelected ? "text-primary" : "text-foreground"
                     )}>
                       {role.name}
                     </p>
                     {role.description && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight hidden xl:block">
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-tight hidden xl:block">
                         {role.description}
                       </p>
                     )}

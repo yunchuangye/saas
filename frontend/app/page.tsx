@@ -119,10 +119,10 @@ export default function HomePage() {
             <Link href="/login" className="hidden sm:block">
               <Button variant="outline" size="lg" className="h-11 px-6 text-base font-semibold">登录</Button>
             </Link>
-            <Link href="/login">
+            <Link href="/register">
               <Button size="lg" className="h-11 px-6 text-base font-semibold">
                 <span className="hidden sm:inline">免费注册</span>
-                <span className="sm:hidden">登录</span>
+                <span className="sm:hidden">注册</span>
               </Button>
             </Link>
           </div>
