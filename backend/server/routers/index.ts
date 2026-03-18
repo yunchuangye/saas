@@ -8,7 +8,7 @@ import { directoryRouter } from "./directory";
 import { valuationRouter } from "./valuation";
 import { orgRouter, openclawRouter, logsRouter, adminUsersRouter } from "./org";
 import { teamRouter } from "./team";
-import { autoValuationRouter } from './auto-valuation';
+import { autoValuationRouter, guestValuationRouter } from './auto-valuation';
 import { pdfReportRouter } from './pdf-report';
 import { propertySearchRouter } from './property-search';
 import { crawlRouter } from './crawl';
@@ -34,6 +34,7 @@ export const appRouter = router({
   adminUsers: adminUsersRouter,
   team: teamRouter,
   autoValuation: autoValuationRouter,
+  guestValuation: guestValuationRouter,
   pdfReport: pdfReportRouter,
   propertySearch: propertySearchRouter,
   crawl: crawlRouter,

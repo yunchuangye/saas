@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { router, protectedProcedure } from '../lib/trpc'
+import { router, protectedProcedure, publicProcedure } from '../lib/trpc'
 import { db } from '../lib/db'
-import { autoValuations, cases, cities, estates, buildings, units } from '../lib/schema'
+import { autoValuations, cases, cities, districts, estates, buildings, units } from '../lib/schema'
 import { eq, desc, and, gte, lte, sql, isNotNull } from 'drizzle-orm'
 import { calculateValuation, formatCurrency, PropertyInput } from '../lib/valuation-engine'
 import { getMonthlyPriceTrend } from './property-search'
@@ -535,5 +535,136 @@ export const autoValuationRouter = router({
         .where(and(...conditions, eq(cases.isAnomaly, false)))
 
       return stats
+    }),
+})
+
+// ============================================================
+// 游客公开估价接口（无需登录）
+// ============================================================
+export const guestValuationRouter = router({
+  // 获取城市列表（公开）
+  getCities: publicProcedure
+    .query(async () => {
+      return await db.select().from(cities).orderBy(cities.name)
+    }),
+  // 游客估价（公开，不保存记录）
+  calculate: publicProcedure
+    .input(z.object({
+      propertyType: z.enum(['residential', 'commercial', 'office', 'industrial']).default('residential'),
+      city: z.string(),
+      cityId: z.number().optional(),
+      district: z.string().default(''),
+      address: z.string().default(''),
+      buildingAge: z.number().min(0).max(100).default(10),
+      totalFloors: z.number().min(1).max(200).default(18),
+      floor: z.number().min(1).max(200).default(8),
+      buildingArea: z.number().min(10).max(10000),
+      orientation: z.enum(['south', 'north', 'east', 'west', 'south_north', 'other']).default('south'),
+      decoration: z.enum(['rough', 'simple', 'medium', 'fine', 'luxury']).default('medium'),
+      hasElevator: z.boolean().default(true),
+      hasParking: z.boolean().default(false),
+    }))
+    .mutation(async ({ input }) => {
+      // 从案例库检索相似案例
+      let dbComparables: any[] = []
+      if (input.cityId) {
+        dbComparables = await findComparableCases({
+          cityId: input.cityId,
+          propertyType: input.propertyType === 'residential' ? '住宅' :
+                        input.propertyType === 'commercial' ? '商业' :
+                        input.propertyType === 'office' ? '办公' : '工业',
+          area: input.buildingArea,
+          floor: input.floor,
+          totalFloors: input.totalFloors,
+          limit: 6,
+        })
+      }
+      // 将数据库案例转换为比较法格式
+      const comparables = dbComparables.map(c => ({
+        address: c.address || '同区域案例',
+        transactionPrice: Number(c.unitPrice || c.unit_price || 0),
+        transactionDate: c.transactionDate ? new Date(c.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        buildingArea: Number(c.area || 0),
+        buildingAge: 5,
+        floor: c.floor || 1,
+        totalFloors: c.totalFloors || 1,
+        decoration: 'medium',
+        hasElevator: (c.totalFloors || 1) > 6,
+        hasParking: false,
+      })).filter(c => c.transactionPrice > 0)
+      // 运行估价引擎
+      const engineInput: PropertyInput = {
+        propertyType: input.propertyType,
+        city: input.city,
+        district: input.district,
+        address: input.address || `${input.city}${input.district}某物业`,
+        buildingAge: input.buildingAge,
+        totalFloors: input.totalFloors,
+        floor: input.floor,
+        buildingArea: input.buildingArea,
+        orientation: input.orientation,
+        decoration: input.decoration,
+        hasElevator: input.hasElevator,
+        hasParking: input.hasParking,
+        purpose: 'mortgage',
+        comparables: comparables.length >= 2 ? comparables : undefined,
+      }
+      const result = calculateValuation(engineInput)
+      // 精确估价（不给区间，给精确数字）
+      const finalValue = Math.round(result.finalValue)
+      const unitPrice = Math.round(result.unitPrice)
+      return {
+        finalValue,
+        unitPrice,
+        formattedValue: formatCurrency(finalValue),
+        formattedUnitPrice: `${unitPrice.toLocaleString('zh-CN')}元/㎡`,
+        confidenceLevel: result.confidenceLevel,
+        method: result.methodology || '市场比较法',
+        comparableCount: dbComparables.length,
+        valuationDate: new Date().toISOString().split('T')[0],
+      }
+    }),
+  // 获取区域列表（公开）
+  getDistricts: publicProcedure
+    .input(z.object({ cityId: z.number() }))
+    .query(async ({ input }) => {
+      return await db.select({ id: districts.id, name: districts.name, cityId: districts.cityId })
+        .from(districts)
+        .where(and(eq(districts.cityId, input.cityId), eq(districts.isActive, true)))
+        .orderBy(districts.id)
+    }),
+  // 获取平台银行列表（公开）
+  getBanks: publicProcedure
+    .query(async () => {
+      const { organizations } = await import('../lib/schema')
+      return await db.select({
+        id: organizations.id,
+        name: organizations.name,
+        address: organizations.address,
+        rating: organizations.rating,
+        description: organizations.description,
+        logo: organizations.logo,
+        contactPhone: organizations.contactPhone,
+      }).from(organizations)
+        .where(and(eq(organizations.type, 'bank'), eq(organizations.isActive, true)))
+        .orderBy(desc(organizations.rating))
+        .limit(10)
+    }),
+  // 获取平台评估机构列表（公开）
+  getAppraisers: publicProcedure
+    .query(async () => {
+      const { organizations } = await import('../lib/schema')
+      return await db.select({
+        id: organizations.id,
+        name: organizations.name,
+        address: organizations.address,
+        rating: organizations.rating,
+        description: organizations.description,
+        logo: organizations.logo,
+        contactPhone: organizations.contactPhone,
+      }).from(organizations)
+        .where(and(eq(organizations.type, 'appraiser'), eq(organizations.isActive, true)))
+        .orderBy(desc(organizations.rating))
+        .limit(10)
     }),
 })

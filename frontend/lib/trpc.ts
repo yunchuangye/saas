@@ -13,8 +13,8 @@ import type { AppRouter } from "../../backend/server/routers";
 export const trpc = createTRPCReact<AppRouter>();
 
 // build 时由 Next.js 从 .env.local 读取并编译进 bundle
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8721";
+// 如果为空字符串，使用相对路径（通过 Next.js rewrites 代理到 localhost:8721）
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "";
 
 export { BACKEND_URL };
 

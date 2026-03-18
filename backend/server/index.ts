@@ -55,9 +55,10 @@ app.use(
       if (allowedOrigins.length === 0) return callback(null, true);
       // 检查是否在白名单中
       if (allowedOrigins.includes(origin)) return callback(null, true);
-      // 开发环境额外允许 localhost
-      if (process.env.NODE_ENV !== 'production' && /^https?:\/\/localhost(:\d+)?$/.test(origin)) {
-        return callback(null, true);
+      // 开发环境额外允许 localhost 和 manus.computer 代理域名
+      if (process.env.NODE_ENV !== 'production') {
+        if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+        if (/\.manus\.computer$/.test(origin)) return callback(null, true);
       }
       callback(new Error(`CORS policy: origin '${origin}' not allowed`));
     },
