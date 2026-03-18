@@ -1,429 +1,439 @@
 import Link from "next/link"
-import { GuestValuationWidget } from "@/components/home/guest-valuation-widget"
+import { Button } from "@/components/ui/button"
+import { Logo } from "@/components/brand/logo"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { InstantValuation } from "@/components/home/instant-valuation"
 import {
-  Building2, Shield, Star, ArrowRight,
-  Landmark, FileText, BarChart3, Clock, Award, ChevronRight,
+  CheckCircle2,
+  ArrowRight,
+  Star,
+  MapPin,
+  Landmark,
+  Building,
+  Sparkles,
+  Shield,
+  Zap,
 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+
+export const metadata = {
+  title: "gujia.app - 一键免费估价 | 房产评估专业平台",
+  description: "免费获取房产精准估值，对接银行贷款和专业评估机构，让房产交易更简单",
+}
+
+// 左侧 AI 三大核心能力（显示为数字+单行描述）
+const aiStats = [
+  { value: "98.6%", label: "AI估价准确率" },
+  { value: "12+",   label: "专业数据模型" },
+  { value: "50K+",  label: "日处理房产数" },
+  { value: "<3s",   label: "秒级返回结果" },
+]
+
+// 合作评估公司
+const appraisalCompanies = [
+  { name: "中诚信评估", location: "北京", projects: 2580, rating: 4.9, specialty: "住宅评估" },
+  { name: "戴德梁行",   location: "上海", projects: 3420, rating: 4.8, specialty: "商业地产" },
+  { name: "世联评估",   location: "深圳", projects: 4150, rating: 4.9, specialty: "综合评估" },
+  { name: "仲量联行",   location: "广州", projects: 2890, rating: 4.7, specialty: "工业地产" },
+  { name: "第一太平戴维斯", location: "成都", projects: 1680, rating: 4.8, specialty: "商业综合体" },
+  { name: "高力国际",   location: "杭州", projects: 2210, rating: 4.6, specialty: "写字楼评估" },
+]
+
+// 合作银行
+const bankPartners = [
+  { name: "中国银行", projects: 12500 },
+  { name: "工商银行", projects: 18900 },
+  { name: "建设银行", projects: 15600 },
+  { name: "农业银行", projects: 11200 },
+  { name: "交通银行", projects: 7800 },
+  { name: "招商银行", projects: 9500 },
+  { name: "浦发银行", projects: 6200 },
+  { name: "民生银行", projects: 5400 },
+]
+
+// 用户评价
+const testimonials = [
+  {
+    content: "估价非常准确，和最终成交价只差了2%，而且操作很简单，几分钟就出结果了。",
+    author: "张先生",
+    role: "北京 | 个人用户",
+    rating: 5,
+    avatar: "/images/avatar-1.jpg",
+  },
+  {
+    content: "通过平台找到了利率最优惠的银行，贷款流程也很顺利，省了不少事。",
+    author: "李女士",
+    role: "上海 | 个人用户",
+    rating: 5,
+    avatar: "/images/avatar-2.jpg",
+  },
+  {
+    content: "评估报告出得很快，评估师也很专业，银行一次就通过了。",
+    author: "王先生",
+    role: "深圳 | 个人用户",
+    rating: 5,
+    avatar: "/images/avatar-3.jpg",
+  },
+]
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Josefin+Sans:wght@300;400;500;600;700&display=swap');
-        .font-cinzel { font-family: 'Cinzel', Georgia, serif; }
-        .font-josefin { font-family: 'Josefin Sans', sans-serif; }
-      `}</style>
+    <div className="min-h-screen bg-background">
 
-      {/* ── 导航栏 */}
-      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/98 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 bg-[#1E293B] flex items-center justify-center">
-                <Building2 className="h-4 w-4 text-white" />
-              </div>
-              <span className="font-cinzel text-sm font-semibold tracking-widest text-[#1E293B] uppercase">估价云</span>
-              <span className="hidden sm:inline text-xs text-gray-400 ml-1 font-josefin tracking-wider">PROPERTY VALUATION</span>
-            </div>
-            <nav className="hidden md:flex items-center gap-8">
-              {[
-                { href: "#valuation", label: "在线估价" },
-                { href: "#how-it-works", label: "使用流程" },
-                { href: "#partners", label: "合作机构" },
-              ].map((item) => (
-                <a key={item.href} href={item.href}
-                  className="font-josefin text-xs tracking-[0.15em] text-gray-500 hover:text-[#1E293B] transition-colors uppercase">
-                  {item.label}
-                </a>
-              ))}
-            </nav>
-            <div className="flex items-center gap-3">
-              <Link href="/login">
-                <button className="font-josefin text-xs tracking-wider text-gray-600 hover:text-[#1E293B] transition-colors px-3 py-2 uppercase">
-                  登录
-                </button>
+      {/* ── 导航栏 ── */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 flex h-18 lg:h-20 items-center justify-between">
+          <Logo size="md" className="lg:hidden" />
+          <Logo size="lg" className="hidden lg:flex" />
+
+          <nav className="hidden lg:flex items-center gap-10">
+            {[
+              { href: "#valuation", label: "免费估价", highlight: true },
+              { href: "#partners",  label: "合作机构" },
+              { href: "#about",     label: "关于我们" },
+            ].map(({ href, label, highlight }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`text-base font-semibold transition-colors hover:text-primary ${
+                  highlight ? "text-foreground" : "text-muted-foreground"
+                }`}
+              >
+                {label}
               </Link>
-              <Link href="/register">
-                <button className="font-josefin text-xs tracking-wider bg-[#1E293B] text-white px-5 py-2.5 hover:bg-[#0f172a] transition-colors uppercase">
-                  免费注册
-                </button>
-              </Link>
-            </div>
+            ))}
+            <Link
+              href="/app-download"
+              className="flex items-center gap-1.5 text-base font-semibold text-primary hover:text-primary/80 transition-colors"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 18V6M12 18l-4-4m4 4l4-4M5 21h14" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              APP下载
+            </Link>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link href="/login" className="hidden sm:block">
+              <Button variant="outline" size="lg" className="h-11 px-6 text-base font-semibold">登录</Button>
+            </Link>
+            <Link href="/login">
+              <Button size="lg" className="h-11 px-6 text-base font-semibold">
+                <span className="hidden sm:inline">免费注册</span>
+                <span className="sm:hidden">登录</span>
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* ── Hero + 估价工具 */}
-      <section id="valuation" className="bg-[#F8FAFC]">
-        <div className="h-1 bg-[#2563EB]" />
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16 lg:py-24">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+      {/* ── Hero 区域 ── */}
+      <section id="valuation" className="relative overflow-hidden">
+        {/* 纯渐变背景 */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0A1628] via-[#0D2847] to-[#1a365d]" />
+        {/* 装饰性光晕 */}
+        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full bg-blue-600/15 blur-[100px] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full bg-teal-500/5 blur-[150px] pointer-events-none" />
 
-            {/* 左侧文案 */}
-            <div className="space-y-10">
-              <div className="inline-flex items-center gap-2 border border-[#2563EB]/30 px-4 py-1.5 bg-white">
-                <div className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
-                <span className="font-josefin text-xs tracking-[0.2em] text-[#2563EB] uppercase font-medium">
-                  专业房产估价平台
-                </span>
+        <div className="relative z-10 w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+
+            {/* ── 左侧内容 ── */}
+            <div className="text-white">
+              {/* 标签行 */}
+              <div className="flex flex-wrap items-center gap-3 mb-8">
+                <Badge className="bg-cyan-500/20 text-cyan-100 border-cyan-500/30 text-sm px-4 py-1.5">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  OpenClaw AI 驱动
+                </Badge>
+                <Badge className="bg-white/10 text-white/90 border-white/20 text-sm px-4 py-1.5">
+                  98.6% 准确率
+                </Badge>
               </div>
 
-              <div className="space-y-5">
-                <h1 className="font-cinzel text-4xl lg:text-5xl xl:text-6xl font-semibold text-[#1E293B] leading-[1.15] tracking-tight">
-                  精准估价<br />
-                  <span className="text-[#2563EB]">一键即达</span>
-                </h1>
-                <p className="font-josefin text-base text-gray-500 leading-relaxed max-w-md tracking-wide">
-                  基于 217 万套真实成交案例，运用专业市场比较法，
-                  为您的房产提供精准估价参考，误差率低于 8%。
-                </p>
-              </div>
-
-              {/* 数据指标 */}
-              <div className="grid grid-cols-3 gap-0 border border-gray-200 bg-white">
-                {[
-                  { value: "217万+", label: "真实案例" },
-                  { value: "500+", label: "合作机构" },
-                  { value: "92%", label: "估价准确率" },
-                ].map((stat, i) => (
-                  <div key={i} className={`px-6 py-5 ${i < 2 ? "border-r border-gray-200" : ""}`}>
-                    <div className="font-cinzel text-2xl font-semibold text-[#1E293B]">{stat.value}</div>
-                    <div className="font-josefin text-xs tracking-wider text-gray-400 mt-1 uppercase">{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* 特性列表 */}
-              <div className="space-y-3">
-                {[
-                  "精准到个位数，非区间估算",
-                  "覆盖全国主要城市 4000+ 楼盘",
-                  "银行贷款与评估报告一站式服务",
-                  "注册即可发起正式贷款/评估需求",
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="h-px w-5 bg-[#2563EB] shrink-0" />
-                    <span className="font-josefin text-sm text-gray-600 tracking-wide">{item}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-4 pt-2">
-                <Link href="/register">
-                  <button className="font-josefin text-xs tracking-wider bg-[#F97316] text-white px-8 py-3.5 hover:bg-[#ea6c0a] transition-colors uppercase font-medium">
-                    免费注册
-                  </button>
-                </Link>
-                <a href="#how-it-works" className="font-josefin text-xs tracking-wider text-gray-500 hover:text-[#1E293B] transition-colors flex items-center gap-2 uppercase">
-                  了解更多 <ArrowRight className="h-3.5 w-3.5" />
-                </a>
-              </div>
-            </div>
-
-            {/* 右侧估价工具 */}
-            <div className="relative">
-              <div className="bg-white border border-gray-200 shadow-xl shadow-gray-100/80">
-                <div className="border-b border-gray-100 px-7 py-5 flex items-center justify-between">
-                  <div>
-                    <h2 className="font-cinzel text-sm font-semibold text-[#1E293B] tracking-widest uppercase">
-                      一键免费估价
-                    </h2>
-                    <p className="font-josefin text-xs text-gray-400 mt-0.5 tracking-wider">
-                      填写信息，即时获取精准估价
-                    </p>
-                  </div>
-                  <div className="border border-[#2563EB]/30 px-3 py-1">
-                    <span className="font-josefin text-xs text-[#2563EB] tracking-wider uppercase font-medium">免费</span>
-                  </div>
-                </div>
-                <div className="px-7 py-6">
-                  <GuestValuationWidget />
-                </div>
-                <div className="border-t border-gray-100 px-7 py-3 bg-gray-50">
-                  <p className="font-josefin text-xs text-gray-400 text-center tracking-wider">
-                    基于 217万+ 真实成交案例 · 市场比较法估价
-                  </p>
-                </div>
-              </div>
-              <div className="absolute -bottom-3 -right-3 h-full w-full border border-[#2563EB]/15 -z-10" />
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* ── 使用流程 */}
-      <section id="how-it-works" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="mb-14 flex items-end gap-6">
-            <div>
-              <p className="font-josefin text-xs tracking-[0.3em] text-[#2563EB] uppercase mb-3">How It Works</p>
-              <h2 className="font-cinzel text-3xl lg:text-4xl font-semibold text-[#1E293B]">三步完成估价</h2>
-            </div>
-            <div className="flex-1 h-px bg-gray-200 mb-2" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border border-gray-200">
-            {[
-              {
-                step: "01",
-                title: "输入房产信息",
-                desc: "选择城市、区域，搜索楼盘名称，填写面积、楼层、楼龄等基本信息。",
-                icon: Building2,
-              },
-              {
-                step: "02",
-                title: "获取精准估价",
-                desc: "系统基于真实成交案例，运用市场比较法，即时输出精准到个位数的估价结果。",
-                icon: BarChart3,
-              },
-              {
-                step: "03",
-                title: "对接专业服务",
-                desc: "注册会员后，可直接向合作银行申请贷款，或委托认证评估机构出具法定报告。",
-                icon: Award,
-              },
-            ].map((item, i) => (
-              <div key={i} className={`p-8 lg:p-10 group hover:bg-[#F8FAFC] transition-colors ${i < 2 ? "border-r border-gray-200" : ""}`}>
-                <div className="font-cinzel text-5xl font-semibold text-gray-100 group-hover:text-[#2563EB]/15 transition-colors mb-6">
-                  {item.step}
-                </div>
-                <div className="mb-4">
-                  <item.icon className="h-6 w-6 text-[#2563EB]" />
-                </div>
-                <h3 className="font-cinzel text-base font-semibold text-[#1E293B] mb-3">{item.title}</h3>
-                <p className="font-josefin text-sm text-gray-500 leading-relaxed tracking-wide">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── 核心优势（深色区域） */}
-      <section className="py-20 bg-[#1E293B]">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-8">
-              <div>
-                <p className="font-josefin text-xs tracking-[0.3em] text-[#2563EB] uppercase mb-4">Why Choose Us</p>
-                <h2 className="font-cinzel text-3xl lg:text-4xl font-semibold text-white leading-tight">
-                  专业、精准、<br />值得信赖
-                </h2>
-              </div>
-              <p className="font-josefin text-sm text-gray-400 leading-relaxed tracking-wide max-w-md">
-                我们与全国顶级银行和持牌评估机构深度合作，
-                为个人用户提供从估价到融资的一站式专业服务。
+              {/* 主标题 */}
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1]">
+                一键免费估价
+              </h1>
+              <p className="mt-3 text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-cyan-300 to-sky-300 bg-clip-text text-transparent">
+                精准到每一平米
               </p>
-              <div className="space-y-4">
+              <p className="mt-6 text-lg sm:text-xl text-white/65 leading-relaxed max-w-lg">
+                输入房产信息，AI秒级返回精准估值，可直接申请银行贷款或委托专业机构出具评估报告。
+              </p>
+
+              {/* 三大核心卖点 */}
+              <div className="mt-10 grid grid-cols-3 gap-5">
                 {[
-                  { label: "数据覆盖", value: "全国 35 个主要城市" },
-                  { label: "合作银行", value: "工商、建设、招商等 50+ 家" },
-                  { label: "评估机构", value: "持牌认证机构 200+ 家" },
-                  { label: "平均响应", value: "24 小时内完成对接" },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-4 border-b border-white/8 pb-4">
-                    <span className="font-josefin text-xs tracking-wider text-gray-500 uppercase w-20 shrink-0">{item.label}</span>
-                    <div className="h-px flex-1 bg-white/8" />
-                    <span className="font-josefin text-sm text-white font-medium">{item.value}</span>
+                  { Icon: Zap,      title: "AI智能估价", sub: "秒级响应" },
+                  { Icon: Landmark, title: "银行直连",   sub: "50+合作银行" },
+                  { Icon: Shield,   title: "专业评估",   sub: "200+认证机构" },
+                ].map(({ Icon, title, sub }) => (
+                  <div key={title} className="flex flex-col gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-white/8 border border-white/12 flex items-center justify-center">
+                      <Icon className="h-7 w-7 text-cyan-300" />
+                    </div>
+                    <div className="text-lg font-semibold text-white">{title}</div>
+                    <div className="text-sm text-white/50">{sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* AI 指标数据 — 统一数字格式，避免"全国/每周"混入 */}
+              <div className="mt-12 pt-8 border-t border-white/10 grid grid-cols-4 gap-6">
+                {aiStats.map(({ value, label }) => (
+                  <div key={label}>
+                    <div className="text-3xl sm:text-4xl font-bold text-white tabular-nums">{value}</div>
+                    <div className="mt-2 text-sm text-white/50 leading-snug">{label}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-px bg-white/10">
-              {[
-                { icon: Shield, title: "数据安全", desc: "银行级加密保护，您的房产信息绝对安全" },
-                { icon: Clock, title: "即时出价", desc: "秒级响应，无需等待，立即获取估价结果" },
-                { icon: Landmark, title: "银行直连", desc: "与银行系统直接对接，贷款申请更高效" },
-                { icon: FileText, title: "法定报告", desc: "持牌机构出具，司法、银行等场景通用" },
-              ].map((item, i) => (
-                <div key={i} className="bg-[#1E293B] p-7 hover:bg-[#263548] transition-colors">
-                  <item.icon className="h-5 w-5 text-[#2563EB] mb-4" />
-                  <h4 className="font-cinzel text-sm font-semibold text-white mb-2">{item.title}</h4>
-                  <p className="font-josefin text-xs text-gray-500 leading-relaxed tracking-wide">{item.desc}</p>
-                </div>
-              ))}
+            {/* ── 右侧估价表单 ── */}
+            <div className="lg:sticky lg:top-24">
+              <InstantValuation />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── 合作机构 */}
-      <section id="partners" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="mb-14 flex items-end gap-6">
-            <div>
-              <p className="font-josefin text-xs tracking-[0.3em] text-[#2563EB] uppercase mb-3">Partners</p>
-              <h2 className="font-cinzel text-3xl lg:text-4xl font-semibold text-[#1E293B]">合作机构</h2>
-            </div>
-            <div className="flex-1 h-px bg-gray-200 mb-2" />
+      {/* ── 用户评价 ── */}
+      <section className="w-full py-16 sm:py-20 bg-muted/30">
+        <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold">用户真实评价</h2>
+            <p className="mt-3 text-lg text-muted-foreground">听听他们怎么说</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="border border-gray-200 p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <Landmark className="h-5 w-5 text-[#2563EB]" />
-                <h3 className="font-cinzel text-sm font-semibold text-[#1E293B] uppercase tracking-widest">合作银行</h3>
-              </div>
-              <div className="space-y-0">
-                {[
-                  { name: "中国工商银行", desc: "个人住房贷款 · 商业贷款" },
-                  { name: "中国建设银行", desc: "按揭贷款 · 抵押贷款" },
-                  { name: "招商银行", desc: "闪电贷 · 房抵贷" },
-                  { name: "中国银行", desc: "境内外联动 · 综合金融" },
-                ].map((bank, i) => (
-                  <div key={i} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
+          <div className="grid md:grid-cols-3 gap-6">
+            {testimonials.map((t, i) => (
+              <Card key={i} className="hover:shadow-lg transition-shadow">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-1.5 mb-6">
+                    {Array.from({ length: t.rating }).map((_, j) => (
+                      <Star key={j} className="h-6 w-6 text-yellow-500 fill-yellow-500" />
+                    ))}
+                  </div>
+                  <p className="text-lg text-muted-foreground leading-relaxed">"{t.content}"</p>
+                  <div className="mt-8 pt-6 border-t flex items-center gap-4">
+                    <img 
+                      src={t.avatar} 
+                      alt={t.author}
+                      className="w-14 h-14 rounded-full object-cover border-2 border-primary/20"
+                    />
                     <div>
-                      <p className="font-josefin text-sm font-medium text-[#1E293B]">{bank.name}</p>
-                      <p className="font-josefin text-xs text-gray-400 tracking-wide mt-0.5">{bank.desc}</p>
+                      <div className="text-lg font-bold">{t.author}</div>
+                      <div className="text-base text-muted-foreground mt-0.5">{t.role}</div>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-gray-300" />
                   </div>
-                ))}
-              </div>
-              <Link href="/register?role=customer">
-                <button className="mt-6 w-full font-josefin text-xs tracking-wider text-[#2563EB] border border-[#2563EB] py-3 hover:bg-[#2563EB] hover:text-white transition-colors uppercase">
-                  查看全部合作银行
-                </button>
-              </Link>
-            </div>
-
-            <div className="border border-gray-200 p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <FileText className="h-5 w-5 text-[#2563EB]" />
-                <h3 className="font-cinzel text-sm font-semibold text-[#1E293B] uppercase tracking-widest">认证评估机构</h3>
-              </div>
-              <div className="space-y-0">
-                {[
-                  { name: "戴德梁行评估", desc: "国际认证 · 司法评估" },
-                  { name: "仲量联行", desc: "商业地产 · 住宅评估" },
-                  { name: "高力国际", desc: "抵押评估 · 资产评估" },
-                  { name: "世邦魏理仕", desc: "全国网络 · 快速出报告" },
-                ].map((org, i) => (
-                  <div key={i} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
-                    <div>
-                      <p className="font-josefin text-sm font-medium text-[#1E293B]">{org.name}</p>
-                      <p className="font-josefin text-xs text-gray-400 tracking-wide mt-0.5">{org.desc}</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-gray-300" />
-                  </div>
-                ))}
-              </div>
-              <Link href="/register?role=customer">
-                <button className="mt-6 w-full font-josefin text-xs tracking-wider text-[#2563EB] border border-[#2563EB] py-3 hover:bg-[#2563EB] hover:text-white transition-colors uppercase">
-                  查看全部评估机构
-                </button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── 用户评价 */}
-      <section className="py-20 bg-[#F8FAFC]">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="mb-14 flex items-end gap-6">
-            <div>
-              <p className="font-josefin text-xs tracking-[0.3em] text-[#2563EB] uppercase mb-3">Testimonials</p>
-              <h2 className="font-cinzel text-3xl lg:text-4xl font-semibold text-[#1E293B]">用户评价</h2>
-            </div>
-            <div className="flex-1 h-px bg-gray-200 mb-2" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border border-gray-200">
-            {[
-              {
-                quote: "估价结果和最终成交价只差了 3 万，准确度令人惊讶。通过平台对接银行，贷款审批也非常顺利。",
-                name: "张先生",
-                role: "深圳 · 住宅购房",
-                stars: 5,
-              },
-              {
-                quote: "作为评估师，我们机构入驻后接到了大量来自个人用户的委托，平台的客户质量很高，合作体验很好。",
-                name: "李女士",
-                role: "北京 · 认证评估师",
-                stars: 5,
-              },
-              {
-                quote: "卖房前用平台估了一下价，心里有了底。最终挂牌价和估价相差无几，很快就成交了。",
-                name: "王先生",
-                role: "上海 · 房产出售",
-                stars: 5,
-              },
-            ].map((review, i) => (
-              <div key={i} className={`p-8 bg-white ${i < 2 ? "border-r border-gray-200" : ""}`}>
-                <div className="flex gap-1 mb-5">
-                  {[...Array(review.stars)].map((_, j) => (
-                    <Star key={j} className="h-3.5 w-3.5 fill-[#F97316] text-[#F97316]" />
-                  ))}
-                </div>
-                <blockquote className="font-josefin text-sm text-gray-600 leading-relaxed tracking-wide mb-6">
-                  "{review.quote}"
-                </blockquote>
-                <div className="flex items-center gap-3 border-t border-gray-100 pt-5">
-                  <div className="h-8 w-8 bg-[#1E293B] flex items-center justify-center shrink-0">
-                    <span className="font-cinzel text-xs text-white">{review.name[0]}</span>
-                  </div>
-                  <div>
-                    <p className="font-josefin text-sm font-medium text-[#1E293B]">{review.name}</p>
-                    <p className="font-josefin text-xs text-gray-400 tracking-wide">{review.role}</p>
-                  </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── CTA */}
-      <section className="py-20 bg-[#2563EB]">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
-          <p className="font-josefin text-xs tracking-[0.4em] text-blue-200 uppercase mb-6">Get Started</p>
-          <h2 className="font-cinzel text-3xl lg:text-5xl font-semibold text-white mb-6 leading-tight">
-            立即获取您的房产估价
-          </h2>
-          <p className="font-josefin text-sm text-blue-200 mb-10 tracking-wider max-w-lg mx-auto leading-relaxed">
-            免费注册，即可享受精准估价、银行贷款对接、评估报告委托等全套专业服务。
-          </p>
-          <div className="flex items-center justify-center gap-4">
-            <Link href="/register">
-              <button className="font-josefin text-xs tracking-wider bg-white text-[#2563EB] px-10 py-4 hover:bg-gray-50 transition-colors uppercase font-medium">
-                免费注册
-              </button>
-            </Link>
-            <a href="#valuation">
-              <button className="font-josefin text-xs tracking-wider border border-white/40 text-white px-10 py-4 hover:bg-white/10 transition-colors uppercase">
-                先试试估价
-              </button>
-            </a>
+      {/* ── 合作伙伴 ── */}
+      <section id="partners" className="w-full py-16 sm:py-20">
+        <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <Badge variant="outline" className="mb-4 text-sm px-4 py-1.5">合作伙伴</Badge>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-balance">
+              携手行业领军者
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              与全国顶尖金融机构和评估公司建立深度合作
+            </p>
+          </div>
+
+          {/* 银行 */}
+          <div className="mb-16">
+            <div className="flex items-center gap-3 mb-8">
+              <Landmark className="h-6 w-6 text-primary" />
+              <h3 className="text-2xl sm:text-3xl font-bold">合作银行机构</h3>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {bankPartners.map((bank) => (
+                <Card key={bank.name} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-5">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-center h-13 w-13 rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white font-bold text-lg shrink-0 aspect-square" style={{ width: 52, height: 52 }}>
+                        {bank.name.slice(0, 2)}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-lg font-bold truncate">{bank.name}</h4>
+                        <p className="text-base text-muted-foreground mt-1">
+                          {bank.projects.toLocaleString()}+ 项目
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* 评估公司 */}
+          <div>
+            <div className="flex items-center gap-3 mb-8">
+              <Building className="h-6 w-6 text-primary" />
+              <h3 className="text-2xl sm:text-3xl font-bold">认证评估公司</h3>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {appraisalCompanies.map((company) => (
+                <Card key={company.name} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-white font-bold text-lg shrink-0" style={{ width: 52, height: 52 }}>
+                          {company.name.slice(0, 2)}
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-bold">{company.name}</h4>
+                          <div className="flex items-center gap-1.5 text-base text-muted-foreground mt-1">
+                            <MapPin className="h-4 w-4" />
+                            {company.location}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                        <span className="text-base font-semibold">{company.rating}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-5 pt-4 border-t">
+                      <span className="text-base text-muted-foreground">{company.projects.toLocaleString()}+ 项目</span>
+                      <Badge variant="secondary" className="text-sm px-3 py-1">{company.specialty}</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── 页脚 */}
-      <footer className="bg-[#1E293B] py-12">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <div className="h-7 w-7 bg-white/10 flex items-center justify-center">
-                <Building2 className="h-4 w-4 text-white" />
+      {/* ── 关于我们 ── */}
+      <section id="about" className="w-full py-16 sm:py-20 bg-muted/30">
+        <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-14 items-center">
+            <div>
+              <Badge variant="outline" className="mb-5 text-sm px-4 py-1.5">关于我们</Badge>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-balance leading-tight">
+                让房产估价更简单
+              </h2>
+              <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
+                gujia.app 是专业的房地产评估数字化平台，致力于通过AI技术让房产估价变得简单、精准、高效。我们连接银行、评估公司与个人用户，打造一站式房产服务生态。
+              </p>
+              <div className="mt-8 space-y-5">
+                {[
+                  { title: "免费估价服务", desc: "无需注册即可使用AI智能估价，快速了解房产价值" },
+                  { title: "银行直连申贷", desc: "注册会员后可向合作银行直接发起贷款申请" },
+                  { title: "专业评估报告", desc: "对接认证评估机构，快速出具正式评估报告" },
+                ].map(({ title, desc }) => (
+                  <div key={title} className="flex items-start gap-4">
+                    <CheckCircle2 className="h-6 w-6 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <h4 className="text-lg font-bold">{title}</h4>
+                      <p className="text-base text-muted-foreground mt-1">{desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <span className="font-cinzel text-sm tracking-widest text-white uppercase">估价云</span>
-              <span className="font-josefin text-xs text-gray-500 tracking-wider">PROPERTY VALUATION PLATFORM</span>
+              <div className="mt-10">
+                <Link href="/login">
+                  <Button size="lg" className="h-12 px-8 text-base font-semibold">
+                    立即注册体验
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
+              </div>
             </div>
-            <div className="flex items-center gap-8">
-              {["关于我们", "服务协议", "隐私政策", "联系我们"].map((item) => (
-                <a key={item} href="#" className="font-josefin text-xs tracking-wider text-gray-500 hover:text-gray-300 transition-colors uppercase">
-                  {item}
-                </a>
+
+            {/* 指标卡片 */}
+            <div className="grid grid-cols-2 gap-5">
+              {[
+                { value: "98.6%", label: "AI估价准确率" },
+                { value: "<3s",   label: "平均响应时间" },
+                { value: "125万+", label: "服务用户数" },
+                { value: "800亿+", label: "累计评估金额" },
+              ].map(({ value, label }) => (
+                <Card key={label} className="p-7 text-center">
+                  <div className="text-4xl sm:text-5xl font-bold text-primary">{value}</div>
+                  <div className="text-base text-muted-foreground mt-3">{label}</div>
+                </Card>
               ))}
             </div>
-            <p className="font-josefin text-xs text-gray-600 tracking-wider">
-              © 2026 估价云 · All Rights Reserved
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section className="w-full py-20 sm:py-24 bg-gradient-to-br from-[#0A2540] via-[#0D3158] to-[#1E3A8A]">
+        <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center text-white">
+            <h2 className="text-4xl sm:text-5xl font-bold text-balance">
+              开始您的房产估价之旅
+            </h2>
+            <p className="mt-6 text-xl sm:text-2xl text-white/75">
+              免费使用AI估价，或注册会员享受更多服务
             </p>
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-5">
+              <Link href="#valuation">
+                <Button size="lg" className="w-full sm:w-auto h-14 px-10 text-lg font-bold bg-white text-primary hover:bg-white/90">
+                  立即估价
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button size="lg" className="w-full sm:w-auto h-14 px-10 text-lg font-bold bg-cyan-500 hover:bg-cyan-400 text-white">
+                  注册会员
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 页脚 ── */}
+      <footer className="w-full py-12 sm:py-16 border-t">
+        <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
+            <div className="col-span-2">
+              <Logo size="md" className="sm:hidden" />
+              <Logo size="lg" className="hidden sm:flex" />
+              <p className="mt-5 text-base text-muted-foreground max-w-md leading-relaxed">
+                GuJia.App 是专业的房地产评估数字化协作平台，致力于为银行、评估公司和客户提供高效、透明、专业的评估服务解决方案。
+              </p>
+            </div>
+            <div>
+              <h4 className="text-lg font-bold mb-5">产品服务</h4>
+              <ul className="space-y-4 text-base text-muted-foreground">
+                <li><Link href="#valuation" className="hover:text-foreground transition-colors">免费估价</Link></li>
+                <li><Link href="#" className="hover:text-foreground transition-colors">银行贷款</Link></li>
+                <li><Link href="#" className="hover:text-foreground transition-colors">评估报告</Link></li>
+                <li><Link href="/app-download" className="hover:text-foreground transition-colors">APP下载</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-lg font-bold mb-5">关于平台</h4>
+              <ul className="space-y-4 text-base text-muted-foreground">
+                <li><Link href="#about" className="hover:text-foreground transition-colors">关于我们</Link></li>
+                <li><Link href="#partners" className="hover:text-foreground transition-colors">合作伙伴</Link></li>
+                <li><Link href="/login" className="hover:text-foreground transition-colors">注册登录</Link></li>
+                <li><Link href="#" className="hover:text-foreground transition-colors">联系我们</Link></li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-12 pt-8 border-t text-base text-muted-foreground text-center">
+            © 2024 GuJia.App. All rights reserved.
           </div>
         </div>
       </footer>
+
     </div>
   )
 }
