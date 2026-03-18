@@ -2,14 +2,14 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
-  Calculator, MapPin, Building2, Star, Loader2, ChevronRight,
+  Calculator, MapPin, Building2, Star, Loader2,
   Landmark, FileText, Phone, UserPlus, Sparkles, AlertCircle,
-  Search, X, Home, RotateCcw, CheckCircle2,
+  Search, X, Home, RotateCcw, ChevronRight, CheckCircle2,
+  TrendingUp, Calendar, BarChart3, ArrowLeft,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import Link from "next/link"
@@ -124,11 +124,11 @@ function EstateSearchInput({
   return (
     <div className="relative">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
         <input
           ref={inputRef}
           type="text"
-          placeholder={disabled ? "请先选择城市" : "输入楼盘名称搜索，如：万科城"}
+          placeholder={disabled ? "请先选择城市" : "搜索楼盘名称，如：万科城、碧桂园..."}
           disabled={disabled}
           value={keyword}
           onChange={(e) => {
@@ -137,39 +137,48 @@ function EstateSearchInput({
             if (!e.target.value) onChange(null)
           }}
           onFocus={() => keyword.length >= 1 && setOpen(true)}
-          className="w-full h-11 pl-9 pr-9 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className="w-full h-12 pl-10 pr-10 rounded-xl border border-slate-200 bg-slate-50 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         />
+        {value && (
+          <div className="absolute right-10 top-1/2 -translate-y-1/2">
+            <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded-full">
+              <CheckCircle2 className="h-3 w-3" />已匹配
+            </span>
+          </div>
+        )}
         {keyword && (
           <button type="button" onClick={handleClear}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
             <X className="h-4 w-4" />
           </button>
         )}
       </div>
       {open && debouncedKw.length >= 1 && (
         <div ref={dropdownRef}
-          className="absolute z-50 top-full left-0 right-0 mt-1 bg-white dark:bg-card rounded-xl border border-border shadow-xl overflow-hidden max-h-64 overflow-y-auto">
+          className="absolute z-50 top-full left-0 right-0 mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-2xl shadow-slate-200/80 overflow-hidden max-h-72 overflow-y-auto">
           {isFetching ? (
-            <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />搜索中...
+            <div className="flex items-center gap-2 px-4 py-4 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" />正在搜索楼盘...
             </div>
           ) : !estates || estates.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">未找到楼盘，请尝试其他关键词</div>
+            <div className="px-4 py-4 text-sm text-slate-500 text-center">
+              <p>未找到相关楼盘</p>
+              <p className="text-xs mt-1 text-slate-400">可直接填写其他信息进行估价</p>
+            </div>
           ) : (
             estates.map((estate) => (
               <button key={estate.id} type="button" onClick={() => handleSelect(estate)}
-                className="w-full flex items-start gap-3 px-4 py-3 hover:bg-muted/60 transition-colors text-left border-b border-border/50 last:border-0">
-                <div className="mt-0.5 h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Home className="h-4 w-4 text-primary" />
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50/60 transition-colors text-left border-b border-slate-100 last:border-0">
+                <div className="h-9 w-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                  <Home className="h-4 w-4 text-blue-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{estate.name}</p>
-                  {estate.address && <p className="text-xs text-muted-foreground truncate mt-0.5">{estate.address}</p>}
-                  <div className="flex items-center gap-2 mt-1">
-                    {estate.buildYear && <span className="text-xs text-muted-foreground">建于 {estate.buildYear}</span>}
-                    {estate.totalUnits && estate.totalUnits > 0 && <span className="text-xs text-muted-foreground">{estate.totalUnits} 套</span>}
-                  </div>
+                  <p className="text-sm font-semibold text-slate-800 truncate">{estate.name}</p>
+                  {estate.address && <p className="text-xs text-slate-400 truncate mt-0.5">{estate.address}</p>}
                 </div>
+                {estate.totalUnits && estate.totalUnits > 0 && (
+                  <span className="text-xs text-slate-400 shrink-0">{estate.totalUnits}套</span>
+                )}
               </button>
             ))
           )}
@@ -227,73 +236,66 @@ export function GuestValuationWidget() {
     })
   }
 
-  const confidenceLabel = (level: string) => {
-    if (level === "high") return { text: "高置信度", color: "bg-emerald-100 text-emerald-700 border border-emerald-200" }
-    if (level === "medium") return { text: "中置信度", color: "bg-amber-100 text-amber-700 border border-amber-200" }
-    return { text: "参考值", color: "bg-orange-100 text-orange-700 border border-orange-200" }
-  }
-
   const renderStars = (rating: string | null) => {
     const r = Number(rating) || 0
     return (
       <div className="flex items-center gap-0.5">
         {[1,2,3,4,5].map((i) => (
-          <Star key={i} className={`h-3 w-3 ${i <= Math.round(r) ? "fill-amber-400 text-amber-400" : "text-gray-200"}`} />
+          <Star key={i} className={`h-3 w-3 ${i <= Math.round(r) ? "fill-amber-400 text-amber-400" : "text-slate-200"}`} />
         ))}
-        <span className="text-xs text-muted-foreground ml-1">{r.toFixed(1)}</span>
+        <span className="text-xs text-slate-400 ml-1">{r.toFixed(1)}</span>
       </div>
     )
   }
 
+  const inputCls = "h-12 rounded-xl border border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-500/15 transition-all text-sm placeholder:text-slate-400"
+  const selectTriggerCls = "h-12 rounded-xl border border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white transition-all text-sm"
+
+  // ── FORM ──────────────────────────────────────────────────────────────────
   if (step === "form") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
+        {/* Row 1: 城市 + 区域 */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">城市</Label>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">城市</label>
             <Select value={formData.cityId ? String(formData.cityId) : ""}
               onValueChange={(v) => {
                 const city = cities?.find((c) => c.id === Number(v))
                 setFormData((f) => ({ ...f, cityId: Number(v), cityName: city?.name || "", districtId: 0, districtName: "" }))
                 setSelectedEstate(null)
               }}>
-              <SelectTrigger className="h-11 rounded-xl border-border/80 bg-muted/30 hover:bg-muted/50 transition-colors">
+              <SelectTrigger className={selectTriggerCls}>
                 <SelectValue placeholder="选择城市" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                {(cities || []).map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                {cities?.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">区域</Label>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">区域</label>
             <Select value={formData.districtId ? String(formData.districtId) : ""}
               onValueChange={(v) => {
-                const d = districts?.find((x) => x.id === Number(v))
+                const d = districts?.find((d) => d.id === Number(v))
                 setFormData((f) => ({ ...f, districtId: Number(v), districtName: d?.name || "" }))
-                setSelectedEstate(null)
               }}
               disabled={!formData.cityId}>
-              <SelectTrigger className="h-11 rounded-xl border-border/80 bg-muted/30 hover:bg-muted/50 transition-colors disabled:opacity-40">
+              <SelectTrigger className={selectTriggerCls}>
                 <SelectValue placeholder="选择区域" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                {(districts || []).map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
+                {districts?.map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="space-y-1.5">
+        {/* Row 2: 楼盘名称 */}
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              楼盘名称 <span className="text-primary font-bold">*</span>
-            </Label>
-            {selectedEstate && (
-              <span className="text-xs text-emerald-600 flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" />已匹配楼盘数据
-              </span>
-            )}
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">楼盘名称</label>
+            <span className="text-xs text-blue-500 font-medium">精准估价关键</span>
           </div>
           <EstateSearchInput
             cityId={formData.cityId}
@@ -302,14 +304,14 @@ export function GuestValuationWidget() {
             onChange={setSelectedEstate}
             disabled={!formData.cityId}
           />
-          <p className="text-xs text-muted-foreground">选择楼盘后可获得基于该楼盘真实成交数据的精准估价</p>
         </div>
 
+        {/* Row 3: 物业类型 + 建筑面积 */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">物业类型</Label>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">物业类型</label>
             <Select value={formData.propertyType} onValueChange={(v) => setFormData((f) => ({ ...f, propertyType: v }))}>
-              <SelectTrigger className="h-11 rounded-xl border-border/80 bg-muted/30 hover:bg-muted/50 transition-colors">
+              <SelectTrigger className={selectTriggerCls}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
@@ -317,57 +319,51 @@ export function GuestValuationWidget() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">建筑面积（㎡）</Label>
-            <Input type="number" placeholder="如：89.5"
-              className="h-11 rounded-xl border-border/80 bg-muted/30 hover:bg-muted/50 focus:bg-background transition-colors"
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">建筑面积（㎡）</label>
+            <Input type="number" placeholder="如：89.5" className={inputCls}
               value={formData.buildingArea}
               onChange={(e) => setFormData((f) => ({ ...f, buildingArea: e.target.value }))} />
           </div>
         </div>
 
+        {/* Row 4: 楼层 + 总楼层 + 楼龄 */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">所在楼层</Label>
-            <Input type="number" placeholder="如：10"
-              className="h-11 rounded-xl border-border/80 bg-muted/30 hover:bg-muted/50 focus:bg-background transition-colors"
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">所在楼层</label>
+            <Input type="number" placeholder="如：10" className={inputCls}
               value={formData.floor}
               onChange={(e) => setFormData((f) => ({ ...f, floor: e.target.value }))} />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">总楼层</Label>
-            <Input type="number" placeholder="如：32"
-              className="h-11 rounded-xl border-border/80 bg-muted/30 hover:bg-muted/50 focus:bg-background transition-colors"
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">总楼层</label>
+            <Input type="number" placeholder="如：32" className={inputCls}
               value={formData.totalFloors}
               onChange={(e) => setFormData((f) => ({ ...f, totalFloors: e.target.value }))} />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">楼龄（年）</Label>
-            <Input type="number" placeholder="如：10"
-              className="h-11 rounded-xl border-border/80 bg-muted/30 hover:bg-muted/50 focus:bg-background transition-colors"
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">楼龄（年）</label>
+            <Input type="number" placeholder="如：10" className={inputCls}
               value={formData.buildingAge}
               onChange={(e) => setFormData((f) => ({ ...f, buildingAge: e.target.value }))} />
           </div>
         </div>
 
+        {/* Row 5: 朝向 + 装修 */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">朝向</Label>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">朝向</label>
             <Select value={formData.orientation} onValueChange={(v) => setFormData((f) => ({ ...f, orientation: v }))}>
-              <SelectTrigger className="h-11 rounded-xl border-border/80 bg-muted/30 hover:bg-muted/50 transition-colors">
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger className={selectTriggerCls}><SelectValue /></SelectTrigger>
               <SelectContent className="rounded-xl">
                 {ORIENTATION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">装修情况</Label>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">装修情况</label>
             <Select value={formData.decoration} onValueChange={(v) => setFormData((f) => ({ ...f, decoration: v }))}>
-              <SelectTrigger className="h-11 rounded-xl border-border/80 bg-muted/30 hover:bg-muted/50 transition-colors">
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger className={selectTriggerCls}><SelectValue /></SelectTrigger>
               <SelectContent className="rounded-xl">
                 {DECORATION_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
@@ -375,133 +371,187 @@ export function GuestValuationWidget() {
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">配套设施</Label>
+        {/* Row 6: 配套设施 */}
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">配套设施</label>
           <div className="flex gap-2">
-            <button type="button"
-              onClick={() => setFormData((f) => ({ ...f, hasElevator: !f.hasElevator }))}
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                formData.hasElevator
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                  : "bg-muted/30 text-muted-foreground border-border/80 hover:bg-muted/60"
-              }`}>
-              <Building2 className="h-3.5 w-3.5" />有电梯
-            </button>
-            <button type="button"
-              onClick={() => setFormData((f) => ({ ...f, hasParking: !f.hasParking }))}
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                formData.hasParking
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                  : "bg-muted/30 text-muted-foreground border-border/80 hover:bg-muted/60"
-              }`}>
-              <MapPin className="h-3.5 w-3.5" />有车位
-            </button>
+            {[
+              { key: "hasElevator", label: "有电梯", icon: <Building2 className="h-4 w-4" /> },
+              { key: "hasParking", label: "有车位", icon: <MapPin className="h-4 w-4" /> },
+            ].map(({ key, label, icon }) => (
+              <button key={key} type="button"
+                onClick={() => setFormData((f) => ({ ...f, [key]: !f[key as keyof typeof f] }))}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                  formData[key as keyof typeof formData]
+                    ? "bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-200"
+                    : "bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-white"
+                }`}>
+                {icon}{label}
+              </button>
+            ))}
           </div>
         </div>
 
+        {/* Error */}
         {error && (
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+          <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
             <AlertCircle className="h-4 w-4 shrink-0" />{error}
           </div>
         )}
 
-        <Button
-          className="w-full h-12 rounded-xl text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
+        {/* Submit */}
+        <button
+          type="button"
           onClick={handleCalculate}
-          disabled={calculateMutation.isPending}>
+          disabled={calculateMutation.isPending}
+          className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white text-base font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2.5">
           {calculateMutation.isPending ? (
-            <><Loader2 className="h-5 w-5 mr-2 animate-spin" />AI 估价中...</>
+            <><Loader2 className="h-5 w-5 animate-spin" /><span>AI 估价中，请稍候...</span></>
           ) : (
-            <><Sparkles className="h-5 w-5 mr-2" />一键免费估价</>
+            <><Sparkles className="h-5 w-5" /><span>一键免费估价</span></>
           )}
-        </Button>
-        <p className="text-center text-xs text-muted-foreground">
-          基于 <span className="font-semibold text-foreground">217万+</span> 真实成交案例，AI 智能估价引擎驱动
+        </button>
+        <p className="text-center text-xs text-slate-400">
+          基于 <span className="font-semibold text-slate-600">217万+</span> 真实成交案例 · AI 智能估价引擎驱动
         </p>
       </div>
     )
   }
 
+  // ── RESULT ─────────────────────────────────────────────────────────────────
   if (step === "result" && result) {
-    const conf = confidenceLabel(result.confidenceLevel)
     const estateName = result.estateName || result.estateInfo?.name
+    const isHighConf = result.confidenceLevel === "high"
+    const isMedConf = result.confidenceLevel === "medium"
+
     return (
       <div className="space-y-5">
+        {/* 楼盘信息条 */}
         {estateName && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/5 border border-primary/15">
-            <Home className="h-4 w-4 text-primary shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-primary truncate">{estateName}</p>
-              {result.estateInfo?.address && <p className="text-xs text-muted-foreground truncate">{result.estateInfo.address}</p>}
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200">
+            <div className="h-9 w-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+              <Home className="h-4.5 w-4.5 text-blue-600" />
             </div>
-            {result.estateInfo?.buildYear && <span className="text-xs text-muted-foreground shrink-0">建于 {result.estateInfo.buildYear}</span>}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-slate-800 truncate">{estateName}</p>
+              {result.estateInfo?.address && (
+                <p className="text-xs text-slate-400 truncate mt-0.5">{result.estateInfo.address}</p>
+              )}
+            </div>
+            {result.estateInfo?.buildYear && (
+              <span className="text-xs text-slate-400 shrink-0 bg-white border border-slate-200 px-2 py-1 rounded-lg">
+                {result.estateInfo.buildYear}年建
+              </span>
+            )}
           </div>
         )}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary/95 to-primary/85 p-6 text-white">
-          <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 -translate-y-8 translate-x-8" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-white/5 translate-y-6 -translate-x-6" />
+
+        {/* 核心价格卡片 */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-7 text-white">
+          {/* 装饰圆 */}
+          <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-blue-500/10" />
+          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-blue-400/8" />
+          <div className="absolute top-1/2 right-8 -translate-y-1/2 w-1 h-20 bg-white/5 rounded-full" />
+
           <div className="relative">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="h-7 w-7 rounded-lg bg-white/15 flex items-center justify-center">
-                  <Calculator className="h-4 w-4" />
+            {/* 标题行 */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl bg-blue-500/20 border border-blue-400/20 flex items-center justify-center">
+                  <Calculator className="h-4 w-4 text-blue-300" />
                 </div>
-                <span className="text-sm font-medium text-white/80">AI 估价结果</span>
+                <span className="text-sm font-medium text-slate-300">AI 估价结果</span>
               </div>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${conf.color}`}>{conf.text}</span>
+              <span className={`text-xs px-3 py-1.5 rounded-full font-semibold border ${
+                isHighConf
+                  ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/25"
+                  : isMedConf
+                  ? "bg-amber-500/15 text-amber-300 border-amber-500/25"
+                  : "bg-orange-500/15 text-orange-300 border-orange-500/25"
+              }`}>
+                {isHighConf ? "高置信度" : isMedConf ? "中置信度" : "参考值"}
+              </span>
             </div>
-            <div className="mb-4">
-              <div className="text-4xl font-bold tracking-tight">{result.formattedValue}</div>
-              <div className="flex items-center gap-3 mt-1.5">
-                <span className="text-sm text-white/70">单价</span>
-                <span className="text-lg font-semibold">{result.formattedUnitPrice}</span>
+
+            {/* 主价格 */}
+            <div className="mb-6">
+              <div className="text-5xl font-black tracking-tight leading-none">
+                {result.formattedValue}
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <TrendingUp className="h-4 w-4 text-blue-400" />
+                <span className="text-slate-400 text-sm">单价</span>
+                <span className="text-xl font-bold text-blue-300">{result.formattedUnitPrice}</span>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 pt-4 border-t border-white/15">
-              <div className="text-center">
-                <div className="text-xs text-white/60 mb-0.5">估价方法</div>
-                <div className="text-xs font-semibold">{result.method}</div>
+
+            {/* 分隔线 */}
+            <div className="h-px bg-white/8 mb-5" />
+
+            {/* 数据指标行 —— 宽松布局，3 个独立块 */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <BarChart3 className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                  <span className="text-xs text-slate-400">参考案例</span>
+                </div>
+                <span className="text-lg font-bold text-white leading-none">
+                  {result.comparableCount}
+                  <span className="text-sm font-normal text-slate-400 ml-1">套</span>
+                </span>
               </div>
-              <div className="text-center border-x border-white/15">
-                <div className="text-xs text-white/60 mb-0.5">参考案例</div>
-                <div className="text-xs font-semibold">{result.comparableCount} 套</div>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <TrendingUp className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                  <span className="text-xs text-slate-400">估价方法</span>
+                </div>
+                <span className="text-sm font-semibold text-white leading-none">市场比较法</span>
               </div>
-              <div className="text-center">
-                <div className="text-xs text-white/60 mb-0.5">估价日期</div>
-                <div className="text-xs font-semibold">{result.valuationDate}</div>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                  <span className="text-xs text-slate-400">估价日期</span>
+                </div>
+                <span className="text-sm font-semibold text-white leading-none">{result.valuationDate}</span>
               </div>
             </div>
           </div>
         </div>
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-center">您需要什么服务？</p>
+
+        {/* 服务选择 */}
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-slate-700 text-center">需要进一步服务？</p>
           <div className="grid grid-cols-2 gap-3">
             <button type="button"
               onClick={() => { setServiceType("bank"); setStep("service") }}
-              className="group flex flex-col items-center gap-3 p-4 rounded-2xl border-2 border-border bg-muted/20 hover:border-blue-300 hover:bg-blue-50/50 transition-all">
-              <div className="h-12 w-12 rounded-2xl bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Landmark className="h-6 w-6 text-blue-600" />
+              className="group relative overflow-hidden flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100/50 transition-all duration-200">
+              <div className="h-14 w-14 rounded-2xl bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
+                <Landmark className="h-7 w-7 text-blue-600" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-semibold">申请房产贷款</p>
-                <p className="text-xs text-muted-foreground mt-0.5">匹配合适银行</p>
+                <p className="text-sm font-bold text-slate-800">申请房产贷款</p>
+                <p className="text-xs text-slate-400 mt-1">匹配全国合作银行</p>
               </div>
+              <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300 group-hover:text-blue-400 transition-colors" />
             </button>
             <button type="button"
               onClick={() => { setServiceType("appraiser"); setStep("service") }}
-              className="group flex flex-col items-center gap-3 p-4 rounded-2xl border-2 border-border bg-muted/20 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all">
-              <div className="h-12 w-12 rounded-2xl bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <FileText className="h-6 w-6 text-emerald-600" />
+              className="group relative overflow-hidden flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100/50 transition-all duration-200">
+              <div className="h-14 w-14 rounded-2xl bg-emerald-50 group-hover:bg-emerald-100 flex items-center justify-center transition-colors">
+                <FileText className="h-7 w-7 text-emerald-600" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-semibold">出具评估报告</p>
-                <p className="text-xs text-muted-foreground mt-0.5">权威机构认证</p>
+                <p className="text-sm font-bold text-slate-800">出具评估报告</p>
+                <p className="text-xs text-slate-400 mt-1">权威机构法定报告</p>
               </div>
+              <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300 group-hover:text-emerald-400 transition-colors" />
             </button>
           </div>
         </div>
+
+        {/* 重新估价 */}
         <button type="button"
-          className="w-full flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+          className="w-full flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-slate-600 transition-colors py-1"
           onClick={() => { setStep("form"); setResult(null) }}>
           <RotateCcw className="h-3.5 w-3.5" />重新估价
         </button>
@@ -509,79 +559,98 @@ export function GuestValuationWidget() {
     )
   }
 
+  // ── SERVICE ────────────────────────────────────────────────────────────────
   if (step === "service") {
     const orgList: OrgItem[] = serviceType === "bank" ? (banks || []) : (appraisers || [])
     const isLoading = serviceType === "bank" ? !banks : !appraisers
     const isBank = serviceType === "bank"
+
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
+        {/* 顶部导航 */}
+        <div className="flex items-center gap-3">
           <button type="button" onClick={() => setStep("result")}
-            className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
-            ← 返回
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors">
+            <ArrowLeft className="h-4 w-4" />返回结果
           </button>
-          <div className="h-4 w-px bg-border" />
-          <span className="text-sm font-semibold">{isBank ? "🏦 合作银行" : "🏢 认证评估机构"}</span>
+          <div className="h-4 w-px bg-slate-200" />
+          <span className="text-sm font-bold text-slate-800">
+            {isBank ? "合作银行" : "认证评估机构"}
+          </span>
         </div>
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-primary/80 p-4 text-white">
-          <div className="absolute top-0 right-0 w-20 h-20 rounded-full bg-white/10 -translate-y-6 translate-x-6" />
-          <div className="relative flex items-start gap-3">
-            <div className="h-9 w-9 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+
+        {/* 注册引导横幅 */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 p-5 text-white">
+          <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-white/8" />
+          <div className="flex items-start gap-4 relative">
+            <div className="h-11 w-11 rounded-2xl bg-white/15 flex items-center justify-center shrink-0">
               <UserPlus className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-sm">注册会员，一键发起需求</p>
-              <p className="text-xs text-white/75 mt-0.5">
-                注册后可直接向{isBank ? "银行" : "评估机构"}发起{isBank ? "贷款" : "评估"}申请，全程在线跟踪
+              <p className="font-bold text-base leading-tight">注册会员，一键发起申请</p>
+              <p className="text-xs text-blue-100 mt-1.5 leading-relaxed">
+                注册后可直接向{isBank ? "银行" : "评估机构"}发起{isBank ? "贷款" : "评估"}申请，全程在线跟踪进度
               </p>
+              <div className="flex gap-2 mt-3">
+                <Link href="/register?role=customer">
+                  <button type="button" className="h-8 px-4 bg-white text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-50 transition-colors">
+                    免费注册
+                  </button>
+                </Link>
+                <Link href="/login">
+                  <button type="button" className="h-8 px-4 bg-white/15 text-white text-xs font-medium rounded-lg border border-white/25 hover:bg-white/25 transition-colors">
+                    已有账号登录
+                  </button>
+                </Link>
+              </div>
             </div>
           </div>
-          <div className="flex gap-2 mt-3 relative">
-            <Link href="/register?role=customer" className="flex-1">
-              <Button size="sm" variant="secondary" className="w-full h-8 text-xs font-semibold rounded-lg">免费注册</Button>
-            </Link>
-            <Link href="/login" className="flex-1">
-              <Button size="sm" variant="ghost" className="w-full h-8 text-xs text-white border border-white/25 hover:bg-white/10 rounded-lg">已有账号登录</Button>
-            </Link>
-          </div>
         </div>
+
+        {/* 机构列表 */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <Loader2 className="h-7 w-7 animate-spin text-blue-400" />
+            <p className="text-sm text-slate-400">加载中...</p>
           </div>
         ) : (
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-0.5">
+          <div className="space-y-2.5 max-h-80 overflow-y-auto">
             {orgList.map((org) => (
               <div key={org.id}
-                className="group flex items-start gap-3 p-3.5 rounded-2xl border border-border/60 bg-card hover:border-primary/25 hover:shadow-sm transition-all">
-                <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
-                  isBank ? "bg-blue-100" : "bg-emerald-100"
+                className="flex items-center gap-4 p-4 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all">
+                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                  isBank ? "bg-blue-50" : "bg-emerald-50"
                 }`}>
-                  {isBank ? <Landmark className="h-5 w-5 text-blue-600" /> : <Building2 className="h-5 w-5 text-emerald-600" />}
+                  {isBank
+                    ? <Landmark className="h-6 w-6 text-blue-600" />
+                    : <Building2 className="h-6 w-6 text-emerald-600" />
+                  }
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold truncate">{org.name}</p>
+                  <p className="text-sm font-bold text-slate-800 truncate">{org.name}</p>
+                  <div className="flex items-center gap-3 mt-1">
                     {org.rating && renderStars(org.rating)}
+                    {org.contactPhone && (
+                      <div className="flex items-center gap-1">
+                        <Phone className="h-3 w-3 text-slate-400" />
+                        <span className="text-xs text-slate-400">{org.contactPhone}</span>
+                      </div>
+                    )}
                   </div>
-                  {org.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{org.description}</p>}
-                  {org.contactPhone && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <Phone className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">{org.contactPhone}</span>
-                    </div>
-                  )}
                 </div>
                 <Link href="/register?role=customer" className="shrink-0">
-                  <Button size="sm"
-                    className={`h-8 text-xs px-3 rounded-lg ${isBank ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}>
-                    申请<ChevronRight className="h-3 w-3 ml-0.5" />
-                  </Button>
+                  <button type="button" className={`h-9 px-4 text-xs font-bold rounded-xl text-white transition-colors ${
+                    isBank
+                      ? "bg-blue-600 hover:bg-blue-700"
+                      : "bg-emerald-600 hover:bg-emerald-700"
+                  }`}>
+                    申请
+                  </button>
                 </Link>
               </div>
             ))}
             {orgList.length === 0 && (
-              <div className="text-center py-8 text-sm text-muted-foreground">暂无合作机构，请稍后再试</div>
+              <div className="text-center py-10 text-sm text-slate-400">暂无合作机构，请稍后再试</div>
             )}
           </div>
         )}
