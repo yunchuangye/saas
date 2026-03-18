@@ -40,10 +40,11 @@ const propertyTypes = [
 
 // 装修类型
 const decorationTypes = [
-  { value: "rough",    label: "毛坯" },
-  { value: "simple",   label: "简装" },
-  { value: "refined",  label: "精装" },
-  { value: "luxury",   label: "豪装" },
+  { value: "rough",   label: "毛坯" },
+  { value: "simple",  label: "简装" },
+  { value: "medium",  label: "中装" },
+  { value: "fine",    label: "精装" },
+  { value: "luxury",  label: "豪装" },
 ]
 
 // 朝向
