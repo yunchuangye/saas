@@ -18,6 +18,10 @@ import { aiFeaturesRouter } from './ai-features';
 import { newsRouter } from './news';
 import { crawlTemplatesRouter } from './crawl-templates';
 import { settingsRouter } from './settings';
+import { threeLevelReviewRouter } from './three-level-review';
+import { workSheetsRouter } from './work-sheets';
+import { valuationAlertsRouter } from './valuation-alerts';
+import { billingRouter } from './billing';
 
 export const appRouter = router({
   auth: authRouter,
@@ -45,6 +49,10 @@ export const appRouter = router({
   news: newsRouter,
   crawlTemplates: crawlTemplatesRouter,
   settings: settingsRouter,
+  threeLevelReview: threeLevelReviewRouter,
+  workSheets: workSheetsRouter,
+  valuationAlerts: valuationAlertsRouter,
+  billing: billingRouter,
 });
 
 export type AppRouter = typeof appRouter;
