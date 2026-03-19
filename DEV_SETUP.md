@@ -95,6 +95,6 @@ pnpm exec next dev -p 8720
 
 ## 沙盒访问地址（临时）
 
-- **前端**: https://8720-ie54rubdhpn3uqfqzghm1-17da993a.us2.manus.computer
-- **后端**: https://8721-ie54rubdhpn3uqfqzghm1-17da993a.us2.manus.computer
-- **健康检查**: https://8721-ie54rubdhpn3uqfqzghm1-17da993a.us2.manus.computer/health
+- **前端**: https://8720-iec9s3vp06cmavipcpqpp-de9b7fa3.sg1.manus.computer
+- **后端**: https://8721-iec9s3vp06cmavipcpqpp-de9b7fa3.sg1.manus.computer
+- **健康检查**: https://8721-iec9s3vp06cmavipcpqpp-de9b7fa3.sg1.manus.computer/health
