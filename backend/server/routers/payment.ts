@@ -148,7 +148,7 @@ export const paymentRouter = router({
       const whereClause = where ? `WHERE ${where}` : "";
 
       const items = await ctx.db.execute(
-        sql.raw(`SELECT po.*, sp.name as plan_name, o.name as org_name, u.name as user_name
+        sql.raw(`SELECT po.*, sp.name as plan_name, o.name as org_name, u.display_name as user_name
           FROM payment_orders po
           LEFT JOIN subscription_plans sp ON po.plan_code = sp.code
           LEFT JOIN organizations o ON po.org_id = o.id

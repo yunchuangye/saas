@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../lib/trpc";
 import { TRPCError } from "@trpc/server";
-import { sql } from "drizzle-orm";
+import { pool } from "../lib/db";
 import crypto from "crypto";
 
 // 权限检查：仅经纪机构用户可访问
@@ -15,6 +15,12 @@ const brokerProcedure = protectedProcedure.use(({ ctx, next }) => {
   }
   return next({ ctx });
 });
+
+// 辅助函数：执行参数化 SQL
+async function query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+  const [rows] = await pool.execute(sql, params);
+  return rows as T[];
+}
 
 export const brokerRouter = router({
   // ============================================================
@@ -43,26 +49,26 @@ export const brokerRouter = router({
       if (minPrice) { where += " AND l.listing_price >= ?"; params.push(minPrice); }
       if (maxPrice) { where += " AND l.listing_price <= ?"; params.push(maxPrice); }
 
-      const [rows] = await ctx.db.execute(sql.raw(
-        `SELECT l.*, u.name as broker_name FROM listings l LEFT JOIN users u ON l.broker_id = u.id ${where} ORDER BY l.created_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
+      const rows = await query(
+        `SELECT l.*, u.display_name as broker_name FROM broker_listings l LEFT JOIN users u ON l.broker_id = u.id ${where} ORDER BY l.created_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
         params
-      )) as any;
-      const [countRows] = await ctx.db.execute(sql.raw(
-        `SELECT COUNT(*) as total FROM listings l ${where}`, params
-      )) as any;
-      return { items: rows, total: (countRows as any)[0]?.total || 0, page, pageSize };
+      );
+      const countRows = await query<{total: number}>(
+        `SELECT COUNT(*) as total FROM broker_listings l ${where}`, params
+      );
+      return { items: rows, total: countRows[0]?.total || 0, page, pageSize };
     }),
 
   /** 获取房源详情 */
   getListing: brokerProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
-      const [rows] = await ctx.db.execute(sql.raw(
-        `SELECT l.*, u.name as broker_name FROM listings l LEFT JOIN users u ON l.broker_id = u.id WHERE l.id = ? AND l.org_id = ?`,
+      const rows = await query(
+        `SELECT l.*, u.display_name as broker_name FROM broker_listings l LEFT JOIN users u ON l.broker_id = u.id WHERE l.id = ? AND l.org_id = ?`,
         [input.id, ctx.user.orgId || 0]
-      )) as any;
-      if (!(rows as any)[0]) throw new TRPCError({ code: "NOT_FOUND", message: "房源不存在" });
-      return (rows as any)[0];
+      );
+      if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "房源不存在" });
+      return rows[0];
     }),
 
   /** 创建房源 */
@@ -94,10 +100,10 @@ export const brokerRouter = router({
     .mutation(async ({ ctx, input }) => {
       const listingNo = `LS${Date.now()}${Math.floor(Math.random() * 1000)}`;
       const unitPrice = input.listingPrice && input.area ? input.listingPrice / input.area : null;
-      await ctx.db.execute(sql.raw(
-        `INSERT INTO listings (org_id, broker_id, listing_no, title, estate_name, building_name, unit_no, floor, total_floors, area, rooms, orientation, decoration, city, district, address, listing_price, unit_price, ownership_type, ownership_years, is_only_house, has_mortgage, mortgage_amount, cover_image, images, vr_url, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      await query(
+        `INSERT INTO broker_listings (org_id, broker_id, listing_no, title, estate_name, building_name, unit_no, floor, total_floors, area, rooms, orientation, decoration, city, district, address, listing_price, unit_price, ownership_type, ownership_years, is_only_house, has_mortgage, mortgage_amount, cover_image, images, vr_url, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [ctx.user.orgId||0, ctx.user.id, listingNo, input.title, input.estateName||null, input.buildingName||null, input.unitNo||null, input.floor||null, input.totalFloors||null, input.area||null, input.rooms||null, input.orientation||null, input.decoration||null, input.city||null, input.district||null, input.address||null, input.listingPrice||null, unitPrice, input.ownershipType||null, input.ownershipYears||null, input.isOnlyHouse?1:0, input.hasMortgage?1:0, input.mortgageAmount||null, input.coverImage||null, input.images?JSON.stringify(input.images):null, input.vrUrl||null, 'draft']
-      ));
+      );
       return { success: true, listingNo };
     }),
 
@@ -131,19 +137,19 @@ export const brokerRouter = router({
       if (fields.vrUrl !== undefined) { sets.push("vr_url=?"); vals.push(fields.vrUrl); }
       if (sets.length === 0) return { success: true };
       vals.push(id, ctx.user.orgId||0);
-      await ctx.db.execute(sql.raw(`UPDATE listings SET ${sets.join(",")} WHERE id=? AND org_id=?`, vals));
+      await query(`UPDATE broker_listings SET ${sets.join(",")} WHERE id=? AND org_id=?`, vals);
       return { success: true };
     }),
 
   /** 房源统计 */
   listingStats: brokerProcedure
     .query(async ({ ctx }) => {
-      const [rows] = await ctx.db.execute(sql.raw(
-        `SELECT status, COUNT(*) as count FROM listings WHERE org_id=? GROUP BY status`,
+      const rows = await query<{status: string; count: number}>(
+        `SELECT status, COUNT(*) as count FROM broker_listings WHERE org_id=? GROUP BY status`,
         [ctx.user.orgId||0]
-      )) as any;
+      );
       const stats: Record<string, number> = { total: 0, active: 0, reserved: 0, sold: 0, draft: 0 };
-      for (const r of (rows as any[])) { stats[r.status] = r.count; stats.total += r.count; }
+      for (const r of rows) { stats[r.status] = Number(r.count); stats.total += Number(r.count); }
       return stats;
     }),
 
@@ -171,12 +177,12 @@ export const brokerRouter = router({
       if (status) { where += " AND c.status = ?"; params.push(status); }
       if (intentionLevel) { where += " AND c.intention_level = ?"; params.push(intentionLevel); }
       if (keyword) { where += " AND (c.name LIKE ? OR c.phone LIKE ?)"; params.push(`%${keyword}%`, `%${keyword}%`); }
-      const [rows] = await ctx.db.execute(sql.raw(
-        `SELECT c.*, u.name as broker_name FROM broker_clients c LEFT JOIN users u ON c.broker_id = u.id ${where} ORDER BY c.ai_score DESC, c.updated_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
+      const rows = await query(
+        `SELECT c.*, u.display_name as broker_name FROM broker_clients c LEFT JOIN users u ON c.broker_id = u.id ${where} ORDER BY c.ai_score DESC, c.updated_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
         params
-      )) as any;
-      const [countRows] = await ctx.db.execute(sql.raw(`SELECT COUNT(*) as total FROM broker_clients c ${where}`, params)) as any;
-      return { items: rows, total: (countRows as any)[0]?.total || 0, page, pageSize };
+      );
+      const countRows = await query<{total: number}>(`SELECT COUNT(*) as total FROM broker_clients c ${where}`, params);
+      return { items: rows, total: countRows[0]?.total || 0, page, pageSize };
     }),
 
   /** 创建客源 */
@@ -197,12 +203,11 @@ export const brokerRouter = router({
       notes: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // AI意向评分（简单规则：high=80, medium=50, low=20）
       const aiScore = input.intentionLevel === "high" ? 80 : input.intentionLevel === "medium" ? 50 : 20;
-      await ctx.db.execute(sql.raw(
+      await query(
         `INSERT INTO broker_clients (org_id, broker_id, name, phone, wechat, client_type, budget_min, budget_max, area_min, area_max, preferred_rooms, preferred_districts, intention_level, source, ai_score, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [ctx.user.orgId||0, ctx.user.id, input.name, input.phone||null, input.wechat||null, input.clientType, input.budgetMin||null, input.budgetMax||null, input.areaMin||null, input.areaMax||null, input.preferredRooms||null, input.preferredDistricts?JSON.stringify(input.preferredDistricts):null, input.intentionLevel, input.source||null, aiScore, input.notes||null]
-      ));
+      );
       return { success: true };
     }),
 
@@ -225,7 +230,7 @@ export const brokerRouter = router({
       if (fields.nextFollowAt !== undefined) { sets.push("next_follow_at=?"); vals.push(fields.nextFollowAt); }
       if (sets.length === 0) return { success: true };
       vals.push(id, ctx.user.orgId||0);
-      await ctx.db.execute(sql.raw(`UPDATE broker_clients SET ${sets.join(",")} WHERE id=? AND org_id=?`, vals));
+      await query(`UPDATE broker_clients SET ${sets.join(",")} WHERE id=? AND org_id=?`, vals);
       return { success: true };
     }),
 
@@ -241,10 +246,10 @@ export const brokerRouter = router({
       scheduledAt: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      await ctx.db.execute(sql.raw(
+      await query(
         `INSERT INTO viewings (org_id, broker_id, listing_id, client_id, scheduled_at) VALUES (?,?,?,?,?)`,
         [ctx.user.orgId||0, ctx.user.id, input.listingId, input.clientId, input.scheduledAt]
-      ));
+      );
       return { success: true };
     }),
 
@@ -261,12 +266,12 @@ export const brokerRouter = router({
       let where = "WHERE v.org_id = ? AND v.broker_id = ?";
       const params: any[] = [ctx.user.orgId||0, ctx.user.id];
       if (status) { where += " AND v.status = ?"; params.push(status); }
-      const [rows] = await ctx.db.execute(sql.raw(
-        `SELECT v.*, l.title as listing_title, l.address as listing_address, c.name as client_name, c.phone as client_phone FROM viewings v LEFT JOIN listings l ON v.listing_id = l.id LEFT JOIN broker_clients c ON v.client_id = c.id ${where} ORDER BY v.scheduled_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
+      const rows = await query(
+        `SELECT v.*, l.title as listing_title, l.address as listing_address, c.name as client_name, c.phone as client_phone FROM viewings v LEFT JOIN broker_listings l ON v.listing_id = l.id LEFT JOIN broker_clients c ON v.client_id = c.id ${where} ORDER BY v.scheduled_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
         params
-      )) as any;
-      const [countRows] = await ctx.db.execute(sql.raw(`SELECT COUNT(*) as total FROM viewings v ${where}`, params)) as any;
-      return { items: rows, total: (countRows as any)[0]?.total || 0, page, pageSize };
+      );
+      const countRows = await query<{total: number}>(`SELECT COUNT(*) as total FROM viewings v ${where}`, params);
+      return { items: rows, total: countRows[0]?.total || 0, page, pageSize };
     }),
 
   /** 更新带看状态 */
@@ -280,10 +285,10 @@ export const brokerRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const { id, status, feedback, clientRating, followUp } = input;
-      await ctx.db.execute(sql.raw(
+      await query(
         `UPDATE viewings SET status=?, feedback=?, client_rating=?, follow_up=?, actual_at=? WHERE id=? AND org_id=?`,
         [status, feedback||null, clientRating||null, followUp||null, status==="completed"?new Date():null, id, ctx.user.orgId||0]
-      ));
+      );
       return { success: true };
     }),
 
@@ -306,12 +311,12 @@ export const brokerRouter = router({
       const params: any[] = [ctx.user.orgId||0];
       if (status) { where += " AND t.status = ?"; params.push(status); }
       if (keyword) { where += " AND (t.transaction_no LIKE ? OR l.title LIKE ?)"; params.push(`%${keyword}%`, `%${keyword}%`); }
-      const [rows] = await ctx.db.execute(sql.raw(
-        `SELECT t.*, l.title as listing_title, l.address as listing_address, l.area as listing_area, sc.name as seller_name, bc.name as buyer_name FROM transactions t LEFT JOIN listings l ON t.listing_id = l.id LEFT JOIN broker_clients sc ON t.seller_client_id = sc.id LEFT JOIN broker_clients bc ON t.buyer_client_id = bc.id ${where} ORDER BY t.created_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
+      const rows = await query(
+        `SELECT t.*, l.title as listing_title, l.address as listing_address, l.area as listing_area, sc.name as seller_name, bc.name as buyer_name FROM transactions t LEFT JOIN broker_listings l ON t.listing_id = l.id LEFT JOIN broker_clients sc ON t.seller_client_id = sc.id LEFT JOIN broker_clients bc ON t.buyer_client_id = bc.id ${where} ORDER BY t.created_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
         params
-      )) as any;
-      const [countRows] = await ctx.db.execute(sql.raw(`SELECT COUNT(*) as total FROM transactions t LEFT JOIN listings l ON t.listing_id = l.id ${where}`, params)) as any;
-      return { items: rows, total: (countRows as any)[0]?.total || 0, page, pageSize };
+      );
+      const countRows = await query<{total: number}>(`SELECT COUNT(*) as total FROM transactions t LEFT JOIN broker_listings l ON t.listing_id = l.id ${where}`, params);
+      return { items: rows, total: countRows[0]?.total || 0, page, pageSize };
     }),
 
   /** 创建交易 */
@@ -331,12 +336,12 @@ export const brokerRouter = router({
       const transactionNo = `TX${Date.now()}${Math.floor(Math.random()*1000)}`;
       const totalCommission = input.agreedPrice && input.commissionRate ? input.agreedPrice * input.commissionRate : null;
       const halfComm = totalCommission ? totalCommission / 2 : null;
-      await ctx.db.execute(sql.raw(
+      await query(
         `INSERT INTO transactions (org_id, transaction_no, listing_id, seller_client_id, buyer_client_id, seller_broker_id, buyer_broker_id, transaction_type, agreed_price, deposit_amount, down_payment, loan_amount, commission_rate, total_commission, seller_commission, buyer_commission) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [ctx.user.orgId||0, transactionNo, input.listingId, input.sellerClientId||null, input.buyerClientId||null, ctx.user.id, ctx.user.id, input.transactionType, input.agreedPrice||null, input.depositAmount||null, input.downPayment||null, input.loanAmount||null, input.commissionRate||null, totalCommission, halfComm, halfComm]
-      ));
+      );
       // 更新房源状态为已预订
-      await ctx.db.execute(sql.raw(`UPDATE listings SET status='reserved' WHERE id=? AND org_id=?`, [input.listingId, ctx.user.orgId||0]));
+      await query(`UPDATE broker_listings SET status='reserved' WHERE id=? AND org_id=?`, [input.listingId, ctx.user.orgId||0]);
       return { success: true, transactionNo };
     }),
 
@@ -362,12 +367,12 @@ export const brokerRouter = router({
       if (input.contractFileUrl) { sets.push("contract_file_url=?"); vals.push(input.contractFileUrl); }
       if (input.notes) { sets.push("notes=?"); vals.push(input.notes); }
       vals.push(input.id, ctx.user.orgId||0);
-      await ctx.db.execute(sql.raw(`UPDATE transactions SET ${sets.join(",")} WHERE id=? AND org_id=?`, vals));
+      await query(`UPDATE transactions SET ${sets.join(",")} WHERE id=? AND org_id=?`, vals);
       // 交易完成时更新房源为已售
       if (input.status === "completed") {
-        const [txRows] = await ctx.db.execute(sql.raw(`SELECT listing_id FROM transactions WHERE id=?`, [input.id])) as any;
-        if ((txRows as any)[0]) {
-          await ctx.db.execute(sql.raw(`UPDATE listings SET status='sold' WHERE id=?`, [(txRows as any)[0].listing_id]));
+        const txRows = await query<{listing_id: number}>(`SELECT listing_id FROM transactions WHERE id=?`, [input.id]);
+        if (txRows[0]) {
+          await query(`UPDATE broker_listings SET status='sold' WHERE id=?`, [txRows[0].listing_id]);
         }
       }
       return { success: true };
@@ -376,14 +381,14 @@ export const brokerRouter = router({
   /** 交易统计 */
   transactionStats: brokerProcedure
     .query(async ({ ctx }) => {
-      const [rows] = await ctx.db.execute(sql.raw(
+      const rows = await query<{status: string; count: number; total_amount: number; total_commission: number}>(
         `SELECT status, COUNT(*) as count, SUM(agreed_price) as total_amount, SUM(total_commission) as total_commission FROM transactions WHERE org_id=? GROUP BY status`,
         [ctx.user.orgId||0]
-      )) as any;
+      );
       const stats: any = { total: 0, totalAmount: 0, totalCommission: 0, byStatus: {} };
-      for (const r of (rows as any[])) {
+      for (const r of rows) {
         stats.byStatus[r.status] = { count: r.count, amount: r.total_amount, commission: r.total_commission };
-        stats.total += r.count;
+        stats.total += Number(r.count);
         stats.totalAmount += Number(r.total_amount || 0);
         stats.totalCommission += Number(r.total_commission || 0);
       }
@@ -409,10 +414,10 @@ export const brokerRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const linkCode = crypto.randomBytes(12).toString("hex");
-      await ctx.db.execute(sql.raw(
+      await query(
         `INSERT INTO marketing_links (org_id, broker_id, link_code, link_type, listing_id, report_id, title, description, cover_image, has_watermark, require_phone, expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
         [ctx.user.orgId||0, ctx.user.id, linkCode, input.linkType, input.listingId||null, input.reportId||null, input.title||null, input.description||null, input.coverImage||null, input.hasWatermark?1:0, input.requirePhone?1:0, input.expiresAt||null]
-      ));
+      );
       return { success: true, linkCode, shareUrl: `/share/${linkCode}` };
     }),
 
@@ -425,26 +430,26 @@ export const brokerRouter = router({
     .query(async ({ ctx, input }) => {
       const { page, pageSize } = input;
       const offset = (page - 1) * pageSize;
-      const [rows] = await ctx.db.execute(sql.raw(
-        `SELECT ml.*, l.title as listing_title FROM marketing_links ml LEFT JOIN listings l ON ml.listing_id = l.id WHERE ml.broker_id=? ORDER BY ml.created_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
+      const rows = await query(
+        `SELECT ml.*, l.title as listing_title FROM marketing_links ml LEFT JOIN broker_listings l ON ml.listing_id = l.id WHERE ml.broker_id=? ORDER BY ml.created_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
         [ctx.user.id]
-      )) as any;
-      const [countRows] = await ctx.db.execute(sql.raw(`SELECT COUNT(*) as total FROM marketing_links WHERE broker_id=?`, [ctx.user.id])) as any;
-      return { items: rows, total: (countRows as any)[0]?.total || 0, page, pageSize };
+      );
+      const countRows = await query<{total: number}>(`SELECT COUNT(*) as total FROM marketing_links WHERE broker_id=?`, [ctx.user.id]);
+      return { items: rows, total: countRows[0]?.total || 0, page, pageSize };
     }),
 
   /** 营销链接统计汇总 */
   marketingStats: brokerProcedure
     .query(async ({ ctx }) => {
-      const [rows] = await ctx.db.execute(sql.raw(
+      const rows = await query(
         `SELECT SUM(view_count) as total_views, SUM(unique_view_count) as total_unique_views, SUM(lead_count) as total_leads, COUNT(*) as total_links FROM marketing_links WHERE broker_id=?`,
         [ctx.user.id]
-      )) as any;
-      const [visitRows] = await ctx.db.execute(sql.raw(
+      );
+      const visitRows = await query(
         `SELECT DATE(v.created_at) as date, COUNT(*) as visits FROM marketing_link_visits v JOIN marketing_links ml ON v.link_id = ml.id WHERE ml.broker_id=? AND v.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) GROUP BY DATE(v.created_at) ORDER BY date`,
         [ctx.user.id]
-      )) as any;
-      return { summary: (rows as any)[0], trend: visitRows };
+      );
+      return { summary: rows[0], trend: visitRows };
     }),
 
   /** 记录营销链接访问（公开接口） */
@@ -456,18 +461,18 @@ export const brokerRouter = router({
       durationSeconds: z.number().default(0),
     }))
     .mutation(async ({ ctx, input }) => {
-      const [linkRows] = await ctx.db.execute(sql.raw(`SELECT id FROM marketing_links WHERE link_code=? AND is_active=1`, [input.linkCode])) as any;
-      if (!(linkRows as any)[0]) throw new TRPCError({ code: "NOT_FOUND", message: "链接不存在或已失效" });
-      const linkId = (linkRows as any)[0].id;
+      const linkRows = await query<{id: number}>(`SELECT id FROM marketing_links WHERE link_code=? AND is_active=1`, [input.linkCode]);
+      if (!linkRows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "链接不存在或已失效" });
+      const linkId = linkRows[0].id;
       const isLead = !!input.visitorPhone;
-      await ctx.db.execute(sql.raw(
+      await query(
         `INSERT INTO marketing_link_visits (link_id, visitor_phone, visitor_name, duration_seconds, is_lead) VALUES (?,?,?,?,?)`,
         [linkId, input.visitorPhone||null, input.visitorName||null, input.durationSeconds, isLead?1:0]
-      ));
-      await ctx.db.execute(sql.raw(
+      );
+      await query(
         `UPDATE marketing_links SET view_count=view_count+1, unique_view_count=unique_view_count+1${isLead?", lead_count=lead_count+1":""} WHERE id=?`,
         [linkId]
-      ));
+      );
       return { success: true };
     }),
 
@@ -475,10 +480,10 @@ export const brokerRouter = router({
   getLinkLeads: brokerProcedure
     .input(z.object({ linkCode: z.string() }))
     .query(async ({ ctx, input }) => {
-      const [rows] = await ctx.db.execute(sql.raw(
+      const rows = await query(
         `SELECT v.* FROM marketing_link_visits v JOIN marketing_links ml ON v.link_id = ml.id WHERE ml.link_code=? AND ml.broker_id=? AND v.is_lead=1 ORDER BY v.created_at DESC`,
         [input.linkCode, ctx.user.id]
-      )) as any;
+      );
       return rows;
     }),
 
@@ -491,15 +496,15 @@ export const brokerRouter = router({
     .query(async ({ ctx }) => {
       const orgId = ctx.user.orgId || 0;
       const brokerId = ctx.user.id;
-      const [listingStats] = await ctx.db.execute(sql.raw(`SELECT COUNT(*) as total, SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) as active, SUM(CASE WHEN status='sold' THEN 1 ELSE 0 END) as sold FROM listings WHERE org_id=?`, [orgId])) as any;
-      const [clientStats] = await ctx.db.execute(sql.raw(`SELECT COUNT(*) as total, SUM(CASE WHEN intention_level='high' THEN 1 ELSE 0 END) as high_intention FROM broker_clients WHERE broker_id=?`, [brokerId])) as any;
-      const [txStats] = await ctx.db.execute(sql.raw(`SELECT COUNT(*) as total, SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed, SUM(CASE WHEN status='completed' THEN total_commission ELSE 0 END) as total_commission FROM transactions WHERE org_id=?`, [orgId])) as any;
-      const [viewingStats] = await ctx.db.execute(sql.raw(`SELECT COUNT(*) as scheduled FROM viewings WHERE broker_id=? AND status='scheduled' AND scheduled_at >= NOW()`, [brokerId])) as any;
+      const listingStats = await query(`SELECT COUNT(*) as total, SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) as active, SUM(CASE WHEN status='sold' THEN 1 ELSE 0 END) as sold FROM broker_listings WHERE org_id=?`, [orgId]);
+      const clientStats = await query(`SELECT COUNT(*) as total, SUM(CASE WHEN intention_level='high' THEN 1 ELSE 0 END) as high_intention FROM broker_clients WHERE broker_id=?`, [brokerId]);
+      const txStats = await query(`SELECT COUNT(*) as total, SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed, SUM(CASE WHEN status='completed' THEN total_commission ELSE 0 END) as total_commission FROM transactions WHERE org_id=?`, [orgId]);
+      const viewingStats = await query(`SELECT COUNT(*) as scheduled FROM viewings WHERE broker_id=? AND status='scheduled' AND scheduled_at >= NOW()`, [brokerId]);
       return {
-        listings: (listingStats as any)[0],
-        clients: (clientStats as any)[0],
-        transactions: (txStats as any)[0],
-        viewings: (viewingStats as any)[0],
+        listings: listingStats[0],
+        clients: clientStats[0],
+        transactions: txStats[0],
+        viewings: viewingStats[0],
       };
     }),
 });

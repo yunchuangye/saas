@@ -127,7 +127,7 @@ export const exportsRouter = router({
     .query(async ({ ctx, input }) => {
       const offset = (input.page - 1) * input.pageSize;
       const items = await ctx.db.execute(sql`
-        SELECT et.*, u.name as user_name, o.name as org_name
+        SELECT et.*, u.display_name as user_name, o.name as org_name
         FROM export_tasks et
         LEFT JOIN users u ON et.user_id = u.id
         LEFT JOIN organizations o ON et.org_id = o.id

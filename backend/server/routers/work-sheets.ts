@@ -40,7 +40,7 @@ export const workSheetsRouter = router({
       }
 
       const result = await ctx.db.execute(
-        sql`SELECT w.*, u.name as author_name
+        sql`SELECT w.*, u.display_name as author_name
         FROM work_sheets w
         LEFT JOIN users u ON w.author_id = u.id
         WHERE ${whereClause}
@@ -59,7 +59,7 @@ export const workSheetsRouter = router({
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
       const result = await ctx.db.execute(
-        sql`SELECT w.*, u.name as author_name
+        sql`SELECT w.*, u.display_name as author_name
         FROM work_sheets w
         LEFT JOIN users u ON w.author_id = u.id
         WHERE w.id = ${input.id}`

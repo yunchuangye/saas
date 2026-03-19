@@ -195,7 +195,7 @@ export const authRouter = router({
         phone: z.string().optional(),
         email: z.string().email().optional(),
         displayName: z.string().optional(),
-        role: z.enum(["appraiser", "bank", "investor", "customer"]).default("customer"),
+        role: z.enum(["appraiser", "bank", "investor", "customer", "broker"]).default("customer"),
         captchaId: z.string().min(1, "验证码 ID 不能为空"),
         captchaCode: z.string().min(1, "请输入验证码"),
       })

@@ -7,6 +7,7 @@ import { users } from "./schema";
 import { eq } from "drizzle-orm";
 
 const JWT_SECRET = process.env.JWT_SECRET || "gujia-secret-key-2026";
+const PLATFORM_JWT_SECRET = process.env.PLATFORM_JWT_SECRET || "platform-admin-secret-2026";
 
 export type UserPayload = {
   id: number;
@@ -24,11 +25,17 @@ export async function createContext({ req, res }: CreateExpressContextOptions) {
     req.headers.authorization?.replace("Bearer ", "");
 
   if (token) {
+    // 先尝试普通用户 JWT，再尝试平台超管 JWT
     try {
       const payload = jwt.verify(token, JWT_SECRET) as UserPayload;
       user = payload;
     } catch {
-      // token 无效，忽略
+      try {
+        const payload = jwt.verify(token, PLATFORM_JWT_SECRET) as UserPayload;
+        user = payload;
+      } catch {
+        // token 无效，忽略
+      }
     }
   }
 

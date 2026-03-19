@@ -233,7 +233,7 @@ export const threeLevelReviewRouter = router({
         sql`SELECT r.id, r.report_no, r.title, r.status, r.review_level,
           r.internal_review_status, r.peer_review_status, r.chief_review_status,
           r.created_at, r.submitted_at,
-          u.name as author_name
+          u.display_name as author_name
         FROM reports r
         LEFT JOIN users u ON r.author_id = u.id
         WHERE r.review_level > 0 AND r.review_level < 4

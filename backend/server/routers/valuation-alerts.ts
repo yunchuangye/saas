@@ -72,7 +72,7 @@ export const valuationAlertsRouter = router({
       if (input.projectId) whereClause = sql`${whereClause} AND va.project_id = ${input.projectId}`;
 
       const result = await ctx.db.execute(
-        sql`SELECT va.*, p.title as project_title, u.name as resolver_name
+        sql`SELECT va.*, p.title as project_title, u.display_name as resolver_name
         FROM valuation_alerts va
         LEFT JOIN projects p ON va.project_id = p.id
         LEFT JOIN users u ON va.resolved_by = u.id
