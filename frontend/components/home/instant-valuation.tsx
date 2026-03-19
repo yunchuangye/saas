@@ -333,18 +333,18 @@ export function InstantValuation() {
                 <span className="text-destructive ml-1">*</span>
               </Label>
               {selectedEstate ? (
-                <div className="flex items-center gap-3 p-3 rounded-lg border-2 border-primary bg-primary/5">
-                  <Building2 className="h-5 w-5 text-primary shrink-0" />
+                <div className="flex items-start gap-3 p-3 rounded-lg border-2 border-primary bg-primary/5">
+                  <Building2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-base truncate">{selectedEstate.name}</div>
+                    <div className="font-semibold text-base leading-snug break-all">{selectedEstate.name}</div>
                     {selectedEstate.address && (
-                      <div className="text-sm text-muted-foreground truncate">{selectedEstate.address}</div>
+                      <div className="text-sm text-muted-foreground mt-0.5 break-all">{selectedEstate.address}</div>
                     )}
                   </div>
-                  <Badge variant="secondary" className="text-xs shrink-0">已匹配</Badge>
+                  <Badge variant="secondary" className="text-xs shrink-0 mt-0.5">已匹配</Badge>
                   <button
                     onClick={() => { setSelectedEstate(null); setEstateSearch("") }}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-muted-foreground hover:text-foreground transition-colors shrink-0 mt-0.5"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -353,7 +353,7 @@ export function InstantValuation() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
                   <Input
-                    placeholder={selectedCityId ? "输入楼盘名称搜索，如：万科城" : "请先选择城市"}
+                    placeholder={selectedCityId ? "输入楼盘名称或拼音缩写，如：万科城 / WKC" : "请先选择城市"}
                     value={estateSearch}
                     onChange={(e) => {
                       setEstateSearch(e.target.value)
@@ -367,11 +367,11 @@ export function InstantValuation() {
                     <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
                   )}
                   {showEstateDrop && estates.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {estates.map((estate) => (
+                    <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-72 overflow-y-auto">
+                      {(estates as any[]).map((estate: any) => (
                         <button
                           key={estate.id}
-                          className="w-full flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+                          className="w-full flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left border-b last:border-b-0"
                           onClick={() => {
                             setSelectedEstate(estate)
                             setEstateSearch("")
@@ -379,10 +379,13 @@ export function InstantValuation() {
                           }}
                         >
                           <Building2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                          <div className="min-w-0">
-                            <div className="font-medium text-base truncate">{estate.name}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-base leading-snug break-all">{estate.name}</div>
+                            {estate.pinyin && (
+                              <div className="text-xs text-muted-foreground/70 mt-0.5 font-mono">{estate.pinyin}</div>
+                            )}
                             {estate.address && (
-                              <div className="text-sm text-muted-foreground truncate">{estate.address}</div>
+                              <div className="text-sm text-muted-foreground mt-0.5 break-all">{estate.address}</div>
                             )}
                             {estate.totalUnits && (
                               <div className="text-xs text-muted-foreground mt-0.5">{estate.totalUnits} 套</div>
@@ -390,6 +393,11 @@ export function InstantValuation() {
                           </div>
                         </button>
                       ))}
+                    </div>
+                  )}
+                  {showEstateDrop && !estatesFetching && estateSearch.length >= 1 && estates.length === 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg px-4 py-6 text-center text-muted-foreground text-sm">
+                      未找到匹配楼盘，请尝试其他关键词
                     </div>
                   )}
                 </div>

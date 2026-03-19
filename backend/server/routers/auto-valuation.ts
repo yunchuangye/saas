@@ -556,10 +556,16 @@ export const guestValuationRouter = router({
     }))
     .query(async ({ input }) => {
       const kw = `%${input.keyword}%`
+      // 判断是否为纯字母输入（拼音首字母缩写搜索）
+      const isAlpha = /^[a-zA-Z]+$/.test(input.keyword)
+      const kwUpper = input.keyword.toUpperCase()
+      const searchCond = isAlpha
+        ? or(like(estates.pinyin, `${kwUpper}%`), like(estates.name, kw))
+        : or(like(estates.name, kw), like(estates.address, kw))
       const conditions: any[] = [
         eq(estates.cityId, input.cityId),
         eq(estates.isActive, true),
-        or(like(estates.name, kw), like(estates.address, kw)),
+        searchCond,
       ]
       if (input.districtId) {
         conditions.push(eq(estates.districtId, input.districtId))
@@ -567,6 +573,7 @@ export const guestValuationRouter = router({
       const rows = await db.select({
         id: estates.id,
         name: estates.name,
+        pinyin: estates.pinyin,
         address: estates.address,
         districtId: estates.districtId,
         developer: estates.developer,
