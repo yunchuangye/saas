@@ -29,6 +29,15 @@ import {
   ShieldAlert,
   Newspaper,
   BellRing,
+  Stamp,
+  BookOpen,
+  ListChecks,
+  AlertTriangle,
+  CreditCard,
+  Key,
+  Globe,
+  Image,
+  Users2,
   type LucideIcon,
 } from "lucide-react"
 
@@ -133,6 +142,15 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       ],
     },
     {
+      title: "合规工具",
+      items: [
+        { title: "三级审核", href: "/dashboard/appraiser/reports/three-level-review", icon: ListChecks },
+        { title: "工作底稿", href: "/dashboard/appraiser/work-sheets", icon: BookOpen },
+        { title: "签章管理", href: "/dashboard/appraiser/seals", icon: Stamp },
+        { title: "批量估价", href: "/dashboard/appraiser/batch-valuation", icon: Calculator },
+      ],
+    },
+    {
       title: "消息通知",
       items: [
         { title: "系统通知", href: "/dashboard/appraiser/notifications", icon: Bell, badge: 8 },
@@ -143,6 +161,17 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       title: "营销推广",
       items: [
         { title: "营销中心", href: "/dashboard/appraiser/sales", icon: Megaphone },
+        { title: "我的微站", href: "/dashboard/appraiser/marketing/website", icon: Globe },
+        { title: "海报生成", href: "/dashboard/appraiser/marketing/poster", icon: Image },
+        { title: "营销活动", href: "/dashboard/appraiser/marketing/campaigns", icon: Megaphone },
+        { title: "线索管理", href: "/dashboard/appraiser/marketing/leads", icon: Users2 },
+      ],
+    },
+    {
+      title: "订阅与计费",
+      items: [
+        { title: "订阅计划", href: "/dashboard/org/billing", icon: CreditCard },
+        { title: "API 密鑰", href: "/dashboard/org/api-keys", icon: Key },
       ],
     },
   ],
@@ -183,6 +212,13 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
         { title: "估价记录", href: "/dashboard/bank/reports/auto-valuation", icon: Calculator },
         { title: "报告审核", href: "/dashboard/bank/reports/review", icon: FileText, badge: 4 },
         { title: "报告归档", href: "/dashboard/bank/reports/archive", icon: UserCheck },
+      ],
+    },
+    {
+      title: "订阅与计费",
+      items: [
+        { title: "订阅计划", href: "/dashboard/org/billing", icon: CreditCard },
+        { title: "API 密鑰", href: "/dashboard/org/api-keys", icon: Key },
       ],
     },
     {
@@ -229,6 +265,13 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
         { title: "估价记录", href: "/dashboard/investor/reports/auto-valuation", icon: Calculator },
         { title: "报告审核", href: "/dashboard/investor/reports/review", icon: FileText, badge: 4 },
         { title: "报告归档", href: "/dashboard/investor/reports/archive", icon: UserCheck },
+      ],
+    },
+    {
+      title: "订阅与计费",
+      items: [
+        { title: "订阅计划", href: "/dashboard/org/billing", icon: CreditCard },
+        { title: "API 密鑰", href: "/dashboard/org/api-keys", icon: Key },
       ],
     },
     {
@@ -331,6 +374,14 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       items: [
         { title: "新闻管理", href: "/dashboard/admin/news", icon: Newspaper },
         { title: "通知管理", href: "/dashboard/admin/notifications", icon: BellRing },
+      ],
+    },
+    {
+      title: "风控工具",
+      items: [
+        { title: "签章审核", href: "/dashboard/admin/seals", icon: Stamp },
+        { title: "偏离度预警", href: "/dashboard/admin/valuation-alerts", icon: AlertTriangle },
+        { title: "SaaS 订阅", href: "/dashboard/org/billing", icon: CreditCard },
       ],
     },
     {
