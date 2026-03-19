@@ -960,4 +960,89 @@ export const salesRouter = router({
       }));
       return { leaderboard, currentUserRank: 4, currentUserReward: 850 };
     }),
+
+  // ══════════════════════════════════════════
+  // Admin 管理接口
+  // ══════════════════════════════════════════
+
+  /** Admin: 获取推广活动列表 */
+  listCampaigns: protectedProcedure
+    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(20) }))
+    .query(async ({ input }) => {
+      const offset = (input.page - 1) * input.pageSize;
+      const allCampaigns = Array.from(campaignStore.values());
+      const total = allCampaigns.length;
+      const items = allCampaigns.slice(offset, offset + input.pageSize);
+      return { items, total, page: input.page, pageSize: input.pageSize };
+    }),
+
+  /** Admin: 创建推广活动 */
+  createCampaign: protectedProcedure
+    .input(z.object({
+      title: z.string().min(1),
+      description: z.string().optional(),
+      targetRole: z.enum(["all", "customer", "bank", "investor", "appraiser"]).default("all"),
+      discountType: z.enum(["percent", "fixed"]).default("percent"),
+      discountValue: z.number().min(0).default(0),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const id = String(campaignIdSeq++);
+      const campaign = {
+        id,
+        ...input,
+        status: "active" as const,
+        usedCount: 0,
+        createdAt: new Date().toISOString(),
+        createdBy: ctx.user.id,
+      };
+      campaignStore.set(id, campaign);
+      return { success: true, campaign };
+    }),
+
+  /** Admin: 获取邀请码列表 */
+  listInvites: protectedProcedure
+    .input(z.object({ page: z.number().default(1), pageSize: z.number().default(50) }))
+    .query(async ({ input }) => {
+      const offset = (input.page - 1) * input.pageSize;
+      const allInvites = Array.from(inviteStore.entries()).map(([code, inv]) => ({
+        id: code,
+        code,
+        inviterName: inv.inviterName ?? null,
+        usedCount: inv.usedCount ?? 0,
+        maxUses: inv.maxUses ?? null,
+        rewardAmount: inv.totalReward ?? 0,
+        status: inv.status ?? "active",
+        createdAt: inv.createdAt ?? null,
+      }));
+      const total = allInvites.length;
+      const items = allInvites.slice(offset, offset + input.pageSize);
+      return { items, total, page: input.page, pageSize: input.pageSize };
+    }),
+
+  /** Admin: 获取线索列表 */
+  listLeads: protectedProcedure
+    .input(z.object({
+      page: z.number().default(1),
+      pageSize: z.number().default(50),
+      stage: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      const offset = (input.page - 1) * input.pageSize;
+      const allLeads = Array.from(leadStore.values()).flat().map((l: any, idx: number) => ({
+        id: l.id ?? idx,
+        name: l.name ?? l.visitorId ?? `访客${l.id ?? idx}`,
+        phone: l.phone ?? null,
+        email: l.email ?? null,
+        source: l.source ?? l.campaignId ?? null,
+        stage: l.stage ?? (l.action === "register" ? "qualified" : "new"),
+        notes: l.notes ?? null,
+        createdAt: l.createdAt ?? null,
+      }));
+      const filtered = input.stage ? allLeads.filter(l => l.stage === input.stage) : allLeads;
+      const total = filtered.length;
+      const items = filtered.slice(offset, offset + input.pageSize);
+      return { items, total, page: input.page, pageSize: input.pageSize };
+    }),
 });

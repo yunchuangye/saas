@@ -382,7 +382,7 @@ app.use('/uploads', express.static(UPLOAD_DIR));
  * POST /api/upload
  * 上传单个文件，支持本地存储和 OSS
  */
-app.post('/api/upload', (req, res, next) => {
+app.post('/api/upload', (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: '未登录，请先登录' });
   try {
@@ -422,6 +422,71 @@ app.get('/api/upload/config', (_req, res) => {
     storageMode: isOssEnabled() ? 'oss' : 'local',
     maxFileSize: 10 * 1024 * 1024,
     allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt'],
+  });
+});
+
+// ============================================================
+// SSE 实时通知端点
+// ============================================================
+// 存储所有活跃的 SSE 连接: userId -> Response[]
+const sseClients = new Map<number, express.Response[]>();
+
+/**
+ * 向指定用户推送 SSE 事件（供其他模块调用）
+ */
+export function pushNotification(userId: number, data: any) {
+  const clients = sseClients.get(userId);
+  if (clients && clients.length > 0) {
+    const msg = `data: ${JSON.stringify(data)}\n\n`;
+    clients.forEach(res => {
+      try { res.write(msg); } catch {}
+    });
+  }
+}
+
+/**
+ * GET /api/sse/notifications
+ * 建立 SSE 连接，接收实时通知推送
+ */
+app.get('/api/sse/notifications', (req, res) => {
+  const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: '未登录' });
+
+  let userId: number;
+  try {
+    const payload = jwt.verify(token, JWT_SECRET_KEY) as any;
+    userId = payload.id;
+  } catch {
+    return res.status(401).json({ error: '登录已过期' });
+  }
+
+  // 设置 SSE 响应头
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  // 发送初始连接成功事件
+  res.write(`data: ${JSON.stringify({ type: 'connected', message: '实时通知已连接' })}\n\n`);
+
+  // 注册连接
+  const clients = sseClients.get(userId) ?? [];
+  clients.push(res);
+  sseClients.set(userId, clients);
+
+  // 心跳保活（每30秒）
+  const heartbeat = setInterval(() => {
+    try { res.write(': heartbeat\n\n'); } catch { clearInterval(heartbeat); }
+  }, 30000);
+
+  // 连接关闭时清理
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    const list = sseClients.get(userId) ?? [];
+    const idx = list.indexOf(res);
+    if (idx !== -1) list.splice(idx, 1);
+    if (list.length === 0) sseClients.delete(userId);
   });
 });
 

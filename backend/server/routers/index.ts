@@ -17,6 +17,7 @@ import { szfdcRouter } from './szfdc';
 import { aiFeaturesRouter } from './ai-features';
 import { newsRouter } from './news';
 import { crawlTemplatesRouter } from './crawl-templates';
+import { settingsRouter } from './settings';
 
 export const appRouter = router({
   auth: authRouter,
@@ -43,6 +44,7 @@ export const appRouter = router({
   aiFeatures: aiFeaturesRouter,
   news: newsRouter,
   crawlTemplates: crawlTemplatesRouter,
+  settings: settingsRouter,
 });
 
 export type AppRouter = typeof appRouter;

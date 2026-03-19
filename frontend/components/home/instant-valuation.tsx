@@ -132,7 +132,7 @@ export function InstantValuation() {
   const districts = (districtsData as any)?.json ?? districtsData ?? []
 
   const { data: estatesData, isFetching: estatesFetching } = trpc.guestValuation.searchEstates.useQuery(
-    { cityId: selectedCityId!, keyword: estateSearch, limit: 10 },
+    { cityId: selectedCityId!, keyword: estateSearch },
     { enabled: !!selectedCityId && estateSearch.length >= 1 }
   )
   const estates: EstateOption[] = (estatesData as any)?.json ?? estatesData ?? []

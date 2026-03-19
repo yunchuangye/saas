@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../lib/trpc";
-import { projects, bids, users, organizations, type InsertProject, type InsertBid } from "../lib/schema";
+import { projects, bids, users, organizations, notifications, type InsertProject, type InsertBid } from "../lib/schema";
 import { eq, and, desc, like, count, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
@@ -220,12 +220,65 @@ export const projectsRouter = router({
 
   // 更新项目状态
   updateStatus: protectedProcedure
-    .input(z.object({ id: z.number(), status: z.enum(["bidding", "awarded", "active", "surveying", "reporting", "reviewing", "completed", "cancelled"]) }))
+    .input(z.object({
+      id: z.number(),
+      status: z.enum(["pending", "bidding", "awarded", "active", "surveying", "reporting", "reviewing", "completed", "cancelled"]),
+      remark: z.string().optional(),
+    }))
     .mutation(async ({ input, ctx }) => {
+      // 获取项目信息
+      const [project] = await ctx.db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, input.id))
+        .limit(1);
+      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "项目不存在" });
+
+      // 更新状态
       await ctx.db
         .update(projects)
         .set({ status: input.status, updatedAt: new Date() } as Partial<InsertProject>)
         .where(eq(projects.id, input.id));
+
+      // 状态变更标签映射
+      const statusLabels: Record<string, string> = {
+        pending: "待竞价", bidding: "竞价中", awarded: "已中标",
+        active: "进行中", surveying: "现场勘察", reporting: "报告编制",
+        reviewing: "审核中", completed: "已完成", cancelled: "已取消",
+      };
+      const statusLabel = statusLabels[input.status] ?? input.status;
+
+      // 写入数据库通知记录
+      try {
+        await ctx.db.insert(notifications).values({
+          userId: project.clientId,
+          title: `项目状态更新`,
+          content: `您的项目「${project.title}」状态已更新为「${statusLabel}」`,
+          type: 'project',
+          relatedId: input.id,
+          relatedType: 'project',
+        } as any);
+      } catch {}
+
+      // 向客户推送 SSE 实时通知
+      try {
+        const { pushNotification } = await import('../index');
+        const notifData = {
+          type: 'project_status_changed',
+          projectId: input.id,
+          projectTitle: project.title,
+          oldStatus: project.status,
+          newStatus: input.status,
+          statusLabel,
+          message: `项目「${project.title}」状态已更新为「${statusLabel}」`,
+          timestamp: new Date().toISOString(),
+        };
+        pushNotification(project.clientId, notifData);
+        if (project.assignedUserId && project.assignedUserId !== ctx.user.id) {
+          pushNotification(project.assignedUserId, notifData);
+        }
+      } catch {}
+
       return { success: true };
     }),
 });

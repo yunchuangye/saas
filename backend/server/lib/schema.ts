@@ -59,7 +59,7 @@ export const projects = mysqlTable("projects", {
   projectNo: varchar("project_no", { length: 50 }).unique(),
   title: varchar("title", { length: 300 }).notNull(),
   description: text("description"),
-  status: mysqlEnum("status", ["bidding", "active", "completed", "cancelled"]).notNull().default("bidding"),
+  status: mysqlEnum("status", ["pending", "bidding", "awarded", "active", "surveying", "reporting", "reviewing", "completed", "cancelled"]).notNull().default("bidding"),
   clientId: int("client_id").notNull(),
   clientOrgId: int("client_org_id"),
   bankOrgId: int("bank_org_id"),
@@ -498,6 +498,15 @@ export const crawlScheduleHistory = mysqlTable("crawl_schedule_history", {
   completedAt: timestamp("completed_at"),
 });
 
+// 系统设置表
+export const systemSettings = mysqlTable("system_settings", {
+  id: int("id").primaryKey().autoincrement(),
+  keyName: varchar("key_name", { length: 100 }).notNull().unique(),
+  value: text("value"),
+  description: varchar("description", { length: 500 }),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
 // 采集系统全局配置
 export const crawlConfig = mysqlTable("crawl_config", {
   id: int("id").primaryKey().autoincrement(),
@@ -611,3 +620,6 @@ export const news = mysqlTable("news", {
 
 export type InsertNews = typeof news.$inferInsert;
 export type SelectNews = typeof news.$inferSelect;
+
+export type InsertSystemSetting = typeof systemSettings.$inferInsert;
+export type SelectSystemSetting = typeof systemSettings.$inferSelect;

@@ -334,6 +334,14 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       ],
     },
     {
+      title: "营销推广",
+      items: [
+        { title: "推广活动", href: "/dashboard/admin/sales/campaigns", icon: Megaphone },
+        { title: "邀请管理", href: "/dashboard/admin/sales/invites", icon: Send },
+        { title: "线索管理", href: "/dashboard/admin/sales/leads", icon: Users },
+      ],
+    },
+    {
       title: "系统设置",
       items: [
         { title: "系统配置", href: "/dashboard/admin/settings", icon: Settings },

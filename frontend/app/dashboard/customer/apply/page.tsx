@@ -821,7 +821,11 @@ export default function CustomerApplyPage() {
                           <div className="shrink-0">
                             {file.status === "uploading" && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
                             {file.status === "done" && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-                            {file.status === "error" && <AlertCircle className="h-4 w-4 text-destructive" title={file.error} />}
+                            {file.status === "error" && (
+                              <span title={file.error ?? undefined}>
+                                <AlertCircle className="h-4 w-4 text-destructive" />
+                              </span>
+                            )}
                           </div>
                           <button
                             type="button"

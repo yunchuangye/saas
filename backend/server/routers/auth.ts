@@ -444,4 +444,78 @@ export const authRouter = router({
 
       return { success: true };
     }),
+
+  // 忘记密码 - 发送重置链接
+  forgotPassword: publicProcedure
+    .input(z.object({ email: z.string().email() }))
+    .mutation(async ({ input, ctx }) => {
+      const [user] = await ctx.db
+        .select({ id: users.id, email: users.email, displayName: users.displayName })
+        .from(users)
+        .where(eq(users.email, input.email))
+        .limit(1);
+
+      // 无论用户是否存在，都返回相同响应（防止用户枚举）
+      if (!user) {
+        return { success: true, message: "如果该邮筱已注册，重置链接将发送到您的邮筱" };
+      }
+
+      // 生成重置 token（有效期 1 小时）
+      const token = jwt.sign(
+        { userId: user.id, type: 'password_reset' },
+        JWT_SECRET_KEY,
+        { expiresIn: '1h' }
+      );
+
+      // 将 token 存入 Redis（有效期 3600 秒）
+      await redis.set(`pwd_reset:${token}`, String(user.id), 'EX', 3600);
+
+      // 实际生产中应发送邮件，这里返回 token 供前端展示
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8720'}/reset-password?token=${token}`;
+
+      return {
+        success: true,
+        message: "如果该邮筱已注册，重置链接将发送到您的邮筱",
+        // 开发模式下返回链接（生产环境应移除）
+        devResetUrl: process.env.NODE_ENV !== 'production' ? resetUrl : undefined,
+      };
+    }),
+
+  // 重置密码
+  resetPassword: publicProcedure
+    .input(z.object({
+      token: z.string(),
+      newPassword: z.string().min(6, "密码至少 6 个字符"),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // 验证 token
+      let payload: any;
+      try {
+        payload = jwt.verify(input.token, JWT_SECRET_KEY);
+      } catch {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: '重置链接已失效或过期' });
+      }
+
+      if (payload.type !== 'password_reset') {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: '无效的重置链接' });
+      }
+
+      // 检查 Redis 中是否存在
+      const stored = await redis.get(`pwd_reset:${input.token}`);
+      if (!stored) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: '重置链接已失效或已使用' });
+      }
+
+      // 更新密码
+      const newHash = await bcrypt.hash(input.newPassword, 10);
+      await ctx.db
+        .update(users)
+        .set({ passwordHash: newHash, updatedAt: new Date() } as Partial<InsertUser>)
+        .where(eq(users.id, payload.userId));
+
+      // 删除 Redis 中的 token（防止重复使用）
+      await redis.del(`pwd_reset:${input.token}`);
+
+      return { success: true, message: '密码已成功重置，请使用新密码登录' };
+    }),
 });

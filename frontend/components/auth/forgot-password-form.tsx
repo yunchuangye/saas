@@ -1,49 +1,37 @@
 "use client"
-
 import * as React from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Loader2, Mail, CheckCircle2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ArrowLeft, Loader2, CheckCircle2, Mail, AlertCircle } from "lucide-react"
+import { trpc } from "@/lib/trpc"
+import { useToast } from "@/hooks/use-toast"
 
 type Step = "input" | "sent"
 
 export function ForgotPasswordForm() {
+  const { toast } = useToast()
   const [step, setStep] = React.useState<Step>("input")
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [phone, setPhone] = React.useState("")
-  const [verifyCode, setVerifyCode] = React.useState("")
-  const [countdown, setCountdown] = React.useState(0)
+  const [email, setEmail] = React.useState("")
+  const [devResetUrl, setDevResetUrl] = React.useState<string | undefined>()
 
-  // 发送验证码倒计时
-  React.useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [countdown])
+  const forgotMutation = trpc.auth.forgotPassword.useMutation({
+    onSuccess: (data) => {
+      setStep("sent")
+      if (data.devResetUrl) setDevResetUrl(data.devResetUrl)
+    },
+    onError: (err) => {
+      toast({ title: "请求失败", description: err.message, variant: "destructive" })
+    },
+  })
 
-  const handleSendCode = async () => {
-    if (!phone || countdown > 0) return
-    
-    setIsLoading(true)
-    // 模拟发送验证码
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setCountdown(60)
-    setIsLoading(false)
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    
-    // 模拟验证
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    
-    setStep("sent")
-    setIsLoading(false)
+    if (!email) return
+    forgotMutation.mutate({ email })
   }
 
   if (step === "sent") {
@@ -54,18 +42,27 @@ export function ForgotPasswordForm() {
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
               <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
-            <h2 className="text-xl font-semibold">密码重置成功</h2>
+            <h2 className="text-xl font-semibold">邮件已发送</h2>
             <p className="text-sm text-muted-foreground">
-              新密码已发送至您的手机 {phone.replace(/(\d{3})\d{4}(\d{4})/, "$1****$2")}
+              如果 <span className="font-medium text-foreground">{email}</span> 已注册，
+              密码重置链接将发送到该邮箱，请查收
             </p>
-            <p className="text-sm text-muted-foreground">
-              请使用新密码登录，登录后建议立即修改密码
-            </p>
+            <p className="text-xs text-muted-foreground">链接有效期为 1 小时，过期后需重新申请</p>
+            {devResetUrl && (
+              <Alert className="text-left">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <span className="font-medium">开发模式链接：</span>
+                  <Link href={devResetUrl} className="text-primary hover:underline break-all ml-1">点击重置密码</Link>
+                </AlertDescription>
+              </Alert>
+            )}
             <Link href="/login">
-              <Button className="w-full mt-4">
-                返回登录
-              </Button>
+              <Button className="w-full mt-4">返回登录</Button>
             </Link>
+            <button type="button" className="text-sm text-muted-foreground hover:text-foreground underline" onClick={() => { setStep("input"); setDevResetUrl(undefined) }}>
+              重新发送
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -76,83 +73,38 @@ export function ForgotPasswordForm() {
     <Card className="w-full max-w-md border-0 shadow-xl">
       <CardHeader className="space-y-1 pb-4">
         <div className="flex items-center gap-2">
-          <Link 
-            href="/login" 
-            className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-accent transition-colors"
-          >
+          <Link href="/login" className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-accent transition-colors">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <CardTitle className="text-2xl font-bold">忘记密码</CardTitle>
         </div>
-        <CardDescription>
-          请输入您注册时使用的手机号，我们将发送验证码帮助您重置密码
-        </CardDescription>
+        <CardDescription>请输入您注册时使用的邮箱地址，我们将发送密码重置链接</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* 手机号 */}
           <div className="space-y-2">
-            <Label htmlFor="phone">手机号</Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="请输入手机号"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-              maxLength={11}
-            />
-          </div>
-
-          {/* 验证码 */}
-          <div className="space-y-2">
-            <Label htmlFor="code">验证码</Label>
-            <div className="flex gap-3">
+            <Label htmlFor="email">邮箱地址</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                id="code"
-                type="text"
-                placeholder="请输入验证码"
-                value={verifyCode}
-                onChange={(e) => setVerifyCode(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 required
-                maxLength={6}
-                className="flex-1"
+                className="pl-9"
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSendCode}
-                disabled={!phone || phone.length !== 11 || countdown > 0 || isLoading}
-                className="shrink-0 w-28"
-              >
-                {countdown > 0 ? `${countdown}s` : "获取验证码"}
-              </Button>
             </div>
           </div>
-
-          {/* 提交按钮 */}
-          <Button 
-            type="submit" 
-            className="w-full" 
-            size="lg" 
-            disabled={isLoading || !phone || !verifyCode}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                验证中...
-              </>
-            ) : (
-              "重置密码"
-            )}
+          <Button type="submit" className="w-full" size="lg" disabled={forgotMutation.isPending || !email}>
+            {forgotMutation.isPending ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />发送中...</>
+            ) : "发送重置链接"}
           </Button>
-
-          {/* 返回登录 */}
           <div className="text-center text-sm">
             <span className="text-muted-foreground">想起密码了？</span>{" "}
-            <Link href="/login" className="text-primary hover:underline font-medium">
-              返回登录
-            </Link>
+            <Link href="/login" className="text-primary hover:underline font-medium">返回登录</Link>
           </div>
         </form>
       </CardContent>

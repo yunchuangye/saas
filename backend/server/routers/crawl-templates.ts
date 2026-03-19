@@ -42,12 +42,12 @@ export const crawlTemplatesRouter = router({
       if (existing) {
         throw new Error('同名模板已存在');
       }
-      const newTemplate: InsertCrawlTemplate = {
+      const newTemplate = {
         name,
-        description,
+        description: description ?? null,
         configJson,
         createdBy: ctx.user.id,
-      };
+      } as any;
       const [result] = await db.insert(crawlTemplates).values(newTemplate);
       return { id: result.insertId, ...newTemplate };
     }),

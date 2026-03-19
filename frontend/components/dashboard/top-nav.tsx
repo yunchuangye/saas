@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Bell, Search, HelpCircle, CheckCheck, ExternalLink, Info, AlertCircle, CheckCircle2, Clock } from "lucide-react"
+import { useSSENotifications } from "@/hooks/use-sse"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SidebarTrigger } from "@/components/ui/sidebar"
@@ -90,6 +91,11 @@ export function TopNav({ className }: TopNavProps) {
   const unreadCount = unreadData?.count ?? 0
   const notifications = notifData?.items ?? []
 
+  // SSE 实时通知：收到推送时自动刷新未读数
+  useSSENotifications(React.useCallback(() => {
+    refetchCount()
+  }, [refetchCount]))
+
   const handleMarkRead = (id: number, e: React.MouseEvent) => {
     e.stopPropagation()
     markReadMutation.mutate({ id })
@@ -116,9 +122,9 @@ export function TopNav({ className }: TopNavProps) {
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
 
-      {/* 搜索框 */}
+      {/* 搜索框 - 移动端隐藏文本框 */}
       <div className="flex-1 flex items-center gap-4">
-        <div className="relative w-full max-w-md">
+        <div className="relative hidden sm:block w-full max-w-md">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -126,6 +132,11 @@ export function TopNav({ className }: TopNavProps) {
             className="w-full pl-9 bg-muted/50"
           />
         </div>
+        {/* 移动端搜索图标 */}
+        <Button variant="ghost" size="icon" className="sm:hidden h-9 w-9">
+          <Search className="h-[18px] w-[18px]" />
+          <span className="sr-only">搜索</span>
+        </Button>
       </div>
 
       {/* 右侧工具栏 */}
