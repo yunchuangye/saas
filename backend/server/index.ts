@@ -490,6 +490,40 @@ app.get('/api/sse/notifications', (req, res) => {
   });
 });
 
+// ============================================================
+// 支付回调路由（微信/支付宝异步通知）
+// ============================================================
+import { handleWechatNotify, handleAlipayNotify } from './routers/payment';
+import { EXPORT_DIR } from './lib/export-service';
+
+app.post('/api/payment/wechat/notify', express.text({ type: 'text/xml' }), async (req, res) => {
+  const body: Record<string, string> = {};
+  const xmlStr = String(req.body || '');
+  const matches = xmlStr.matchAll(/<(\w+)><!\[CDATA\[(.+?)\]\]><\/\1>/g);
+  for (const m of matches) body[m[1]] = m[2];
+  await handleWechatNotify({ ...req, body } as any, res);
+});
+
+app.post('/api/payment/alipay/notify', express.urlencoded({ extended: true }), async (req, res) => {
+  await handleAlipayNotify(req, res);
+});
+
+// ============================================================
+// 导出文件下载路由
+// ============================================================
+app.get('/api/exports/download/:taskNo/:filename', (req, res) => {
+  const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: '未登录' });
+  try {
+    jwt.verify(token, JWT_SECRET_KEY);
+  } catch {
+    return res.status(401).json({ error: '登录已过期' });
+  }
+  const filePath = pathModule.join(EXPORT_DIR, req.params.filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: '文件不存在或已过期' });
+  res.download(filePath);
+});
+
 // 启动服务
 app.listen(PORT, "0.0.0.0", async () => {
   const backendPublicUrl = process.env.BACKEND_PUBLIC_URL || `http://localhost:${PORT}`;

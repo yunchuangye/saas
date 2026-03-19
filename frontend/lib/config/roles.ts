@@ -38,6 +38,10 @@ import {
   Globe,
   Image,
   Users2,
+  Download,
+  Palette,
+  BellDot,
+  Wallet,
   type LucideIcon,
 } from "lucide-react"
 
@@ -171,7 +175,16 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       title: "订阅与计费",
       items: [
         { title: "订阅计划", href: "/dashboard/org/billing", icon: CreditCard },
-        { title: "API 密鑰", href: "/dashboard/org/api-keys", icon: Key },
+        { title: "订阅支付", href: "/dashboard/org/payment", icon: Wallet },
+        { title: "API 密钒", href: "/dashboard/org/api-keys", icon: Key },
+      ],
+    },
+    {
+      title: "账号设置",
+      items: [
+        { title: "品牌定制", href: "/dashboard/org/branding", icon: Palette },
+        { title: "通知设置", href: "/dashboard/settings/notifications", icon: BellDot },
+        { title: "数据导出", href: "/dashboard/exports", icon: Download },
       ],
     },
   ],
@@ -218,7 +231,16 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       title: "订阅与计费",
       items: [
         { title: "订阅计划", href: "/dashboard/org/billing", icon: CreditCard },
-        { title: "API 密鑰", href: "/dashboard/org/api-keys", icon: Key },
+        { title: "订阅支付", href: "/dashboard/org/payment", icon: Wallet },
+        { title: "API 密钒", href: "/dashboard/org/api-keys", icon: Key },
+      ],
+    },
+    {
+      title: "账号设置",
+      items: [
+        { title: "品牌定制", href: "/dashboard/org/branding", icon: Palette },
+        { title: "通知设置", href: "/dashboard/settings/notifications", icon: BellDot },
+        { title: "数据导出", href: "/dashboard/exports", icon: Download },
       ],
     },
     {
@@ -271,7 +293,16 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       title: "订阅与计费",
       items: [
         { title: "订阅计划", href: "/dashboard/org/billing", icon: CreditCard },
-        { title: "API 密鑰", href: "/dashboard/org/api-keys", icon: Key },
+        { title: "订阅支付", href: "/dashboard/org/payment", icon: Wallet },
+        { title: "API 密钒", href: "/dashboard/org/api-keys", icon: Key },
+      ],
+    },
+    {
+      title: "账号设置",
+      items: [
+        { title: "品牌定制", href: "/dashboard/org/branding", icon: Palette },
+        { title: "通知设置", href: "/dashboard/settings/notifications", icon: BellDot },
+        { title: "数据导出", href: "/dashboard/exports", icon: Download },
       ],
     },
     {
@@ -382,6 +413,13 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
         { title: "签章审核", href: "/dashboard/admin/seals", icon: Stamp },
         { title: "偏离度预警", href: "/dashboard/admin/valuation-alerts", icon: AlertTriangle },
         { title: "SaaS 订阅", href: "/dashboard/org/billing", icon: CreditCard },
+        { title: "导出管理", href: "/dashboard/admin/exports", icon: Download },
+      ],
+    },
+    {
+      title: "平台设置",
+      items: [
+        { title: "通知设置", href: "/dashboard/settings/notifications", icon: BellDot },
       ],
     },
     {

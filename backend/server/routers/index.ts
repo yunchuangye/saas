@@ -23,6 +23,10 @@ import { workSheetsRouter } from './work-sheets';
 import { valuationAlertsRouter } from './valuation-alerts';
 import { billingRouter } from './billing';
 import { sealsRouter } from './seals';
+import { paymentRouter } from './payment';
+import { notifyEnhancedRouter } from './notify-enhanced';
+import { brandingRouter } from './branding';
+import { exportsRouter } from './exports';
 
 export const appRouter = router({
   auth: authRouter,
@@ -55,6 +59,11 @@ export const appRouter = router({
   valuationAlerts: valuationAlertsRouter,
   billing: billingRouter,
   seals: sealsRouter,
+  // 新增：四大商业化模块
+  payment: paymentRouter,
+  notifyEnhanced: notifyEnhancedRouter,
+  branding: brandingRouter,
+  exports: exportsRouter,
 });
 
 export type AppRouter = typeof appRouter;
