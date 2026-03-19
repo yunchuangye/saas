@@ -14,6 +14,7 @@ import {
   ArrowLeft, FileText, Download, Star, CheckCircle, XCircle,
   Building2, BarChart3, Calendar, User, Loader2, Eye
 } from "lucide-react"
+import { ReportSealPanel } from "@/components/dashboard/report-seal-panel"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -372,11 +373,22 @@ export function ReportDetailPage({ role }: ReportDetailPageProps) {
             </Card>
           )}
 
-          <Button variant="outline" className="w-full" asChild>
-            <a href={`/dashboard/appraiser/reports/edit?id=${id}`}>
-              <FileText className="mr-2 h-4 w-4" />编辑报告
-            </a>
-          </Button>
+          {/* 电子签章面板 */}
+          {(report.status === "approved" || report.status === "archived" || (report as any).seal_status) && (
+            <ReportSealPanel
+              reportId={id}
+              reportStatus={report.status}
+              sealStatus={(report as any).seal_status}
+              role={role}
+            />
+          )}
+          {role === "appraiser" && (
+            <Button variant="outline" className="w-full" asChild>
+              <a href={`/dashboard/appraiser/reports/edit?id=${id}`}>
+                <FileText className="mr-2 h-4 w-4" />编辑报告
+              </a>
+            </Button>
+          )}
         </div>
       </div>
     </div>

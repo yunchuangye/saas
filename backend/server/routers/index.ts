@@ -22,6 +22,7 @@ import { threeLevelReviewRouter } from './three-level-review';
 import { workSheetsRouter } from './work-sheets';
 import { valuationAlertsRouter } from './valuation-alerts';
 import { billingRouter } from './billing';
+import { sealsRouter } from './seals';
 
 export const appRouter = router({
   auth: authRouter,
@@ -53,6 +54,7 @@ export const appRouter = router({
   workSheets: workSheetsRouter,
   valuationAlerts: valuationAlertsRouter,
   billing: billingRouter,
+  seals: sealsRouter,
 });
 
 export type AppRouter = typeof appRouter;
