@@ -42,10 +42,13 @@ import {
   Palette,
   BellDot,
   Wallet,
+  ArrowRightLeft,
+  Share2,
+  Link2,
   type LucideIcon,
 } from "lucide-react"
 
-export type UserRole = "appraiser" | "bank" | "investor" | "customer" | "admin"
+export type UserRole = "appraiser" | "bank" | "investor" | "customer" | "admin" | "broker"
 
 export interface RoleConfig {
   id: UserRole
@@ -110,9 +113,86 @@ export const roles: RoleConfig[] = [
     color: "bg-chart-4",
     dashboardPath: "/dashboard/admin",
   },
+  {
+    id: "broker",
+    name: "经纪机构",
+    description: "房源管理、二手房交易、客源跟进",
+    icon: Building,
+    color: "bg-chart-2",
+    dashboardPath: "/dashboard/broker",
+  },
 ]
 
 export const navigationConfig: Record<UserRole, NavSection[]> = {
+  broker: [
+    {
+      title: "工作台",
+      items: [
+        { title: "首页", href: "/dashboard/broker", icon: Home },
+        { title: "数据统计", href: "/dashboard/broker/analytics", icon: BarChart3 },
+      ],
+    },
+    {
+      title: "团队管理",
+      items: [
+        { title: "员工账户", href: "/dashboard/broker/team", icon: Users },
+      ],
+    },
+    {
+      title: "房源管理",
+      items: [
+        { title: "全部房源", href: "/dashboard/broker/listings", icon: Building2, badge: 0 },
+        { title: "发布房源", href: "/dashboard/broker/listings/new", icon: Send },
+      ],
+    },
+    {
+      title: "客源管理",
+      items: [
+        { title: "客户列表", href: "/dashboard/broker/clients", icon: Users2 },
+        { title: "带看预约", href: "/dashboard/broker/viewings", icon: Calendar },
+      ],
+    },
+    {
+      title: "二手房交易",
+      items: [
+        { title: "交易管理", href: "/dashboard/broker/transactions", icon: ArrowRightLeft, badge: 0 },
+        { title: "发起交易", href: "/dashboard/broker/transactions/new", icon: Send },
+      ],
+    },
+    {
+      title: "估价服务",
+      items: [
+        { title: "发起估价", href: "/dashboard/broker/demand/new", icon: Calculator },
+        { title: "估价项目", href: "/dashboard/broker/projects", icon: FolderOpen },
+        { title: "估价报告", href: "/dashboard/broker/reports", icon: FileText },
+      ],
+    },
+    {
+      title: "营销推广",
+      items: [
+        { title: "分享链接", href: "/dashboard/broker/marketing/links", icon: Link2 },
+        { title: "营销活动", href: "/dashboard/broker/marketing/campaigns", icon: Megaphone },
+        { title: "线索管理", href: "/dashboard/broker/marketing/leads", icon: Users2 },
+        { title: "我的微站", href: "/dashboard/broker/marketing/website", icon: Globe },
+      ],
+    },
+    {
+      title: "订阅与计费",
+      items: [
+        { title: "订阅计划", href: "/dashboard/org/billing", icon: CreditCard },
+        { title: "订阅支付", href: "/dashboard/org/payment", icon: Wallet },
+        { title: "API 密钥", href: "/dashboard/org/api-keys", icon: Key },
+      ],
+    },
+    {
+      title: "账号设置",
+      items: [
+        { title: "品牌定制", href: "/dashboard/org/branding", icon: Palette },
+        { title: "通知设置", href: "/dashboard/settings/notifications", icon: BellDot },
+        { title: "数据导出", href: "/dashboard/exports", icon: Download },
+      ],
+    },
+  ],
   appraiser: [
     {
       title: "工作台",
@@ -361,6 +441,7 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
         { title: "评估公司", href: "/dashboard/admin/users/appraisers", icon: Building2 },
         { title: "银行机构", href: "/dashboard/admin/users/banks", icon: Landmark },
         { title: "投资机构", href: "/dashboard/admin/users/investors", icon: TrendingUp },
+        { title: "经纪机构", href: "/dashboard/admin/users/brokers", icon: Building },
         { title: "个人用户", href: "/dashboard/admin/users/customers", icon: Users },
       ],
     },

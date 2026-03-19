@@ -27,6 +27,8 @@ import { paymentRouter } from './payment';
 import { notifyEnhancedRouter } from './notify-enhanced';
 import { brandingRouter } from './branding';
 import { exportsRouter } from './exports';
+import { brokerRouter } from './broker';
+import { platformAdminRouter } from './platform-admin';
 
 export const appRouter = router({
   auth: authRouter,
@@ -64,6 +66,10 @@ export const appRouter = router({
   notifyEnhanced: notifyEnhancedRouter,
   branding: brandingRouter,
   exports: exportsRouter,
+  // 经纪机构（中介）模块
+  broker: brokerRouter,
+  // 平台超管（独立于SaaS租户）
+  platformAdmin: platformAdminRouter,
 });
 
 export type AppRouter = typeof appRouter;
