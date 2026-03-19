@@ -111,7 +111,7 @@ export function LoginForm() {
         <div className="space-y-3">
           <Label className="text-base font-semibold text-foreground">选择身份</Label>
           <div className="grid grid-cols-5 gap-2.5">
-            {[...roles.filter(r => r.id === "customer"), ...roles.filter(r => r.id !== "customer")].map((role) => {
+            {[...roles.filter(r => r.id === "customer"), ...roles.filter(r => r.id !== "customer" && r.id !== "admin")].map((role) => {
               const Icon = role.icon
               const isSelected = selectedRole === role.id
               return (
