@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { ChevronDown, ChevronRight, ChevronsUpDown, LogOut, Settings, User } from "lucide-react"
 import { trpc } from "@/lib/trpc"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -76,14 +77,25 @@ export function AppSidebar({ role, user, ...props }: AppSidebarProps) {
     "/dashboard/admin/notifications": unreadNotifCount,
   }
 
+  const queryClient = useQueryClient()
+
+  // 清除前端 token cookie 并使所有缓存失效
+  const clearAuthState = () => {
+    // 清除前端写入的 token cookie（覆盖为过期）
+    document.cookie = "token=; path=/; max-age=0; SameSite=Lax"
+    // 使 React Query 所有缓存失效，防止旧用户数据残留
+    queryClient.clear()
+    // 强制整页跳转（而非 router.push），确保所有状态被清空
+    window.location.href = "/login"
+  }
+
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
-      router.push("/login")
-      router.refresh()
+      clearAuthState()
     },
     onError: () => {
-      router.push("/login")
-      router.refresh()
+      // 即使后端登出失败，也强制清除前端状态
+      clearAuthState()
     },
   })
 
