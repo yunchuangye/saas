@@ -11,7 +11,7 @@ import {
 // ============================================================
 // 类型定义
 // ============================================================
-interface EstateOption { id: number; name: string; pinyinInitials: string; pinyinFull?: string; address?: string | null; developer?: string | null; cityId?: number; buildYear?: number | null; propertyType?: string | null; totalUnits?: number | null }
+interface EstateOption { id: number; name: string; pinyinInitials: string; pinyinFull?: string; address?: string | null; developer?: string | null; cityId?: number; buildYear?: number | null; propertyType?: string | null; totalUnits?: number | null; districtId?: number | null; districtName?: string | null }
 interface BuildingOption { id: number; name: string; totalFloors?: number }
 interface UnitOption { id: number; unitNumber: string; floor: number | null; area?: string; rooms?: number; orientation?: string; decoration?: string }
 
@@ -266,6 +266,10 @@ export default function ValuationPage() {
                   setSelectedEstate(e)
                   setSelectedBuilding(null)
                   setSelectedUnit(null)
+                  // 自动填充区域字段
+                  if (e.districtName) {
+                    setForm(f => ({ ...f, district: e.districtName! }))
+                  }
                 }}
               />
               {selectedEstate && (

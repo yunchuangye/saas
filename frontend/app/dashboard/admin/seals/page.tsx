@@ -88,12 +88,12 @@ export default function AdminSealsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === 'all' ? '' : v); setPage(1) }}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="全部状态" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">全部</SelectItem>
+              <SelectItem value="all">全部</SelectItem>
               <SelectItem value="pending">待审核</SelectItem>
               <SelectItem value="approved">已通过</SelectItem>
               <SelectItem value="rejected">已拒绝</SelectItem>
@@ -337,9 +337,4 @@ export default function AdminSealsPage() {
       )}
     </div>
   )
-
-  function formatDate(d: any) {
-    if (!d) return "—"
-    try { return format(new Date(d), "yyyy-MM-dd", { locale: zhCN }) } catch { return "—" }
-  }
 }

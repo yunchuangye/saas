@@ -286,7 +286,7 @@ export const billingRouter = router({
       FROM org_subscriptions os
       JOIN subscription_plans sp ON os.plan_id = sp.id
       LEFT JOIN billing_records br ON br.org_id = os.org_id AND br.status = 'paid'
-      WHERE os.status = 'active'
+      WHERE os.status IN ('active', 'trial')
       GROUP BY sp.id, sp.name, sp.code
       ORDER BY sp.sort_order`
     ) as any;

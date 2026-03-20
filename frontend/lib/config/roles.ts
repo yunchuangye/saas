@@ -493,8 +493,16 @@ export const navigationConfig: Record<UserRole, NavSection[]> = {
       items: [
         { title: "签章审核", href: "/dashboard/admin/seals", icon: Stamp },
         { title: "偏离度预警", href: "/dashboard/admin/valuation-alerts", icon: AlertTriangle },
-        { title: "SaaS 订阅", href: "/dashboard/org/billing", icon: CreditCard },
         { title: "导出管理", href: "/dashboard/admin/exports", icon: Download },
+      ],
+    },
+    {
+      title: "SaaS 运营",
+      items: [
+        { title: "订阅管理", href: "/dashboard/admin/subscriptions", icon: CreditCard },
+        { title: "套餐配置", href: "/dashboard/admin/subscriptions/plans", icon: Layers },
+        { title: "账单记录", href: "/dashboard/admin/subscriptions/billing", icon: Wallet },
+        { title: "用量统计", href: "/dashboard/admin/subscriptions/usage", icon: BarChart3 },
       ],
     },
     {

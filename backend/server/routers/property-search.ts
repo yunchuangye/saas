@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../lib/trpc'
 import { db } from '../lib/db'
-import { estates, buildings, units, cases, cities } from '../lib/schema'
+import { estates, buildings, units, cases, cities, districts } from '../lib/schema'
 import { eq, and, like, or, desc, gte, lte, sql, isNotNull } from 'drizzle-orm'
 import { pinyin } from 'pinyin-pro'
 
@@ -120,13 +120,16 @@ export const propertySearchRouter = router({
           id: estates.id,
           name: estates.name,
           cityId: estates.cityId,
+          districtId: estates.districtId,
           address: estates.address,
           developer: estates.developer,
           buildYear: estates.buildYear,
           propertyType: estates.propertyType,
           totalUnits: estates.totalUnits,
+          districtName: districts.name,
         })
         .from(estates)
+        .leftJoin(districts, eq(estates.districtId, districts.id))
         .where(and(...conditions))
         .orderBy(estates.name)
         .limit(isChinese ? limit : 200) // 非中文搜索需要在内存中过滤
@@ -137,11 +140,28 @@ export const propertySearchRouter = router({
         filtered = allEstates.filter(e => matchesQuery(e.name, query))
       }
 
-      // 为每个楼盘添加拼音首字母
+      // 区域名称提取函数（从地址中解析）
+      function extractDistrictFromAddress(address: string | null | undefined): string {
+        if (!address) return ''
+        const districtKeywords = ['东城区','西城区','朝阳区','丰台区','石景山区','海淀区','门头沟区','房山区','通州区','顺义区','昌平区','大兴区','怀柔区','平谷区','密云区','延庆区',
+          '黄浦区','徐汇区','长宁区','静安区','普陀区','虹口区','杨浦区','闵行区','宝山区','嘉定区','浦东新区','金山区','松江区','青浦区','奉贤区','崇明区',
+          '福田区','南山区','罗湖区','宝安区','龙岗区','龙华区','盐田区','光明区','坪山区','大鹏新区',
+          '天河区','越秀区','荔湾区','海珠区','白云区','黄埔区','番禺区','花都区','南沙区','从化区','增城区',
+          '江岸区','江汉区','硚口区','汉阳区','武昌区','青山区','洪山区','东西湖区','汉南区','蔡甸区','江夏区','黄陂区','新洲区',
+          '锦江区','青羊区','金牛区','武侯区','成华区','龙泉驿区','青白江区','新都区','温江区','双流区','郫都区','金堂县','大邑县','蒲江县','新津区',
+          '渝中区','万州区','黔江区','涪陵区','大渡口区','江北区','沙坪坝区','九龙坡区','南岸区','北碚区','綦江区','大足区','渝北区','巴南区','铜梁区','潼南区','荣昌区','璧山区','梁平区','城口县','丰都县','垫江县','武隆区','忠县','开州区','云阳县','奉节县','巫山县','巫溪县','石柱土家族自治县','秀山土家族苗族自治县','酉阳土家族苗族自治县','彭水苗族土家族自治县']
+        for (const kw of districtKeywords) {
+          if (address.includes(kw)) return kw
+        }
+        return ''
+      }
+      // 为每个楼盘添加拼音首字母和区域名称
       return filtered.slice(0, limit).map(e => ({
         ...e,
         pinyinInitials: toPinyinInitials(e.name),
         pinyinFull: toPinyinFull(e.name),
+        // 优先用 districts 表的名称，其次从地址中提取
+        districtName: e.districtName || extractDistrictFromAddress(e.address),
       }))
     }),
 
