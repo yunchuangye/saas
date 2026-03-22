@@ -38,9 +38,7 @@ coverage/
 logs/
 *.pid
 
-# 数据库大文件（体积过大，不提交到 Git，请单独下载）
+# 数据库大文件（已通过 Git LFS 追踪，不需单独忽略）
+# 下列未压缩的 .sql 文件不提交
 database/gujia_full_*.sql
-database/gujia_full_*.sql.gz
-database/gujia_clean_*.sql.gz
 database/gujia_complete_backup.sql
-database/gujia_complete_backup.sql.gz
