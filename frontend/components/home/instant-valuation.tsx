@@ -123,7 +123,8 @@ export function InstantValuation() {
 
   // ── tRPC 查询 ──
   const { data: citiesData } = trpc.guestValuation.getCities.useQuery()
-  const rawCities = (citiesData as any)?.json ?? citiesData ?? []
+  // tRPC 客户端已自动解包，citiesData 直接就是数组
+  const rawCities: any[] = Array.isArray(citiesData) ? citiesData : []
   // 深圳置顶，其余城市保持原顺序
   const cities = rawCities.length > 0
     ? [
@@ -131,6 +132,17 @@ export function InstantValuation() {
         ...rawCities.filter((c: any) => c.id !== 190),
       ]
     : rawCities
+
+  // cities 数据加载完成后，确保默认城市名称正确显示在 Select 中
+  useEffect(() => {
+    if (cities.length > 0 && selectedCityId) {
+      const matched = cities.find((c: any) => c.id === selectedCityId)
+      if (matched && matched.name !== selectedCityName) {
+        setSelectedCityName(matched.name)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cities.length, selectedCityId])
 
   const { data: districtsData } = trpc.guestValuation.getDistricts.useQuery(
     { cityId: selectedCityId! },
