@@ -376,3 +376,116 @@ export async function exportBilling(filters: any, format: "excel" | "pdf" | "csv
 }
 
 export { EXPORT_DIR };
+
+/**
+ * 导出交易案例数据
+ */
+export async function exportCases(filters: any, format: "excel" | "pdf" | "csv", orgId?: number): Promise<{ filePath: string; rowCount: number }> {
+  const rows = await db.execute(sql.raw(`
+    SELECT c.id, c.address, c.area, c.floor, c.total_floors, c.unit_price, c.total_price,
+      c.transaction_date, c.property_type, c.source,
+      e.name as estate_name, ci.name as city_name
+    FROM cases c
+    LEFT JOIN estates e ON c.estate_id = e.id
+    LEFT JOIN cities ci ON c.city_id = ci.id
+    ORDER BY c.transaction_date DESC LIMIT 10000
+  `)) as any[];
+
+  const formatted = rows.map(r => ({
+    ...r,
+    unit_price: r.unit_price ? `${Number(r.unit_price).toLocaleString('zh-CN')}元/㎡` : '',
+    total_price: r.total_price ? `${(Number(r.total_price) / 10000).toFixed(2)}万元` : '',
+    area: r.area ? `${Number(r.area).toFixed(2)}㎡` : '',
+    transaction_date: formatDate(r.transaction_date),
+  }));
+
+  const headers = [
+    { key: "id", header: "案例ID", width: 10 },
+    { key: "estate_name", header: "楼盘名称", width: 20 },
+    { key: "address", header: "地址", width: 30 },
+    { key: "area", header: "面积", width: 12 },
+    { key: "floor", header: "楼层", width: 10 },
+    { key: "total_floors", header: "总楼层", width: 10 },
+    { key: "unit_price", header: "单价", width: 16 },
+    { key: "total_price", header: "总价", width: 16 },
+    { key: "transaction_date", header: "成交日期", width: 16 },
+    { key: "property_type", header: "物业类型", width: 14 },
+    { key: "city_name", header: "城市", width: 12 },
+    { key: "source", header: "数据来源", width: 14 },
+  ];
+
+  const ts = Date.now();
+  let filePath: string;
+
+  if (format === "excel") {
+    filePath = await exportToExcel({ title: "交易案例数据", headers, rows: formatted, filename: `cases_${ts}.xlsx` });
+  } else if (format === "pdf") {
+    filePath = await exportToPdf({
+      title: "交易案例数据",
+      headers: headers.map(h => h.header),
+      rows: formatted.map(r => headers.map(h => String((r as any)[h.key] || ""))),
+      filename: `cases_${ts}.pdf`,
+    });
+  } else {
+    const csvLines = [headers.map(h => h.header).join(",")];
+    formatted.forEach(r => csvLines.push(headers.map(h => `"${String((r as any)[h.key] || "").replace(/"/g, '""')}"`).join(",")));
+    filePath = path.join(EXPORT_DIR, `cases_${ts}.csv`);
+    fs.writeFileSync(filePath, "\uFEFF" + csvLines.join("\n"), "utf8");
+  }
+
+  return { filePath, rowCount: formatted.length };
+}
+
+/**
+ * 全量数据导出（项目+报告+案例合并为多 Sheet Excel）
+ */
+export async function exportFull(filters: any, orgId?: number): Promise<{ filePath: string; rowCount: number }> {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "估价平台";
+  wb.created = new Date();
+
+  let totalRows = 0;
+
+  // Sheet 1: 项目
+  const projectRows = await db.execute(sql.raw(`
+    SELECT p.id, p.project_no, p.title, p.status, p.property_address, p.area,
+      p.purpose, p.created_at, u.display_name as customer_name, o.name as org_name
+    FROM projects p
+    LEFT JOIN users u ON p.user_id = u.id
+    LEFT JOIN organizations o ON p.awarded_org_id = o.id
+    ${orgId ? `WHERE p.user_id IN (SELECT id FROM users WHERE org_id = ${orgId}) OR p.awarded_org_id = ${orgId}` : ''}
+    ORDER BY p.created_at DESC LIMIT 5000
+  `)) as any[];
+
+  const ws1 = wb.addWorksheet("项目列表");
+  const pHeaders = ["ID", "项目编号", "项目名称", "状态", "房产地址", "面积(㎡)", "评估目的", "创建时间", "客户", "承接机构"];
+  const pRow = ws1.addRow(pHeaders);
+  pRow.eachCell(c => { c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1D4ED8" } }; c.font = { bold: true, color: { argb: "FFFFFFFF" } }; });
+  projectRows.forEach((r: any) => ws1.addRow([r.id, r.project_no, r.title, r.status, r.property_address, r.area, r.purpose, formatDate(r.created_at), r.customer_name, r.org_name]));
+  totalRows += projectRows.length;
+
+  // Sheet 2: 报告
+  const reportRows = await db.execute(sql.raw(`
+    SELECT r.id, r.report_no, r.title, r.status, r.estimated_value, r.created_at,
+      u.display_name as author_name, o.name as org_name
+    FROM reports r
+    LEFT JOIN users u ON r.author_id = u.id
+    LEFT JOIN organizations o ON r.org_id = o.id
+    ${orgId ? `WHERE r.org_id = ${orgId}` : ''}
+    ORDER BY r.created_at DESC LIMIT 5000
+  `)) as any[];
+
+  const ws2 = wb.addWorksheet("报告列表");
+  const rHeaders = ["ID", "报告编号", "报告名称", "状态", "估价结果(元)", "创建时间", "作者", "机构"];
+  const rRow = ws2.addRow(rHeaders);
+  rRow.eachCell(c => { c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF059669" } }; c.font = { bold: true, color: { argb: "FFFFFFFF" } }; });
+  reportRows.forEach((r: any) => ws2.addRow([r.id, r.report_no, r.title, r.status, r.estimated_value, formatDate(r.created_at), r.author_name, r.org_name]));
+  totalRows += reportRows.length;
+
+  const ts = Date.now();
+  const filePath = path.join(EXPORT_DIR, `full_export_${ts}.xlsx`);
+  await wb.xlsx.writeFile(filePath);
+
+  return { filePath, rowCount: totalRows };
+}

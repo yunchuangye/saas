@@ -5,6 +5,10 @@ import express from "express";
 import jwt from 'jsonwebtoken';
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import compression from "compression";
+import morgan from "morgan";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "./routers";
 import { createContext, JWT_SECRET_KEY } from "./lib/trpc";
@@ -22,6 +26,43 @@ import { randomUUID } from 'crypto';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "8721");
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// ============================================================
+// 安全中间件（运营级别）
+// ============================================================
+// Helmet：设置安全 HTTP 头
+app.use(helmet({
+  contentSecurityPolicy: false, // tRPC 需要关闭 CSP 或自定义
+  crossOriginEmbedderPolicy: false,
+}));
+
+// Compression：Gzip 压缩响应
+app.use(compression());
+
+// Morgan：HTTP 请求日志（生产环境使用 combined 格式）
+app.use(morgan(IS_PROD ? 'combined' : 'dev'));
+
+// Rate Limiting：全局限流（每 IP 每 15 分钟最多 500 次请求）
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: IS_PROD ? 500 : 2000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '请求过于频繁，请稍后再试' },
+  skip: (req) => req.path === '/health', // 健康检查不限流
+});
+app.use(globalLimiter);
+
+// Auth 接口专用限流（防暴力破解）
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: IS_PROD ? 20 : 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '登录尝试过于频繁，请 15 分钟后再试' },
+  keyGenerator: (req) => req.ip || 'unknown',
+});
 
 // 从环境变量解析允许的 CORS 来源列表
 // 优先使用 CORS_ORIGINS，其次使用 FRONTEND_URL，最后允许所有（仅 development）
@@ -66,12 +107,37 @@ app.use(
   })
 );
 
-// 健康检查
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", time: new Date().toISOString() });
+// 健康检查（增强版）
+app.get("/health", async (req, res) => {
+  const checks: Record<string, string> = {};
+  // 检查 Redis
+  try {
+    await redis.ping();
+    checks.redis = 'ok';
+  } catch {
+    checks.redis = 'error';
+  }
+  // 检查 DB
+  try {
+    const { pool } = await import('./lib/db');
+    const conn = await pool.getConnection();
+    await conn.query('SELECT 1');
+    conn.release();
+    checks.database = 'ok';
+  } catch {
+    checks.database = 'error';
+  }
+  const allOk = Object.values(checks).every(v => v === 'ok');
+  res.status(allOk ? 200 : 503).json({
+    status: allOk ? 'ok' : 'degraded',
+    time: new Date().toISOString(),
+    version: process.env.npm_package_version || '1.0.0',
+    uptime: Math.floor(process.uptime()),
+    checks,
+  });
 });
 
-// 图形验证码接口
+// 图形验证码接口（带限流）
 // GET /api/captcha  -> 返回 { id: string, svg: string }
 // 验证码文本存入 Redis，key=captcha:{id}，TTL=5分钟
 app.get("/api/captcha", async (req, res) => {
@@ -95,6 +161,11 @@ app.get("/api/captcha", async (req, res) => {
     res.status(500).json({ error: '验证码生成失败' });
   }
 });
+
+// Auth 接口限流（应用到 login/register）
+app.use('/api/trpc/auth.login', authLimiter);
+app.use('/api/trpc/auth.register', authLimiter);
+app.use('/api/trpc/auth.forgotPassword', authLimiter);
 
 // tRPC 路由
 app.use(

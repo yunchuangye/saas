@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "../lib/trpc";
 import { sql } from "drizzle-orm";
-import { exportProjects, exportReports, exportBilling, EXPORT_DIR } from "../lib/export-service";
+import { exportProjects, exportReports, exportBilling, exportCases, exportFull, EXPORT_DIR } from "../lib/export-service";
 import crypto from "crypto";
 import path from "path";
 import fs from "fs";
@@ -46,10 +46,11 @@ export const exportsRouter = router({
             result = await exportReports(input.filters || {}, input.format, effectiveOrgId);
           } else if (input.type === "billing") {
             result = await exportBilling(input.filters || {}, input.format, effectiveOrgId);
+          } else if (input.type === "cases") {
+            result = await exportCases(input.filters || {}, input.format, effectiveOrgId);
           } else {
-            // cases / full：暂时导出项目+报告合并
-            const p = await exportProjects(input.filters || {}, input.format, effectiveOrgId);
-            result = p;
+            // full：多 Sheet Excel 全量导出
+            result = await exportFull(input.filters || {}, effectiveOrgId);
           }
 
           const fileSize = fs.statSync(result.filePath).size;
