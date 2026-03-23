@@ -12,7 +12,8 @@ const nextConfig = {
     "*.sg1.manus.computer",
   ],
   // 代理后端 API，解决公网代理环境下的跨域问题
-  // 前端通过 /api/trpc/* 访问后端，Next.js 服务端转发到 localhost:8721
+  // 前端通过 /api/* 访问后端，Next.js 服务端转发到 localhost:8721
+  // 这样 HTTP 和 HTTPS 均可自动适配，无需跨域
   async rewrites() {
     return [
       {
@@ -22,6 +23,18 @@ const nextConfig = {
       {
         source: '/api/captcha',
         destination: 'http://localhost:8721/api/captcha',
+      },
+      {
+        source: '/api/upload',
+        destination: 'http://localhost:8721/api/upload',
+      },
+      {
+        source: '/api/pdf/:path*',
+        destination: 'http://localhost:8721/api/pdf/:path*',
+      },
+      {
+        source: '/health',
+        destination: 'http://localhost:8721/health',
       },
     ]
   },

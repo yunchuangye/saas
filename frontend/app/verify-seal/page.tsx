@@ -1,6 +1,5 @@
 "use client"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { trpc } from "@/lib/trpc"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,7 +13,7 @@ import {
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 
-export default function VerifySealPage() {
+function VerifySealContent() {
   const searchParams = useSearchParams()
   const [inputCode, setInputCode] = useState("")
   const [queryCode, setQueryCode] = useState("")
@@ -260,5 +259,13 @@ export default function VerifySealPage() {
         <p className="mt-1">本服务依据《电子签名法》提供，验证结果具有法律效力</p>
       </footer>
     </div>
+  )
+}
+
+export default function VerifySealPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+      <VerifySealContent />
+    </Suspense>
   )
 }

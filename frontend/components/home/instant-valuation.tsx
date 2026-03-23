@@ -302,7 +302,11 @@ export function InstantValuation() {
                   }}
                 >
                   <SelectTrigger className="h-12 text-base">
-                    <SelectValue placeholder="选择城市" />
+                    {cities.length === 0 ? (
+                      <span className="text-foreground">{selectedCityName}</span>
+                    ) : (
+                      <SelectValue placeholder="选择城市" />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     {cities.map((city: any) => (
