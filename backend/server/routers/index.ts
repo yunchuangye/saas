@@ -30,6 +30,7 @@ import { exportsRouter } from './exports';
 import { brokerRouter } from './broker';
 import { platformAdminRouter } from './platform-admin';
 import { shardDirectoryRouter } from './shard-directory';
+import { valuationProxyRouter } from './valuation-proxy';
 
 export const appRouter = router({
   auth: authRouter,
@@ -73,6 +74,8 @@ export const appRouter = router({
   platformAdmin: platformAdminRouter,
   // 分库分表：楼盘/楼栋/案例（按 city_id 分片）
   shardDirectory: shardDirectoryRouter,
+  // Python 估价微服务代理（GeoHash + ML 回归）
+  valuationProxy: valuationProxyRouter,
 });
 
 export type AppRouter = typeof appRouter;
