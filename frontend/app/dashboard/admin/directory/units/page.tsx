@@ -28,7 +28,7 @@ export default function UnitsPage() {
   const [deleteUnit, setDeleteUnit] = useState<any>(null)
   const [form, setForm] = useState({ unitNumber: "", buildingId: "", estateId: "", floor: "", area: "", rooms: "", orientation: "" })
 
-  const { data: citiesData } = trpc.directory.cities.list.useQuery({ pageSize: 100 })
+  const { data: citiesData } = trpc.directory.cities.list.useQuery({ pageSize: 500 })
   const cities = citiesData?.items ?? []
 
   // 地区列表（选中城市后加载）

@@ -25,7 +25,7 @@ export default function EstatesPage() {
   const [deleteEstate, setDeleteEstate] = useState<any>(null)
   const [form, setForm] = useState({ name: "", address: "", cityId: "", districtId: "", developer: "", propertyType: "" })
 
-  const { data: citiesData } = trpc.directory.cities.list.useQuery({ pageSize: 100 })
+  const { data: citiesData } = trpc.directory.cities.list.useQuery({ pageSize: 500 })
   const cities = citiesData?.items ?? []
 
   // 根据选中城市加载地区列表
