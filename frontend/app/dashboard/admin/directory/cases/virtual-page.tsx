@@ -38,7 +38,7 @@ export default function CasesVirtualPage() {
     isFetching,
   } = trpc.shardDirectory.cases.list.useInfiniteQuery(
     {
-      cityId: city.cityId,
+      cityId: city.id,
       pageSize: PAGE_SIZE,
       search: search || undefined,
       transactionType: transactionType === "all" ? undefined : transactionType,
@@ -97,7 +97,7 @@ export default function CasesVirtualPage() {
             </Badge>
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            {city.cityName} · 已加载 {allCases.length.toLocaleString()} / {totalCount.toLocaleString()} 条
+            {city.name} · 已加载 {allCases.length.toLocaleString()} / {totalCount.toLocaleString()} 条
           </p>
         </div>
         <CitySelector />
@@ -170,7 +170,7 @@ export default function CasesVirtualPage() {
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <TrendingUp className="h-12 w-12 mb-3 opacity-30" />
               <p className="text-sm">暂无案例数据</p>
-              <p className="text-xs mt-1">请先通过爬虫采集{city.cityName}成交案例</p>
+              <p className="text-xs mt-1">请先通过爬虫采集{city.name}成交案例</p>
             </div>
           ) : (
             <div

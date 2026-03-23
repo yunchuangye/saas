@@ -239,6 +239,7 @@ export async function checkShardTablesHealth(): Promise<{
 export interface CityShardInfo {
   cityId: number;
   shardSuffix: number;
+  shardIndex: number;          // alias for shardSuffix, for frontend compatibility
   shardCount: number;
   dbName: string;
   tableEstates:   string;
@@ -246,16 +247,23 @@ export interface CityShardInfo {
   tableUnits:     string;
   tableCases:     string;
   description:    string;
+  // 统计数据（需异步查询时为 undefined）
+  estateCount?:   number;
+  buildingCount?: number;
+  unitCount?:     number;
+  caseCount?:     number;
+  region?:        string;
 }
 
 /**
- * 获取城市的分片信息（用于前端展示和调试）
+ * 获取城市的分片信息（同步，仅返回路由元数据）
  */
 export function getCityShardInfo(cityId: number): CityShardInfo {
   const tables = getTableNames(cityId);
   return {
     cityId,
     shardSuffix:    tables.suffix,
+    shardIndex:     tables.suffix,
     shardCount:     SHARD_COUNT,
     dbName:         "gujia",
     tableEstates:   tables.estates,
@@ -264,6 +272,33 @@ export function getCityShardInfo(cityId: number): CityShardInfo {
     tableCases:     tables.cases,
     description:    `city_id(${cityId}) % ${SHARD_COUNT} = ${tables.suffix}`,
   };
+}
+
+/**
+ * 获取城市的分片信息（含真实数据统计，异步）
+ */
+export async function getCityShardInfoWithStats(cityId: number): Promise<CityShardInfo> {
+  const base = getCityShardInfo(cityId);
+  try {
+    const [estateRows, buildingRows, caseRows] = await Promise.all([
+      (db as any).execute(`SELECT COUNT(*) as cnt FROM \`${base.tableEstates}\` WHERE city_id=?`, [cityId]),
+      (db as any).execute(`SELECT COUNT(*) as cnt FROM \`${base.tableBuildings}\` WHERE city_id=?`, [cityId]),
+      (db as any).execute(`SELECT COUNT(*) as cnt FROM \`${base.tableCases}\` WHERE city_id=?`, [cityId]),
+    ]);
+    // 同时查询城市大区信息
+    const [cityRows] = await (db as any).execute(
+      `SELECT region FROM cities WHERE id=? LIMIT 1`, [cityId]
+    ) as any;
+    return {
+      ...base,
+      estateCount:   Number(estateRows[0]?.[0]?.cnt ?? 0),
+      buildingCount: Number(buildingRows[0]?.[0]?.cnt ?? 0),
+      caseCount:     Number(caseRows[0]?.[0]?.cnt ?? 0),
+      region:        cityRows?.[0]?.region ?? "",
+    };
+  } catch {
+    return base;
+  }
 }
 
 // ─── 兼容旧接口（保持向后兼容） ──────────────────────────────

@@ -9,6 +9,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../lib/trpc";
 import {
   getCityShardInfo,
+  getCityShardInfoWithStats,
   queryShardTable,
   queryAllShards,
   executeShardTable,
@@ -43,11 +44,11 @@ export const shardDirectoryRouter = router({
     return result;
   }),
 
-  // ─── 获取城市分片信息 ────────────────────────────────────────
+  // ─── 获取城市分片信息（含统计数据） ────────────────────────────
   getCityShardInfo: protectedProcedure
     .input(z.object({ cityId: z.number() }))
-    .query(({ input }) => {
-      return getCityShardInfo(input.cityId);
+    .query(async ({ input }) => {
+      return getCityShardInfoWithStats(input.cityId);
     }),
 
   // ─── 楼盘操作 ────────────────────────────────────────────────
@@ -392,10 +393,46 @@ export const shardDirectoryRouter = router({
       `SELECT region, region_name, COUNT(*) as city_count FROM cities WHERE is_active=1 GROUP BY region, region_name`
     ) as any;
 
+    // 城市总数
+    const [totalRow] = await (db as any).execute(
+      `SELECT COUNT(*) as cnt FROM cities WHERE is_active=1`
+    ) as any;
+    const totalCities = Number(totalRow?.[0]?.cnt ?? 298);
+
     return {
       tables: stats,
       shardCount: SHARD_COUNT,
       cities: cityRows,
+      totalCities,
     };
   }),
+
+  // ─── 城市列表（按大区分组） ────────────────────────────────────────
+  listCities: protectedProcedure
+    .input(z.object({
+      region:  z.string().optional(),
+      tier:    z.number().int().min(1).max(5).optional(),
+      search:  z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      let where = "WHERE is_active=1";
+      const params: any[] = [];
+      if (input.region) { where += " AND region=?"; params.push(input.region); }
+      if (input.tier)   { where += " AND tier=?";   params.push(input.tier); }
+      if (input.search) {
+        where += " AND (name LIKE ? OR pinyin LIKE ?)";
+        params.push(`%${input.search}%`, `%${input.search}%`);
+      }
+      const [rows] = await (db as any).execute(
+        `SELECT id, name, pinyin, province, region, region_name, tier
+         FROM cities ${where}
+         ORDER BY tier ASC, id ASC
+         LIMIT 500`,
+        params
+      ) as any;
+      return rows as Array<{
+        id: number; name: string; pinyin: string;
+        province: string; region: string; region_name: string; tier: number;
+      }>;
+    }),
 });

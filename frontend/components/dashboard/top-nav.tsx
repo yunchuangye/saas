@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { trpc } from "@/lib/trpc"
+import { CitySelector } from "@/lib/city-context"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -265,6 +266,9 @@ export function TopNav({ className }: TopNavProps) {
             </div>
           </PopoverContent>
         </Popover>
+
+        {/* 城市切换器 */}
+        <CitySelector className="hidden sm:block" />
 
         {/* 主题切换 */}
         <ThemeToggle />

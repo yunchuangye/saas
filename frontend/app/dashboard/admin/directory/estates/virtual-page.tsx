@@ -35,7 +35,7 @@ export default function EstatesVirtualPage() {
 
   // ─── 数据获取 ────────────────────────────────────────────────
   const { data, isLoading, isFetching } = trpc.shardDirectory.estates.list.useQuery(
-    { cityId: city.cityId, page, pageSize: PAGE_SIZE, search: search || undefined },
+    { cityId: city.id, page, pageSize: PAGE_SIZE, search: search || undefined },
     { staleTime: 5 * 60 * 1000, keepPreviousData: true } // 5分钟缓存
   );
 
@@ -50,17 +50,17 @@ export default function EstatesVirtualPage() {
       queryClient.prefetchQuery({
         queryKey: getQueryKey(
           trpc.shardDirectory.estates.list,
-          { cityId: city.cityId, page: targetPage, pageSize: PAGE_SIZE, search: search || undefined },
+          { cityId: city.id, page: targetPage, pageSize: PAGE_SIZE, search: search || undefined },
           "query"
         ),
         queryFn: () =>
           trpc.shardDirectory.estates.list.query({
-            cityId: city.cityId, page: targetPage, pageSize: PAGE_SIZE, search: search || undefined,
+            cityId: city.id, page: targetPage, pageSize: PAGE_SIZE, search: search || undefined,
           }),
         staleTime: 5 * 60 * 1000,
       });
     },
-    [queryClient, city.cityId, search, totalPages]
+    [queryClient, city.id, search, totalPages]
   );
 
   // ─── 虚拟列表配置 ────────────────────────────────────────────
@@ -98,7 +98,7 @@ export default function EstatesVirtualPage() {
             </Badge>
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            {city.cityName} · 共 {total.toLocaleString()} 个楼盘
+            {city.name} · 共 {total.toLocaleString()} 个楼盘
           </p>
         </div>
         <CitySelector />
@@ -163,7 +163,7 @@ export default function EstatesVirtualPage() {
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Building2 className="h-12 w-12 mb-3 opacity-30" />
               <p className="text-sm">暂无楼盘数据</p>
-              <p className="text-xs mt-1">请先通过爬虫采集{city.cityName}楼盘数据</p>
+              <p className="text-xs mt-1">请先通过爬虫采集{city.name}楼盘数据</p>
             </div>
           ) : (
             /* 虚拟滚动容器 */

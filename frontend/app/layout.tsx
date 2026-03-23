@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import { TRPCProvider } from '@/components/providers/trpc-provider'
+import { CityProvider } from '@/lib/city-context'
 import './globals.css'
 
 const geistSans = Geist({ 
@@ -66,7 +67,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TRPCProvider>
-            {children}
+            <CityProvider>
+              {children}
+            </CityProvider>
           </TRPCProvider>
         </ThemeProvider>
         <Analytics />
