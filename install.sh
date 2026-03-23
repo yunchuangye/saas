@@ -169,10 +169,11 @@ else
 fi
 
 # ================================================================
-# STEP 4: 初始化 MySQL 数据库
+# STEP 4: 初始化 MySQL 数据库并还原备份
 # ================================================================
-step "初始化 MySQL 数据库"
+step "初始化 MySQL 数据库并还原备份"
 
+# 先创建数据库用户（restore.sh 需要用户已存在才能连接）
 info "创建数据库 '$DB_NAME' 和用户 '$DB_USER'..."
 MYSQL_INIT_SQL="CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
@@ -187,29 +188,48 @@ mysql -u root -e "$MYSQL_INIT_SQL" 2>/dev/null || \
   warn "数据库用户可能已存在，继续..."
 ok "数据库用户创建完成"
 
-# 还原数据库备份（优先使用最新完整备份）
-BACKUP_FILE=""
-for f in \
-  "$ROOT/database/gujia_full_20260322.sql.gz" \
-  "$ROOT/database/gujia_full_"*.sql.gz \
-  "$ROOT/database/gujia_clean_"*.sql.gz; do
-  if [ -f "$f" ]; then
-    BACKUP_FILE="$f"
-    break
-  fi
-done
+# 将当前数据库配置临时写入 backend/.env（供 restore.sh 读取）
+# 注意：此时 backend/.env 可能尚未生成（STEP 5 才生成），需提前写入临时配置
+if [ ! -f "$ROOT/backend/.env" ]; then
+  info "预写入临时 backend/.env 供还原脚本读取..."
+  mkdir -p "$ROOT/backend"
+  cat > "$ROOT/backend/.env" <<TMPENV
+DB_HOST=$DB_HOST
+DB_PORT=$DB_PORT
+DB_USER=$DB_USER
+DB_PASSWORD=$DB_PASSWORD
+DB_NAME=$DB_NAME
+TMPENV
+fi
 
-if [ -n "$BACKUP_FILE" ]; then
-  info "正在还原数据库：$(basename $BACKUP_FILE)"
-  info "（约 200 万条数据，预计耗时 3-10 分钟，请耐心等待...）"
-  zcat "$BACKUP_FILE" | mysql -u "$DB_USER" -p"$DB_PASSWORD" -h 127.0.0.1 "$DB_NAME" 2>&1 | grep -v "Warning" || true
-  TABLE_COUNT=$(mysql -u "$DB_USER" -p"$DB_PASSWORD" -h 127.0.0.1 "$DB_NAME" \
-    -e "SHOW TABLES;" 2>/dev/null | wc -l)
-  ok "数据库还原完成，共 $TABLE_COUNT 张表"
+# 调用独立的数据库还原脚本
+if [ -f "$ROOT/database/restore.sh" ]; then
+  info "调用 database/restore.sh 执行数据库还原..."
+  bash "$ROOT/database/restore.sh" 2>&1 || warn "数据库还原脚本执行异常，请手动检查"
 else
-  warn "未找到数据库备份文件，跳过还原步骤"
-  warn "请将备份文件放入 $ROOT/database/ 后手动执行："
-  warn "  zcat gujia_full_20260322.sql.gz | mysql -u $DB_USER -p $DB_NAME"
+  warn "未找到 database/restore.sh，回退到内联还原逻辑..."
+  BACKUP_FILE=""
+  for f in \
+    "$ROOT/database/gujia_full_20260322.sql.gz" \
+    "$ROOT/database/gujia_full_"*.sql.gz \
+    "$ROOT/database/gujia_clean_"*.sql.gz; do
+    if [ -f "$f" ]; then
+      BACKUP_FILE="$f"
+      break
+    fi
+  done
+  if [ -n "$BACKUP_FILE" ]; then
+    info "正在还原数据库：$(basename $BACKUP_FILE)"
+    info "（约 200 万条数据，预计耗时 3-10 分钟，请耐心等待...）"
+    zcat "$BACKUP_FILE" | mysql -u "$DB_USER" -p"$DB_PASSWORD" -h 127.0.0.1 "$DB_NAME" 2>&1 | grep -v "Warning" || true
+    TABLE_COUNT=$(mysql -u "$DB_USER" -p"$DB_PASSWORD" -h 127.0.0.1 "$DB_NAME" \
+      -e "SHOW TABLES;" 2>/dev/null | wc -l)
+    ok "数据库还原完成，共 $TABLE_COUNT 张表"
+  else
+    warn "未找到数据库备份文件，跳过还原步骤"
+    warn "还原方式一（推荐）：bash database/restore.sh"
+    warn "还原方式二（手动）：zcat database/gujia_full_20260322.sql.gz | mysql -u $DB_USER -p $DB_NAME"
+  fi
 fi
 
 # ================================================================
