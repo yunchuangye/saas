@@ -3,14 +3,21 @@
  * 楼盘字典 - 虚拟列表版本（高性能）
  * ============================================================
  * 使用 @tanstack/react-virtual 实现虚拟滚动
- * 使用 react-query Prefetching 实现零延迟翻页
+ * 使用 react-query v5 Prefetching 实现零延迟翻页
  * 支持城市分站数据隔离（通过 useCity hook）
+ *
+ * 优化点：
+ * 1. keepPreviousData → placeholderData: keepPreviousData（v5 兼容）
+ * 2. 翻页时保留上一页数据，避免白屏闪烁
+ * 3. 鼠标悬停分页按钮时预获取目标页
+ * 4. 搜索防抖 300ms，减少无效请求
+ * 5. 虚拟列表 overscan=10，滚动更流畅
  */
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { trpc } from "@/lib/trpc";
 import { useCity } from "@/lib/city-context";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { getQueryKey } from "@trpc/react-query";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,31 +26,51 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Search, Building2, MapPin, ChevronLeft, ChevronRight,
-  ChevronsLeft, ChevronsRight, Zap,
+  ChevronsLeft, ChevronsRight, Zap, X,
 } from "lucide-react";
 import { CitySelector } from "@/lib/city-context";
 
-const PAGE_SIZE = 50; // 虚拟列表每页加载更多数据
+const PAGE_SIZE = 50;
 
 export default function EstatesVirtualPage() {
   const { city } = useCity();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const parentRef = useRef<HTMLDivElement>(null);
 
-  // ─── 数据获取 ────────────────────────────────────────────────
-  const { data, isLoading, isFetching } = trpc.shardDirectory.estates.list.useQuery(
-    { cityId: city.id, page, pageSize: PAGE_SIZE, search: search || undefined },
-    { staleTime: 5 * 60 * 1000, keepPreviousData: true } // 5分钟缓存
-  );
+  // 搜索防抖 300ms
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // 城市切换时重置分页
+  useEffect(() => {
+    setPage(1);
+    setSearch("");
+    setSearchInput("");
+  }, [city.id]);
+
+  // ─── 数据获取（v5 API）──────────────────────────────────────
+  const { data, isLoading, isFetching, isPlaceholderData } =
+    trpc.shardDirectory.estates.list.useQuery(
+      { cityId: city.id, page, pageSize: PAGE_SIZE, search: search || undefined },
+      {
+        staleTime: 5 * 60 * 1000,
+        placeholderData: keepPreviousData, // v5 写法：翻页时保留上一页数据，避免白屏
+      }
+    );
 
   const estates = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  // ─── 预获取（Prefetching）────────────────────────────────────
+  // ─── 预获取（Prefetching）——鼠标悬停时触发 ──────────────────
   const prefetchPage = useCallback(
     (targetPage: number) => {
       if (targetPage < 1 || targetPage > totalPages) return;
@@ -63,26 +90,28 @@ export default function EstatesVirtualPage() {
     [queryClient, city.id, search, totalPages]
   );
 
+  // 自动预获取下一页（当前页加载完成后立即预获取）
+  useEffect(() => {
+    if (!isFetching && page < totalPages) {
+      prefetchPage(page + 1);
+    }
+  }, [isFetching, page, totalPages, prefetchPage]);
+
   // ─── 虚拟列表配置 ────────────────────────────────────────────
   const rowVirtualizer = useVirtualizer({
     count: estates.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 64, // 每行预估 64px
-    overscan: 8,
+    estimateSize: () => 64,
+    overscan: 10,
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
   // ─── 翻页处理 ────────────────────────────────────────────────
   const goToPage = (p: number) => {
+    if (p < 1 || p > totalPages) return;
     setPage(p);
-    // 翻页后滚动到顶部
     if (parentRef.current) parentRef.current.scrollTop = 0;
-  };
-
-  const handleSearch = () => {
-    setSearch(searchInput);
-    setPage(1);
   };
 
   return (
@@ -99,6 +128,9 @@ export default function EstatesVirtualPage() {
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             {city.name} · 共 {total.toLocaleString()} 个楼盘
+            {isPlaceholderData && (
+              <span className="ml-2 text-xs text-amber-500">（加载中...）</span>
+            )}
           </p>
         </div>
         <CitySelector />
@@ -109,23 +141,25 @@ export default function EstatesVirtualPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            className="pl-9"
-            placeholder="搜索楼盘名称或地址..."
+            className="pl-9 pr-9"
+            placeholder="搜索楼盘名称或地址（实时搜索）..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           />
+          {searchInput && (
+            <button
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={() => setSearchInput("")}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        <Button onClick={handleSearch} variant="outline">搜索</Button>
-        {search && (
-          <Button variant="ghost" onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}>
-            清除
-          </Button>
-        )}
-        {isFetching && !isLoading && (
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <div className="h-3 w-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            加载中...
+        {/* 加载状态指示器 */}
+        {isFetching && (
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground px-2">
+            <div className="h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs">加载中</span>
           </div>
         )}
       </div>
@@ -155,7 +189,7 @@ export default function EstatesVirtualPage() {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-4 space-y-2">
-              {Array.from({ length: 10 }).map((_, i) => (
+              {Array.from({ length: 12 }).map((_, i) => (
                 <Skeleton key={i} className="h-14 w-full" />
               ))}
             </div>
@@ -166,13 +200,11 @@ export default function EstatesVirtualPage() {
               <p className="text-xs mt-1">请先通过爬虫采集{city.name}楼盘数据</p>
             </div>
           ) : (
-            /* 虚拟滚动容器 */
             <div
               ref={parentRef}
               className="overflow-auto"
               style={{ height: "calc(100vh - 380px)", minHeight: "300px" }}
             >
-              {/* 撑开总高度的占位容器 */}
               <div
                 style={{
                   height: `${rowVirtualizer.getTotalSize()}px`,
@@ -180,7 +212,6 @@ export default function EstatesVirtualPage() {
                   position: "relative",
                 }}
               >
-                {/* 只渲染可视区域内的行 */}
                 {virtualItems.map((virtualRow) => {
                   const estate = estates[virtualRow.index];
                   if (!estate) return null;
@@ -235,30 +266,33 @@ export default function EstatesVirtualPage() {
         </CardContent>
       </Card>
 
-      {/* 分页器（带 Prefetching） */}
+      {/* 分页器（带 Prefetching 零延迟翻页） */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between flex-shrink-0 pt-1">
           <p className="text-sm text-muted-foreground">
-            第 {page} / {totalPages} 页，共 {total.toLocaleString()} 条
+            第 <span className="font-medium text-foreground">{page}</span> / {totalPages} 页，共{" "}
+            <span className="font-medium text-foreground">{total.toLocaleString()}</span> 条
           </p>
           <div className="flex items-center gap-1">
             <Button
               variant="outline" size="sm"
-              disabled={page === 1}
+              disabled={page === 1 || isPlaceholderData}
               onClick={() => goToPage(1)}
+              title="第一页"
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="outline" size="sm"
-              disabled={page === 1}
+              disabled={page === 1 || isPlaceholderData}
               onClick={() => goToPage(page - 1)}
               onMouseEnter={() => prefetchPage(page - 1)}
+              title="上一页"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
 
-            {/* 页码按钮（显示前后2页） */}
+            {/* 页码按钮（显示前后2页，共5个） */}
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
               return (
@@ -269,6 +303,7 @@ export default function EstatesVirtualPage() {
                   className="w-9"
                   onClick={() => goToPage(p)}
                   onMouseEnter={() => prefetchPage(p)}
+                  disabled={isPlaceholderData && p !== page}
                 >
                   {p}
                 </Button>
@@ -277,16 +312,18 @@ export default function EstatesVirtualPage() {
 
             <Button
               variant="outline" size="sm"
-              disabled={page === totalPages}
+              disabled={page === totalPages || isPlaceholderData}
               onClick={() => goToPage(page + 1)}
               onMouseEnter={() => prefetchPage(page + 1)}
+              title="下一页"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
             <Button
               variant="outline" size="sm"
-              disabled={page === totalPages}
+              disabled={page === totalPages || isPlaceholderData}
               onClick={() => goToPage(totalPages)}
+              title="最后一页"
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>

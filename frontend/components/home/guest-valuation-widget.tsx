@@ -194,7 +194,7 @@ export function GuestValuationWidget() {
   const [step, setStep] = useState<"form" | "result" | "service">("form")
   const [serviceType, setServiceType] = useState<"bank" | "appraiser" | null>(null)
   const [formData, setFormData] = useState({
-    cityId: 0, cityName: "", districtId: 0, districtName: "",
+    cityId: 190, cityName: "深圳", districtId: 0, districtName: "",
     propertyType: "residential", buildingArea: "", floor: "",
     totalFloors: "", buildingAge: "", orientation: "south",
     decoration: "medium", hasElevator: true, hasParking: false,
@@ -204,6 +204,15 @@ export function GuestValuationWidget() {
   const [error, setError] = useState("")
 
   const { data: cities } = trpc.guestValuation.getCities.useQuery()
+  // 城市数据加载后，确保深圳城市名称与数据库一致
+  const cityInitRef = useRef(false)
+  useEffect(() => {
+    if (cities && cities.length > 0 && !cityInitRef.current) {
+      cityInitRef.current = true
+      const shenzhen = cities.find((c) => c.id === 190)
+      if (shenzhen) setFormData((f) => ({ ...f, cityId: shenzhen.id, cityName: shenzhen.name }))
+    }
+  }, [cities])
   const { data: districts } = trpc.guestValuation.getDistricts.useQuery(
     { cityId: formData.cityId }, { enabled: formData.cityId > 0 }
   )

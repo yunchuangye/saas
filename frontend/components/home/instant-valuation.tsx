@@ -99,7 +99,7 @@ interface AppraiserOption {
 
 export function InstantValuation() {
   const [step, setStep] = useState<"form" | "loading" | "result">("form")
-  const [selectedCityId, setSelectedCityId] = useState<number | null>(6) // 默认深圳
+  const [selectedCityId, setSelectedCityId] = useState<number | null>(190) // 默认深圳（id=190）
   const [selectedCityName, setSelectedCityName] = useState("深圳")
   const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(null)
   const [selectedDistrictName, setSelectedDistrictName] = useState("")
@@ -127,8 +127,8 @@ export function InstantValuation() {
   // 深圳置顶，其余城市保持原顺序
   const cities = rawCities.length > 0
     ? [
-        ...rawCities.filter((c: any) => c.id === 6),
-        ...rawCities.filter((c: any) => c.id !== 6),
+        ...rawCities.filter((c: any) => c.id === 190),
+        ...rawCities.filter((c: any) => c.id !== 190),
       ]
     : rawCities
 
@@ -295,7 +295,7 @@ export function InstantValuation() {
                   <SelectContent>
                     {cities.map((city: any) => (
                       <SelectItem key={city.id} value={String(city.id)} className="text-base">
-                        {city.id === 6 ? `⭐ ${city.name}` : city.name}
+                          {city.id === 190 ? `⭐ ${city.name}` : city.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

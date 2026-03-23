@@ -121,7 +121,7 @@ export function RegisterForm() {
         {/* 角色选择 — 与登录页一致的样式 */}
         <div className="space-y-3">
           <Label className="text-base font-semibold text-foreground">注册身份</Label>
-          <div className="grid grid-cols-4 gap-2.5">
+          <div className="grid grid-cols-5 gap-2">
             {[...roles.filter(r => r.id === "customer"), ...roles.filter(r => r.id !== "admin" && r.id !== "customer")].map((role) => {
               const Icon = role.icon
               const isSelected = selectedRole === role.id
@@ -131,7 +131,7 @@ export function RegisterForm() {
                   type="button"
                   onClick={() => setSelectedRole(role.id)}
                   className={cn(
-                    "flex flex-col items-center gap-2 rounded-xl border-2 p-3 xl:p-4 transition-all duration-200",
+                    "flex flex-col items-center gap-1.5 rounded-xl border-2 p-2.5 transition-all duration-200",
                     "hover:border-primary/60 hover:bg-primary/5 hover:shadow-sm",
                     isSelected
                       ? "border-primary bg-primary/8 shadow-sm"
@@ -145,19 +145,19 @@ export function RegisterForm() {
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground"
                     )}
-                    style={{ width: '52px', height: '52px' }}
+                    style={{ width: '44px', height: '44px' }}
                   >
-                    <Icon className="h-6 w-6" />
+                    <Icon className="h-5 w-5" />
                   </div>
                   <div className="text-center">
                     <p className={cn(
-                      "text-base font-semibold leading-tight",
+                      "text-sm font-semibold leading-tight",
                       isSelected ? "text-primary" : "text-foreground"
                     )}>
                       {role.name}
                     </p>
                     {role.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-tight hidden xl:block">
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight hidden xl:block">
                         {role.description}
                       </p>
                     )}
