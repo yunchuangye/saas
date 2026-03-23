@@ -127,16 +127,17 @@ app.get("/health", async (req, res) => {
   } catch {
     checks.database = 'error';
   }
-  // 检查分库健康状态
+  // 检查单库分表健康状态
   try {
-    const { checkShardHealth } = await import('./lib/shard-db');
-    const shardHealth = await checkShardHealth();
-    const shardOk = Object.values(shardHealth).every(v => v === 'ok');
-    checks.shards = shardOk ? 'ok' : JSON.stringify(shardHealth);
+    const { checkShardTablesHealth } = await import('./lib/shard-db');
+    const shardHealth = await checkShardTablesHealth();
+    checks.shards = shardHealth.healthy
+      ? `ok (${shardHealth.totalTables} tables)`
+      : `missing: ${shardHealth.missingTables.join(',')}`;
   } catch {
     checks.shards = 'error';
   }
-  const allOk = Object.values(checks).every(v => v === 'ok');
+  const allOk = Object.values(checks).every(v => typeof v === 'string' && v.startsWith('ok'));
   res.status(allOk ? 200 : 503).json({
     status: allOk ? 'ok' : 'degraded',
     time: new Date().toISOString(),

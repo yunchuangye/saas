@@ -1,25 +1,26 @@
 /**
- * 分库分表路由 - 楼盘/楼栋/房屋/案例 CRUD
+ * 单库分表路由 - 楼盘/楼栋/房屋/案例 CRUD
  * ============================================================
- * 所有操作均通过 shard-db.ts 路由到对应的大区分库和物理分表
- * Sharding Key: city_id
+ * 所有操作均通过 shard-db.ts 路由到 gujia 主库的对应分表
+ * Sharding Key: city_id（city_id % 8 → 分表后缀 _0 ~ _7）
  */
 
 import { z } from "zod";
 import { router, protectedProcedure } from "../lib/trpc";
 import {
-  getPoolByCityId,
-  getDbByCityId,
   getCityShardInfo,
+  queryShardTable,
   queryAllShards,
-  checkShardHealth,
-  getCityRegion,
-  getShardPool,
-  type ShardRegion,
+  executeShardTable,
+  checkShardTablesHealth,
+  encodeGeoHash,
+  getAllTableNames,
+  SHARD_COUNT,
 } from "../lib/shard-db";
+import { db } from "../lib/db";
 import { TRPCError } from "@trpc/server";
 
-// ─── 楼盘操作 ──────────────────────────────────────────────────
+// ─── 楼盘输入验证 ────────────────────────────────────────────
 const estateInput = z.object({
   cityId:       z.number().int().positive(),
   name:         z.string().min(1).max(200),
@@ -35,10 +36,11 @@ const estateInput = z.object({
 });
 
 export const shardDirectoryRouter = router({
-  // ─── 分库健康检查 ────────────────────────────────────────────
+
+  // ─── 分表健康检查 ────────────────────────────────────────────
   shardHealth: protectedProcedure.query(async () => {
-    const health = await checkShardHealth();
-    return health;
+    const result = await checkShardTablesHealth();
+    return result;
   }),
 
   // ─── 获取城市分片信息 ────────────────────────────────────────
@@ -48,24 +50,26 @@ export const shardDirectoryRouter = router({
       return getCityShardInfo(input.cityId);
     }),
 
-  // ─── 楼盘：创建 ─────────────────────────────────────────────
+  // ─── 楼盘操作 ────────────────────────────────────────────────
   estates: router({
+
+    // 创建楼盘
     create: protectedProcedure
       .input(estateInput)
       .mutation(async ({ input }) => {
         const { cityId } = input;
         const info = getCityShardInfo(cityId);
-        const pool = getPoolByCityId(cityId);
 
-        // 计算 GeoHash（如果提供了经纬度）
         let geohash = input.geohash;
         if (!geohash && input.latitude && input.longitude) {
           geohash = encodeGeoHash(input.latitude, input.longitude, 8);
         }
 
-        const [result] = await pool.execute(
-          `INSERT INTO ${info.tableEstates}
-            (city_id, name, district_id, address, developer, build_year, property_type, total_units, latitude, longitude, geohash, is_active)
+        const result = await executeShardTable(
+          cityId, "estates",
+          `INSERT INTO {{TABLE}}
+            (city_id, name, district_id, address, developer, build_year,
+             property_type, total_units, latitude, longitude, geohash, is_active)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
           [
             cityId, input.name, input.districtId ?? null,
@@ -74,12 +78,12 @@ export const shardDirectoryRouter = router({
             input.totalUnits ?? null, input.latitude ?? null,
             input.longitude ?? null, geohash ?? null,
           ]
-        ) as any;
+        );
 
         return { id: result.insertId, shardInfo: info };
       }),
 
-    // ─── 楼盘：查询列表 ─────────────────────────────────────────
+    // 查询楼盘列表（支持分页、搜索）
     list: protectedProcedure
       .input(z.object({
         cityId:     z.number().int().positive(),
@@ -91,7 +95,6 @@ export const shardDirectoryRouter = router({
       .query(async ({ input }) => {
         const { cityId, page, pageSize, search, districtId } = input;
         const info = getCityShardInfo(cityId);
-        const pool = getPoolByCityId(cityId);
         const offset = (page - 1) * pageSize;
 
         let where = "WHERE city_id = ? AND is_active = 1";
@@ -103,40 +106,45 @@ export const shardDirectoryRouter = router({
           params.push(`%${search}%`, `%${search}%`);
         }
 
-        const [rows] = await pool.execute(
-          `SELECT * FROM ${info.tableEstates} ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+        const rows = await queryShardTable(
+          cityId, "estates",
+          `SELECT * FROM {{TABLE}} ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
           [...params, pageSize, offset]
-        ) as any;
+        );
 
-        const [[countRow]] = await pool.execute(
-          `SELECT COUNT(*) as cnt FROM ${info.tableEstates} ${where}`,
+        const countRows = await queryShardTable(
+          cityId, "estates",
+          `SELECT COUNT(*) as cnt FROM {{TABLE}} ${where}`,
           params
-        ) as any;
+        );
 
-        return { items: rows, total: countRow.cnt, page, pageSize, shardInfo: info };
+        return {
+          items: rows,
+          total: Number(countRows[0]?.cnt ?? 0),
+          page,
+          pageSize,
+          shardInfo: info,
+        };
       }),
 
-    // ─── 楼盘：详情 ─────────────────────────────────────────────
+    // 楼盘详情
     get: protectedProcedure
       .input(z.object({ cityId: z.number(), id: z.number() }))
       .query(async ({ input }) => {
-        const info = getCityShardInfo(input.cityId);
-        const pool = getPoolByCityId(input.cityId);
-        const [[row]] = await pool.execute(
-          `SELECT * FROM ${info.tableEstates} WHERE id = ? AND city_id = ?`,
+        const rows = await queryShardTable(
+          input.cityId, "estates",
+          `SELECT * FROM {{TABLE}} WHERE id = ? AND city_id = ?`,
           [input.id, input.cityId]
-        ) as any;
-        if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "楼盘不存在" });
-        return row;
+        );
+        if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "楼盘不存在" });
+        return rows[0];
       }),
 
-    // ─── 楼盘：更新 ─────────────────────────────────────────────
+    // 更新楼盘
     update: protectedProcedure
       .input(estateInput.partial().extend({ id: z.number(), cityId: z.number() }))
       .mutation(async ({ input }) => {
         const { id, cityId, ...fields } = input;
-        const info = getCityShardInfo(cityId);
-        const pool = getPoolByCityId(cityId);
         const setClauses: string[] = [];
         const params: any[] = [];
         const fieldMap: Record<string, string> = {
@@ -153,29 +161,31 @@ export const shardDirectoryRouter = router({
         }
         if (setClauses.length === 0) return { affected: 0 };
         params.push(id, cityId);
-        const [result] = await pool.execute(
-          `UPDATE ${info.tableEstates} SET ${setClauses.join(", ")} WHERE id = ? AND city_id = ?`,
+        const result = await executeShardTable(
+          cityId, "estates",
+          `UPDATE {{TABLE}} SET ${setClauses.join(", ")} WHERE id = ? AND city_id = ?`,
           params
-        ) as any;
+        );
         return { affected: result.affectedRows };
       }),
 
-    // ─── 楼盘：删除（软删除） ────────────────────────────────────
+    // 删除楼盘（软删除）
     delete: protectedProcedure
       .input(z.object({ cityId: z.number(), id: z.number() }))
       .mutation(async ({ input }) => {
-        const info = getCityShardInfo(input.cityId);
-        const pool = getPoolByCityId(input.cityId);
-        await pool.execute(
-          `UPDATE ${info.tableEstates} SET is_active = 0 WHERE id = ? AND city_id = ?`,
+        await executeShardTable(
+          input.cityId, "estates",
+          `UPDATE {{TABLE}} SET is_active = 0 WHERE id = ? AND city_id = ?`,
           [input.id, input.cityId]
         );
         return { success: true };
       }),
   }),
 
-  // ─── 楼栋：查询 ─────────────────────────────────────────────
+  // ─── 楼栋操作 ────────────────────────────────────────────────
   buildings: router({
+
+    // 查询楼栋列表
     list: protectedProcedure
       .input(z.object({
         cityId:   z.number().int().positive(),
@@ -186,8 +196,6 @@ export const shardDirectoryRouter = router({
       }))
       .query(async ({ input }) => {
         const { cityId, estateId, page, pageSize, search } = input;
-        const info = getCityShardInfo(cityId);
-        const pool = getPoolByCityId(cityId);
         const offset = (page - 1) * pageSize;
 
         let where = "WHERE city_id = ?";
@@ -195,16 +203,20 @@ export const shardDirectoryRouter = router({
         if (estateId) { where += " AND estate_id = ?"; params.push(estateId); }
         if (search) { where += " AND name LIKE ?"; params.push(`%${search}%`); }
 
-        const [rows] = await pool.execute(
-          `SELECT * FROM ${info.tableBuildings} ${where} ORDER BY name LIMIT ? OFFSET ?`,
+        const rows = await queryShardTable(
+          cityId, "buildings",
+          `SELECT * FROM {{TABLE}} ${where} ORDER BY name LIMIT ? OFFSET ?`,
           [...params, pageSize, offset]
-        ) as any;
-        const [[countRow]] = await pool.execute(
-          `SELECT COUNT(*) as cnt FROM ${info.tableBuildings} ${where}`, params
-        ) as any;
-        return { items: rows, total: countRow.cnt, page, pageSize };
+        );
+        const countRows = await queryShardTable(
+          cityId, "buildings",
+          `SELECT COUNT(*) as cnt FROM {{TABLE}} ${where}`,
+          params
+        );
+        return { items: rows, total: Number(countRows[0]?.cnt ?? 0), page, pageSize };
       }),
 
+    // 创建楼栋
     create: protectedProcedure
       .input(z.object({
         cityId:        z.number(),
@@ -218,24 +230,25 @@ export const shardDirectoryRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { cityId, estateId, name, floors, unitsPerFloor, totalUnits, buildingType, avgPrice } = input;
-        const info = getCityShardInfo(cityId);
-        const pool = getPoolByCityId(cityId);
-        const [result] = await pool.execute(
-          `INSERT INTO ${info.tableBuildings} (city_id, estate_id, name, floors, units_per_floor, total_units, building_type, avg_price)
+        const result = await executeShardTable(
+          cityId, "buildings",
+          `INSERT INTO {{TABLE}} (city_id, estate_id, name, floors, units_per_floor, total_units, building_type, avg_price)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [cityId, estateId, name, floors ?? null, unitsPerFloor ?? null, totalUnits ?? null, buildingType ?? null, avgPrice ?? null]
-        ) as any;
+        );
         return { id: result.insertId };
       }),
   }),
 
-  // ─── 案例：查询（支持 GeoHash 周边搜索） ─────────────────────
+  // ─── 成交案例操作 ────────────────────────────────────────────
   cases: router({
+
+    // 查询案例列表（支持无限滚动）
     list: protectedProcedure
       .input(z.object({
         cityId:          z.number().int().positive(),
         page:            z.number().int().default(1),
-        pageSize:        z.number().int().max(100).default(20),
+        pageSize:        z.number().int().max(100).default(30),
         search:          z.string().optional(),
         transactionType: z.enum(["sale", "rent"]).optional(),
         minPrice:        z.number().optional(),
@@ -244,7 +257,6 @@ export const shardDirectoryRouter = router({
       .query(async ({ input }) => {
         const { cityId, page, pageSize, search, transactionType, minPrice, maxPrice } = input;
         const info = getCityShardInfo(cityId);
-        const pool = getPoolByCityId(cityId);
         const offset = (page - 1) * pageSize;
 
         let where = "WHERE city_id = ?";
@@ -252,49 +264,60 @@ export const shardDirectoryRouter = router({
         if (transactionType) { where += " AND transaction_type = ?"; params.push(transactionType); }
         if (minPrice) { where += " AND unit_price >= ?"; params.push(minPrice); }
         if (maxPrice) { where += " AND unit_price <= ?"; params.push(maxPrice); }
-        if (search) { where += " AND (address LIKE ? OR community LIKE ?)"; params.push(`%${search}%`, `%${search}%`); }
+        if (search) {
+          where += " AND (address LIKE ? OR community LIKE ?)";
+          params.push(`%${search}%`, `%${search}%`);
+        }
 
-        const [rows] = await pool.execute(
-          `SELECT * FROM ${info.tableCases} ${where} ORDER BY deal_date DESC LIMIT ? OFFSET ?`,
+        const rows = await queryShardTable(
+          cityId, "cases",
+          `SELECT * FROM {{TABLE}} ${where} ORDER BY deal_date DESC LIMIT ? OFFSET ?`,
           [...params, pageSize, offset]
-        ) as any;
-        const [[countRow]] = await pool.execute(
-          `SELECT COUNT(*) as cnt FROM ${info.tableCases} ${where}`, params
-        ) as any;
-        return { items: rows, total: countRow.cnt, page, pageSize, shardInfo: info };
+        );
+        const countRows = await queryShardTable(
+          cityId, "cases",
+          `SELECT COUNT(*) as cnt FROM {{TABLE}} ${where}`,
+          params
+        );
+        return {
+          items: rows,
+          total: Number(countRows[0]?.cnt ?? 0),
+          page,
+          pageSize,
+          shardInfo: info,
+        };
       }),
 
-    // ─── GeoHash 周边案例搜索（估价引擎核心） ────────────────────
+    // GeoHash 周边案例搜索（估价引擎核心）
     nearbySearch: protectedProcedure
       .input(z.object({
         cityId:    z.number(),
-        geohash:   z.string().min(4),   // 至少 4 位（约 39km 精度）
-        precision: z.number().int().min(4).max(8).default(6), // 6位≈1.2km
+        geohash:   z.string().min(4),
+        precision: z.number().int().min(4).max(8).default(6),
         limit:     z.number().int().max(200).default(50),
-        minDate:   z.string().optional(), // ISO 日期字符串，过滤最近N个月
+        minDate:   z.string().optional(),
       }))
       .query(async ({ input }) => {
         const { cityId, geohash, precision, limit, minDate } = input;
         const prefix = geohash.slice(0, precision);
         const info = getCityShardInfo(cityId);
-        const pool = getPoolByCityId(cityId);
 
-        let where = "WHERE city_id = ? AND geohash LIKE ? AND is_anomaly = 0";
+        let where = "WHERE city_id = ? AND geohash LIKE ?";
         const params: any[] = [cityId, `${prefix}%`];
         if (minDate) { where += " AND deal_date >= ?"; params.push(minDate); }
 
-        const [rows] = await pool.execute(
+        const rows = await queryShardTable(
+          cityId, "cases",
           `SELECT id, address, area, floor, total_floors, unit_price, total_price,
-                  deal_date, community, rooms, decoration, build_year,
-                  latitude, longitude, geohash
-           FROM ${info.tableCases} ${where}
+                  deal_date, community, rooms, latitude, longitude, geohash
+           FROM {{TABLE}} ${where}
            ORDER BY deal_date DESC LIMIT ?`,
           [...params, limit]
-        ) as any;
+        );
         return { items: rows, prefix, shardInfo: info };
       }),
 
-    // ─── 批量写入案例（爬虫数据入库） ────────────────────────────
+    // 批量写入案例（爬虫数据入库）
     batchInsert: protectedProcedure
       .input(z.object({
         cityId: z.number(),
@@ -308,12 +331,10 @@ export const shardDirectoryRouter = router({
           dealDate:        z.string().optional(),
           community:       z.string().optional(),
           rooms:           z.string().optional(),
-          decoration:      z.string().optional(),
           buildYear:       z.number().optional(),
           latitude:        z.number().optional(),
           longitude:       z.number().optional(),
           source:          z.string().optional(),
-          sourceId:        z.string().optional(),
           transactionType: z.enum(["sale", "rent"]).default("sale"),
         })),
       }))
@@ -321,7 +342,6 @@ export const shardDirectoryRouter = router({
         const { cityId, cases } = input;
         if (cases.length === 0) return { inserted: 0 };
         const info = getCityShardInfo(cityId);
-        const pool = getPoolByCityId(cityId);
 
         let inserted = 0;
         for (const c of cases) {
@@ -330,19 +350,19 @@ export const shardDirectoryRouter = router({
             geohash = encodeGeoHash(c.latitude, c.longitude, 8);
           }
           try {
-            await pool.execute(
-              `INSERT IGNORE INTO ${info.tableCases}
+            await executeShardTable(
+              cityId, "cases",
+              `INSERT IGNORE INTO {{TABLE}}
                (city_id, address, area, floor, total_floors, unit_price, total_price,
-                deal_date, community, rooms, decoration, build_year,
-                latitude, longitude, geohash, source, source_id, transaction_type)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                deal_date, community, rooms, build_year,
+                latitude, longitude, geohash, source, transaction_type)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                 cityId, c.address ?? null, c.area ?? null, c.floor ?? null,
                 c.totalFloors ?? null, c.unitPrice ?? null, c.totalPrice ?? null,
                 c.dealDate ?? null, c.community ?? null, c.rooms ?? null,
-                c.decoration ?? null, c.buildYear ?? null,
-                c.latitude ?? null, c.longitude ?? null, geohash,
-                c.source ?? null, c.sourceId ?? null, c.transactionType,
+                c.buildYear ?? null, c.latitude ?? null, c.longitude ?? null,
+                geohash, c.source ?? null, c.transactionType,
               ]
             );
             inserted++;
@@ -352,61 +372,30 @@ export const shardDirectoryRouter = router({
       }),
   }),
 
-  // ─── 全局统计（跨所有分库） ────────────────────────────────────
+  // ─── 全局统计（跨所有分表聚合） ──────────────────────────────
   globalStats: protectedProcedure.query(async () => {
-    const regions: ShardRegion[] = ["south", "east", "north", "central", "west"];
-    const stats: Record<string, any> = {};
+    const tableTypes = ["estates", "buildings", "units", "cases"] as const;
+    const stats: Record<string, number> = {};
 
-    await Promise.all(regions.map(async (region) => {
-      try {
-        const pool = getShardPool(region);
-        const tables = ["estates", "buildings", "units", "cases"];
-        const regionStats: Record<string, number> = {};
-        for (const table of tables) {
-          let total = 0;
-          for (let i = 0; i < 4; i++) {
-            try {
-              const [[row]] = await pool.execute(
-                `SELECT COUNT(*) as cnt FROM ${table}_${i}`
-              ) as any;
-              total += Number(row.cnt);
-            } catch { /* 表不存在时跳过 */ }
-          }
-          regionStats[table] = total;
-        }
-        stats[region] = regionStats;
-      } catch {
-        stats[region] = { error: "connection failed" };
-      }
-    }));
+    await Promise.all(
+      tableTypes.map(async (tableType) => {
+        const rows = await queryAllShards(
+          tableType,
+          `SELECT COUNT(*) as cnt FROM {{TABLE}}`
+        );
+        stats[tableType] = rows.reduce((sum, r) => sum + Number(r.cnt ?? 0), 0);
+      })
+    );
 
-    return stats;
+    // 同时查询城市统计
+    const [cityRows] = await (db as any).execute(
+      `SELECT region, region_name, COUNT(*) as city_count FROM cities WHERE is_active=1 GROUP BY region, region_name`
+    ) as any;
+
+    return {
+      tables: stats,
+      shardCount: SHARD_COUNT,
+      cities: cityRows,
+    };
   }),
 });
-
-// ─── GeoHash 编码工具函数 ──────────────────────────────────────
-const BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
-
-function encodeGeoHash(lat: number, lng: number, precision: number = 8): string {
-  let idx = 0, bit = 0, evenBit = true;
-  let latMin = -90, latMax = 90, lngMin = -180, lngMax = 180;
-  let hash = "";
-
-  while (hash.length < precision) {
-    if (evenBit) {
-      const lngMid = (lngMin + lngMax) / 2;
-      if (lng >= lngMid) { idx = idx * 2 + 1; lngMin = lngMid; }
-      else { idx = idx * 2; lngMax = lngMid; }
-    } else {
-      const latMid = (latMin + latMax) / 2;
-      if (lat >= latMid) { idx = idx * 2 + 1; latMin = latMid; }
-      else { idx = idx * 2; latMax = latMid; }
-    }
-    evenBit = !evenBit;
-    if (++bit === 5) {
-      hash += BASE32[idx];
-      bit = 0; idx = 0;
-    }
-  }
-  return hash;
-}
