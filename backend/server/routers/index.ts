@@ -29,6 +29,7 @@ import { brandingRouter } from './branding';
 import { exportsRouter } from './exports';
 import { brokerRouter } from './broker';
 import { platformAdminRouter } from './platform-admin';
+import { shardDirectoryRouter } from './shard-directory';
 
 export const appRouter = router({
   auth: authRouter,
@@ -70,6 +71,8 @@ export const appRouter = router({
   broker: brokerRouter,
   // 平台超管（独立于SaaS租户）
   platformAdmin: platformAdminRouter,
+  // 分库分表：楼盘/楼栋/案例（按 city_id 分片）
+  shardDirectory: shardDirectoryRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -117,7 +117,7 @@ app.get("/health", async (req, res) => {
   } catch {
     checks.redis = 'error';
   }
-  // 检查 DB
+  // 检查主库 DB
   try {
     const { pool } = await import('./lib/db');
     const conn = await pool.getConnection();
@@ -126,6 +126,15 @@ app.get("/health", async (req, res) => {
     checks.database = 'ok';
   } catch {
     checks.database = 'error';
+  }
+  // 检查分库健康状态
+  try {
+    const { checkShardHealth } = await import('./lib/shard-db');
+    const shardHealth = await checkShardHealth();
+    const shardOk = Object.values(shardHealth).every(v => v === 'ok');
+    checks.shards = shardOk ? 'ok' : JSON.stringify(shardHealth);
+  } catch {
+    checks.shards = 'error';
   }
   const allOk = Object.values(checks).every(v => v === 'ok');
   res.status(allOk ? 200 : 503).json({
