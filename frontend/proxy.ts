@@ -111,7 +111,7 @@ export function proxy(request: NextRequest) {
       // 注入城市上下文到请求头（供 Server Components 读取）
       response.headers.set("X-City-Pinyin", cityPinyin);
       response.headers.set("X-City-Id",     String(cityInfo.id));
-      response.headers.set("X-City-Name",   cityInfo.name);
+      response.headers.set("X-City-Name",   encodeURIComponent(cityInfo.name));  // HTTP Header 不支持中文，需 URL 编码
       response.headers.set("X-City-Region", cityInfo.region);
       response.headers.set("X-City-Tier",   String(cityInfo.tier));
       // 写入 Cookie（30 天有效，供 Client Components 读取）
@@ -132,7 +132,7 @@ export function proxy(request: NextRequest) {
       const response = NextResponse.next();
       response.headers.set("X-City-Pinyin", cookiePinyin);
       response.headers.set("X-City-Id",     String(cityInfo.id));
-      response.headers.set("X-City-Name",   cityInfo.name);
+      response.headers.set("X-City-Name",   encodeURIComponent(cityInfo.name));  // HTTP Header 不支持中文，需 URL 编码
       response.headers.set("X-City-Region", cityInfo.region);
       // 继续执行权限守卫逻辑（不提前 return）
       // 注意：此处需要继续走下面的权限守卫，所以不 return response
