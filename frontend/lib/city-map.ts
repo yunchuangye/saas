@@ -256,3 +256,88 @@ export const MAJOR_CITIES = ALL_CITIES.filter(c => c.tier <= 3);
 export const DEFAULT_CITY: CityData = CITY_BY_PINYIN["shenzhen"];
 
 export type CityPinyin = string;
+
+// ─── 城市缩写映射（子域名缩写 → 全拼）─────────────────────────
+// 用于 SEO：sz.gujia.app → 深圳，bj.gujia.app → 北京 等
+export const CITY_ABBR_MAP: Record<string, string> = {
+  // 一线城市
+  "bj": "beijing",
+  "sh": "shanghai",
+  "gz": "guangzhou",
+  "sz": "shenzhen",
+  // 直辖市
+  "tj": "tianjin",
+  "cq": "chongqing",
+  // 新一线城市
+  "cd": "chengdu",
+  "hz": "hangzhou",
+  "wh": "wuhan",
+  "xa": "xian",
+  "xian": "xian",
+  "nj": "nanjing",
+  "sy": "shenyang",
+  "qd": "qingdao",
+  "zz": "zhengzhou",
+  "cs": "changsha",
+  "km": "kunming",
+  "hf": "hefei",
+  "fz": "fuzhou",
+  "xm": "xiamen",
+  "nn": "nanning",
+  "hrb": "harbin",
+  "sjz": "shijiazhuang",
+  "nb": "ningbo",
+  "dl": "dalian",
+  "jn": "jinan",
+  "cc": "changchun",
+  "nc": "nanchang",
+  "gy": "guiyang",
+  "lz": "lanzhou",
+  "hk": "haikou",
+  "wlmq": "urumqi",
+  // 二三线城市常用缩写
+  "ts": "tangshan",
+  "wx": "wuxi",
+  "nt": "nantong",
+  "yz": "yangzhou",
+  "zj": "zhenjiang",
+  "cz": "changzhou",
+  "wz": "wenzhou",
+  "jx": "jiaxing",
+  "jh": "jinhua",
+  "qt": "quanzhou",
+  "zs": "zhongshan",
+  "dg": "dongguan",
+  "fs": "foshan",
+  "zh": "zhuhai",
+  "st": "shantou",
+  "ty": "taiyuan",
+  "hhht": "hohhot",
+  "bd": "baoding",
+  "hd": "handan",
+  "lf": "langfang",
+  "yt": "yantai",
+  "wf": "weifang",
+  "zb": "zibo",
+  "jz": "jinzhou",
+  "as": "anshan",
+  "dq": "daqing",
+  "wlmq": "urumqi",
+  "yc": "yinchuan",
+  "xn": "xining",
+  "ls": "lhasa",
+};
+
+/**
+ * 根据子域名（缩写或全拼）查找城市数据
+ * 优先匹配缩写表，再匹配全拼
+ */
+export function getCityBySubdomain(subdomain: string): CityData | null {
+  if (!subdomain) return null;
+  const lower = subdomain.toLowerCase();
+  // 先查缩写映射
+  const pinyin = CITY_ABBR_MAP[lower];
+  if (pinyin) return CITY_BY_PINYIN[pinyin] || null;
+  // 再查全拼
+  return CITY_BY_PINYIN[lower] || null;
+}
