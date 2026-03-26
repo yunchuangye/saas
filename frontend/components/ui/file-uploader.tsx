@@ -125,7 +125,7 @@ export function FileUploader({
   // 获取后端地址
   const getApiBase = useCallback(() => {
     if (apiBase) return apiBase
-    return process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8721"
+    return process.env.NEXT_PUBLIC_BACKEND_URL || "https://api.gujia.app"
   }, [apiBase])
 
   // 上传单个文件

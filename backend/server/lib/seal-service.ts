@@ -145,7 +145,7 @@ export async function signPDF(
   reportId: number,
   reportNo: string,
   config: SealConfig,
-  frontendUrl: string = process.env.FRONTEND_URL || "http://localhost:8720"
+  frontendUrl: string = process.env.FRONTEND_URL || "https://gujia.app"
 ): Promise<SignResult> {
   const verifyCode = generateVerifyCode();
   const timestamp = new Date().toISOString();

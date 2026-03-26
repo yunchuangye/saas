@@ -607,7 +607,7 @@ app.get('/api/exports/download/:taskNo/:filename', (req, res) => {
 
 // 启动服务
 app.listen(PORT, "0.0.0.0", async () => {
-  const backendPublicUrl = process.env.BACKEND_PUBLIC_URL || `http://localhost:${PORT}`;
+  const backendPublicUrl = process.env.BACKEND_PUBLIC_URL || "https://api.gujia.app";
   console.log(`\n🚀 gujia.app Backend running on port ${PORT}`);
   console.log(`🌐 Public URL: ${backendPublicUrl}`);
   console.log(`📡 tRPC API: ${backendPublicUrl}/api/trpc`);

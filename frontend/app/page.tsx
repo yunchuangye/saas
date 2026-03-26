@@ -17,10 +17,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 
-export const metadata = {
-  title: "GuJia.App - 一键免费估价 | 房产评估专业平台",
-  description: "免费获取房产精准估值，对接银行贷款和专业评估机构，让房产交易更简单",
-}
 
 // 左侧 AI 三大核心能力（显示为数字+单行描述）
 const aiStats = [

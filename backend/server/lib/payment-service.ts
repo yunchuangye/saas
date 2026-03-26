@@ -60,7 +60,7 @@ export async function createWechatOrder(opts: {
   if (IS_SANDBOX || !config) {
     return {
       qrCode: `weixin://wxpay/bizpayurl?pr=sandbox_${opts.orderNo}`,
-      payUrl: `${process.env.FRONTEND_URL || "http://localhost:8720"}/pay/sandbox?order=${opts.orderNo}&amount=${opts.amount}`,
+      payUrl: `${process.env.FRONTEND_URL || "https://gujia.app"}/pay/sandbox?order=${opts.orderNo}&amount=${opts.amount}`,
       orderNo: opts.orderNo,
     };
   }
@@ -140,7 +140,7 @@ export async function createAlipayOrder(opts: {
 
   if (IS_SANDBOX || !config) {
     return {
-      payUrl: `${process.env.FRONTEND_URL || "http://localhost:8720"}/pay/sandbox?order=${opts.orderNo}&amount=${opts.amount}&channel=alipay`,
+      payUrl: `${process.env.FRONTEND_URL || "https://gujia.app"}/pay/sandbox?order=${opts.orderNo}&amount=${opts.amount}&channel=alipay`,
       orderNo: opts.orderNo,
     };
   }

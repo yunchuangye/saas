@@ -471,7 +471,7 @@ export const authRouter = router({
       await redis.set(`pwd_reset:${token}`, String(user.id), 'EX', 3600);
 
       // 实际生产中应发送邮件，这里返回 token 供前端展示
-      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8720'}/reset-password?token=${token}`;
+      const resetUrl = `${process.env.FRONTEND_URL || 'https://gujia.app'}/reset-password?token=${token}`;
 
       return {
         success: true,

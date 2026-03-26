@@ -11,7 +11,7 @@
  *   因为 next.config.mjs 在 .env.local 加载之前执行，会导致读取到 undefined。
  */
 
-const DEFAULT_BACKEND_URL = "http://localhost:8721";
+const DEFAULT_BACKEND_URL = "https://api.gujia.app";
 
 /**
  * 获取后端地址（同步，适用于客户端和服务端）

@@ -391,7 +391,7 @@ export default function CustomerApplyPage() {
       formData.append("file", file)
       const tokenMatch = document.cookie.match(/(?:^|;\s*)token=([^;]+)/)
       const token = tokenMatch ? tokenMatch[1] : ""
-      const backendUrl = BACKEND_URL || "http://localhost:8721"
+      const backendUrl = BACKEND_URL || "https://api.gujia.app"
       const res = await fetch(`${backendUrl}/api/upload`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},

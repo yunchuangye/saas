@@ -78,7 +78,7 @@ async function savePDFBuffer(buffer: Buffer, filename: string): Promise<string> 
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
   const filePath = path.join(uploadDir, filename);
   fs.writeFileSync(filePath, buffer);
-  const backendUrl = process.env.BACKEND_PUBLIC_URL || "http://localhost:8721";
+  const backendUrl = process.env.BACKEND_PUBLIC_URL || "https://api.gujia.app";
   return `${backendUrl}/uploads/${filename}`;
 }
 
@@ -426,7 +426,7 @@ export const sealsRouter = router({
         }
 
         // 执行签章
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8720";
+        const frontendUrl = process.env.FRONTEND_URL || "https://gujia.app";
         const signResult = await signPDF(
           pdfBuffer,
           app.report_id,

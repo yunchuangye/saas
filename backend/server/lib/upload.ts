@@ -97,7 +97,7 @@ async function saveToLocal(file: Express.Multer.File): Promise<UploadResult> {
 
   fs.writeFileSync(filePath, file.buffer);
 
-  const backendUrl = process.env.BACKEND_PUBLIC_URL || "http://localhost:8721";
+  const backendUrl = process.env.BACKEND_PUBLIC_URL || "https://api.gujia.app";
   const url = `${backendUrl}/uploads/${storedName}`;
 
   return {

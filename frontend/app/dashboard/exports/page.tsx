@@ -60,7 +60,7 @@ export default function ExportsPage() {
 
   const handleDownload = (task: any) => {
     if (!task.file_url) return;
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8721";
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://api.gujia.app";
     window.open(`${backendUrl}${task.file_url}`, "_blank");
   };
 

@@ -31,7 +31,7 @@ export function useSSENotifications(onMessage?: SSEHandler) {
       esRef.current = null;
     }
 
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8721";
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://api.gujia.app";
     const url = `${backendUrl}/api/sse/notifications`;
 
     try {
