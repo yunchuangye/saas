@@ -8,16 +8,22 @@ dist/
 out/
 build/
 
-# Environment files
+# TypeScript build info
+*.tsbuildinfo
+
+# Environment files (sensitive, do not commit)
 .env
 .env.local
 .env.production
 .env.development
+.env.production.local
+.env.development.local
 
 # Logs
 *.log
 npm-debug.log*
 pnpm-debug.log*
+logs/*.log
 
 # OS
 .DS_Store
@@ -34,9 +40,28 @@ Thumbs.db
 # Test coverage
 coverage/
 
-# Local dev logs and pid files
-logs/
+# PID files
 *.pid
+
+# 上传文件（运行时产物，不提交）
+backend/uploads/*
+!backend/uploads/.gitkeep
+!backend/uploads/exports/
+!backend/uploads/exports/.gitkeep
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python 虚拟环境
+venv/
+.venv/
+env/
+
+# Python 采集数据（运行时产物）
+scraper/data/
 
 # 数据库大文件（已通过 Git LFS 追踪，不需单独忽略）
 # 下列未压缩的 .sql 文件不提交
