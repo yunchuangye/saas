@@ -136,30 +136,37 @@ export const paymentRouter = router({
     .input(z.object({
       page: z.number().default(1),
       pageSize: z.number().default(20),
-      status: z.string().optional(),
-      channel: z.string().optional(),
+      // 安全修复：使用严格枚举替代 z.string()，杜绝任意字符串注入
+      status: z.enum(["pending", "paid", "failed", "refunded", "cancelled"]).optional(),
+      channel: z.enum(["wechat", "alipay", "sandbox"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
       const offset = (input.page - 1) * input.pageSize;
-      const where = [
-        input.status ? `po.status = '${input.status}'` : null,
-        input.channel ? `po.channel = '${input.channel}'` : null,
-      ].filter(Boolean).join(" AND ");
-      const whereClause = where ? `WHERE ${where}` : "";
+
+      // 安全修复：使用 Drizzle sql 参数化查询，完全消除字符串拼接注入风险
+      // 通过条件片段组合，所有用户输入均作为绑定参数传递
+      const statusCondition = input.status
+        ? sql`AND po.status = ${input.status}`
+        : sql``;
+      const channelCondition = input.channel
+        ? sql`AND po.channel = ${input.channel}`
+        : sql``;
 
       const items = await ctx.db.execute(
-        sql.raw(`SELECT po.*, sp.name as plan_name, o.name as org_name, u.display_name as user_name
+        sql`SELECT po.*, sp.name as plan_name, o.name as org_name, u.display_name as user_name
           FROM payment_orders po
           LEFT JOIN subscription_plans sp ON po.plan_code = sp.code
           LEFT JOIN organizations o ON po.org_id = o.id
           LEFT JOIN users u ON po.user_id = u.id
-          ${whereClause}
-          ORDER BY po.created_at DESC LIMIT ${input.pageSize} OFFSET ${offset}`)
+          WHERE 1=1 ${statusCondition} ${channelCondition}
+          ORDER BY po.created_at DESC LIMIT ${input.pageSize} OFFSET ${offset}`
       ) as any[];
 
-      const [{ total }] = await ctx.db.execute(
-        sql.raw(`SELECT COUNT(*) as total FROM payment_orders po ${whereClause}`)
+      const countResult = await ctx.db.execute(
+        sql`SELECT COUNT(*) as total FROM payment_orders po
+          WHERE 1=1 ${statusCondition} ${channelCondition}`
       ) as any[];
+      const total = (countResult[0] as any)?.total ?? (countResult as any[])[0]?.total ?? 0;
 
       // 收入统计
       const [stats] = await ctx.db.execute(sql`

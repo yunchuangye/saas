@@ -188,17 +188,18 @@ async function exportToPdf(opts: {
 // 各类型导出逻辑
 // ============================================================
 export async function exportProjects(filters: any, format: "excel" | "pdf" | "csv", orgId?: number): Promise<{ filePath: string; rowCount: number }> {
-  const whereClause = orgId ? `WHERE p.org_id = ${orgId}` : "";
-  const rows = await db.execute(sql.raw(`
-    SELECT p.id, p.project_no, p.title, p.status, p.property_type, p.city, p.district,
+  // 安全修复：使用 Drizzle 参数化条件片段，消除 orgId 数字拼接风险
+  const orgCondition = orgId ? sql`WHERE p.org_id = ${orgId}` : sql``;
+  const rows = await db.execute(
+    sql`SELECT p.id, p.project_no, p.title, p.status, p.property_type, p.city, p.district,
       p.total_area, p.budget_min, p.budget_max, p.deadline, p.created_at,
       o.name as org_name, u.name as creator_name
     FROM projects p
     LEFT JOIN organizations o ON p.org_id = o.id
     LEFT JOIN users u ON p.created_by = u.id
-    ${whereClause}
-    ORDER BY p.created_at DESC LIMIT 5000
-  `)) as any[];
+    ${orgCondition}
+    ORDER BY p.created_at DESC LIMIT 5000`
+  ) as any[];
 
   const statusMap: Record<string, string> = {
     draft: "草稿", published: "已发布", in_progress: "进行中",
@@ -254,9 +255,10 @@ export async function exportProjects(filters: any, format: "excel" | "pdf" | "cs
 }
 
 export async function exportReports(filters: any, format: "excel" | "pdf" | "csv", orgId?: number): Promise<{ filePath: string; rowCount: number }> {
-  const whereClause = orgId ? `WHERE r.org_id = ${orgId}` : "";
-  const rows = await db.execute(sql.raw(`
-    SELECT r.id, r.report_no, r.title, r.status, r.valuation_method,
+  // 安全修复：使用 Drizzle 参数化条件片段，消除 orgId 数字拼接风险
+  const orgCondition = orgId ? sql`WHERE r.org_id = ${orgId}` : sql``;
+  const rows = await db.execute(
+    sql`SELECT r.id, r.report_no, r.title, r.status, r.valuation_method,
       r.estimated_value, r.value_per_sqm, r.total_area,
       r.created_at, r.submitted_at, r.approved_at,
       u.name as author_name, o.name as org_name, p.title as project_title
@@ -264,9 +266,9 @@ export async function exportReports(filters: any, format: "excel" | "pdf" | "csv
     LEFT JOIN users u ON r.author_id = u.id
     LEFT JOIN organizations o ON r.org_id = o.id
     LEFT JOIN projects p ON r.project_id = p.id
-    ${whereClause}
-    ORDER BY r.created_at DESC LIMIT 5000
-  `)) as any[];
+    ${orgCondition}
+    ORDER BY r.created_at DESC LIMIT 5000`
+  ) as any[];
 
   const statusMap: Record<string, string> = {
     draft: "草稿", submitted: "待审核", approved: "已通过",
@@ -327,15 +329,16 @@ export async function exportReports(filters: any, format: "excel" | "pdf" | "csv
 }
 
 export async function exportBilling(filters: any, format: "excel" | "pdf" | "csv", orgId?: number): Promise<{ filePath: string; rowCount: number }> {
-  const whereClause = orgId ? `WHERE br.org_id = ${orgId}` : "";
-  const rows = await db.execute(sql.raw(`
-    SELECT br.id, br.type, br.description, br.amount, br.status, br.created_at,
+  // 安全修复：使用 Drizzle 参数化条件片段，消除 orgId 数字拼接风险
+  const orgCondition = orgId ? sql`WHERE br.org_id = ${orgId}` : sql``;
+  const rows = await db.execute(
+    sql`SELECT br.id, br.type, br.description, br.amount, br.status, br.created_at,
       o.name as org_name
     FROM billing_records br
     LEFT JOIN organizations o ON br.org_id = o.id
-    ${whereClause}
-    ORDER BY br.created_at DESC LIMIT 5000
-  `)) as any[];
+    ${orgCondition}
+    ORDER BY br.created_at DESC LIMIT 5000`
+  ) as any[];
 
   const formatted = rows.map(r => ({
     ...r,
@@ -381,15 +384,16 @@ export { EXPORT_DIR };
  * 导出交易案例数据
  */
 export async function exportCases(filters: any, format: "excel" | "pdf" | "csv", orgId?: number): Promise<{ filePath: string; rowCount: number }> {
-  const rows = await db.execute(sql.raw(`
-    SELECT c.id, c.address, c.area, c.floor, c.total_floors, c.unit_price, c.total_price,
+  // 安全修复：改用参数化查询，消除 sql.raw 风险
+  const rows = await db.execute(
+    sql`SELECT c.id, c.address, c.area, c.floor, c.total_floors, c.unit_price, c.total_price,
       c.transaction_date, c.property_type, c.source,
       e.name as estate_name, ci.name as city_name
     FROM cases c
     LEFT JOIN estates e ON c.estate_id = e.id
     LEFT JOIN cities ci ON c.city_id = ci.id
-    ORDER BY c.transaction_date DESC LIMIT 10000
-  `)) as any[];
+    ORDER BY c.transaction_date DESC LIMIT 10000`
+  ) as any[];
 
   const formatted = rows.map(r => ({
     ...r,
@@ -448,15 +452,19 @@ export async function exportFull(filters: any, orgId?: number): Promise<{ filePa
   let totalRows = 0;
 
   // Sheet 1: 项目
-  const projectRows = await db.execute(sql.raw(`
-    SELECT p.id, p.project_no, p.title, p.status, p.property_address, p.area,
+  // 安全修复：使用参数化条件，消除 orgId 数字内联拼接风险
+  const projectOrgCondition = orgId
+    ? sql`WHERE p.user_id IN (SELECT id FROM users WHERE org_id = ${orgId}) OR p.awarded_org_id = ${orgId}`
+    : sql``;
+  const projectRows = await db.execute(
+    sql`SELECT p.id, p.project_no, p.title, p.status, p.property_address, p.area,
       p.purpose, p.created_at, u.display_name as customer_name, o.name as org_name
     FROM projects p
     LEFT JOIN users u ON p.user_id = u.id
     LEFT JOIN organizations o ON p.awarded_org_id = o.id
-    ${orgId ? `WHERE p.user_id IN (SELECT id FROM users WHERE org_id = ${orgId}) OR p.awarded_org_id = ${orgId}` : ''}
-    ORDER BY p.created_at DESC LIMIT 5000
-  `)) as any[];
+    ${projectOrgCondition}
+    ORDER BY p.created_at DESC LIMIT 5000`
+  ) as any[];
 
   const ws1 = wb.addWorksheet("项目列表");
   const pHeaders = ["ID", "项目编号", "项目名称", "状态", "房产地址", "面积(㎡)", "评估目的", "创建时间", "客户", "承接机构"];
@@ -466,15 +474,17 @@ export async function exportFull(filters: any, orgId?: number): Promise<{ filePa
   totalRows += projectRows.length;
 
   // Sheet 2: 报告
-  const reportRows = await db.execute(sql.raw(`
-    SELECT r.id, r.report_no, r.title, r.status, r.estimated_value, r.created_at,
+  // 安全修复：使用参数化条件，消除 orgId 数字内联拼接风险
+  const reportOrgCondition = orgId ? sql`WHERE r.org_id = ${orgId}` : sql``;
+  const reportRows = await db.execute(
+    sql`SELECT r.id, r.report_no, r.title, r.status, r.estimated_value, r.created_at,
       u.display_name as author_name, o.name as org_name
     FROM reports r
     LEFT JOIN users u ON r.author_id = u.id
     LEFT JOIN organizations o ON r.org_id = o.id
-    ${orgId ? `WHERE r.org_id = ${orgId}` : ''}
-    ORDER BY r.created_at DESC LIMIT 5000
-  `)) as any[];
+    ${reportOrgCondition}
+    ORDER BY r.created_at DESC LIMIT 5000`
+  ) as any[];
 
   const ws2 = wb.addWorksheet("报告列表");
   const rHeaders = ["ID", "报告编号", "报告名称", "状态", "估价结果(元)", "创建时间", "作者", "机构"];

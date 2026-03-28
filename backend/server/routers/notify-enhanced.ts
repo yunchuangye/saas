@@ -114,9 +114,15 @@ export const notifyEnhancedRouter = router({
       sendEmail: z.boolean().default(false),
     }))
     .mutation(async ({ ctx, input }) => {
-      // 查询目标用户
-      const roleFilter = input.targetRole !== "all" ? sql`WHERE role = ${input.targetRole}` : sql``;
-      const users = await ctx.db.execute(sql.raw(`SELECT id FROM users ${input.targetRole !== "all" ? `WHERE role = '${input.targetRole}'` : ""}`)) as any[];
+      // 安全修复：删除 sql.raw(字符串拼接)，改用 Drizzle 参数化条件片段
+      // targetRole 已经由 z.enum() 校验，但此处仍使用参数绑定确保安全
+      const roleCondition = input.targetRole !== "all"
+        ? sql`WHERE role = ${input.targetRole}`
+        : sql``;
+
+      const users = await ctx.db.execute(
+        sql`SELECT id FROM users ${roleCondition}`
+      ) as any[];
 
       let count = 0;
       for (const user of users) {

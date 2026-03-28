@@ -7,6 +7,36 @@ import { router, protectedProcedure, publicProcedure } from "../lib/trpc";
 import { sql } from "drizzle-orm";
 import crypto from "crypto";
 
+// ============================================================
+// 安全白名单映射：将枚举值映射为合法的列名字符串
+// 避免 sql.raw(userInput) 导致的 SQL 注入风险
+// ============================================================
+
+/** feature 枚举 → subscription_plans 表中对应的列名 */
+const FEATURE_COLUMN_MAP: Record<string, string> = {
+  three_level_review: "feature_three_level_review",
+  work_sheets:        "feature_work_sheets",
+  batch_valuation:    "feature_batch_valuation",
+  api_access:         "feature_api_access",
+  white_label:        "feature_white_label",
+  priority_support:   "feature_priority_support",
+};
+
+/** quota type 枚举 → org_subscriptions / subscription_plans 表中对应的列名 */
+const QUOTA_USED_COLUMN_MAP: Record<string, string> = {
+  projects:  "used_projects",
+  reports:   "used_reports",
+  avm_calls: "used_avm_calls",
+  api_calls: "used_api_calls",
+};
+
+const QUOTA_LIMIT_COLUMN_MAP: Record<string, string> = {
+  projects:  "quota_projects",
+  reports:   "quota_reports",
+  avm_calls: "quota_avm_calls",
+  api_calls: "quota_api_calls",
+};
+
 export const billingRouter = router({
   /**
    * 获取所有订阅计划（公开）
@@ -58,8 +88,13 @@ export const billingRouter = router({
       const orgId = ctx.user.orgId;
       if (!orgId) return { allowed: false, reason: "未加入机构" };
 
+      // 安全修复：通过白名单映射获取列名，杜绝 sql.raw(userInput) 注入
+      const featureCol = FEATURE_COLUMN_MAP[input.feature];
+      if (!featureCol) return { allowed: false, reason: "未知功能项" };
+
+      // 使用 sql.raw() 时列名已经过白名单校验，不存在注入风险
       const result = await ctx.db.execute(
-        sql`SELECT sp.feature_${sql.raw(input.feature)} as allowed
+        sql`SELECT sp.${sql.raw(featureCol)} as allowed
         FROM org_subscriptions os
         JOIN subscription_plans sp ON os.plan_id = sp.id
         WHERE os.org_id = ${orgId} AND os.status IN ('active','trial')
@@ -82,10 +117,15 @@ export const billingRouter = router({
       const orgId = ctx.user.orgId;
       if (!orgId) return { allowed: false, used: 0, limit: 0, remaining: 0 };
 
+      // 安全修复：通过白名单映射获取列名，杜绝 sql.raw(userInput) 注入
+      const usedCol  = QUOTA_USED_COLUMN_MAP[input.type];
+      const limitCol = QUOTA_LIMIT_COLUMN_MAP[input.type];
+      if (!usedCol || !limitCol) return { allowed: false, used: 0, limit: 0, remaining: 0 };
+
       const result = await ctx.db.execute(
         sql`SELECT 
-          os.used_${sql.raw(input.type)} as used,
-          sp.quota_${sql.raw(input.type)} as quota_limit
+          os.${sql.raw(usedCol)} as used,
+          sp.${sql.raw(limitCol)} as quota_limit
         FROM org_subscriptions os
         JOIN subscription_plans sp ON os.plan_id = sp.id
         WHERE os.org_id = ${orgId} AND os.status IN ('active','trial')
@@ -116,9 +156,13 @@ export const billingRouter = router({
       const orgId = ctx.user.orgId;
       if (!orgId) return { success: false };
 
+      // 安全修复：通过白名单映射获取列名，杜绝 sql.raw(userInput) 注入
+      const usedColForUpdate = QUOTA_USED_COLUMN_MAP[input.type];
+      if (!usedColForUpdate) return { success: false };
+
       await ctx.db.execute(
         sql`UPDATE org_subscriptions SET
-          used_${sql.raw(input.type)} = used_${sql.raw(input.type)} + ${input.amount},
+          ${sql.raw(usedColForUpdate)} = ${sql.raw(usedColForUpdate)} + ${input.amount},
           updated_at = NOW()
         WHERE org_id = ${orgId} AND status IN ('active','trial')`
       );
